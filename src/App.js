@@ -22,14 +22,133 @@ function App() {
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
 
+  // Camera/view state for pan and zoom
+  const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
+  const [zoomLevel, setZoomLevel] = useState(1.0); // Zoom level (0.5 to 2.0)
+  const [isDragging, setIsDragging] = useState(false); // Is user dragging the view
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Drag start position
+
   const hexSize = 50;
   const gridRadius = 6; // Creates a hexagon with radius 6
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 2.0;
 
   // Helper function to compare hex positions (works with HexCoord objects or plain objects)
   const hexEquals = (pos1, pos2) => {
     if (!pos1 || !pos2) return false;
     return pos1.q === pos2.q && pos1.r === pos2.r;
   };
+
+  // Center camera on queen
+  const centerOnQueen = () => {
+    const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+    const queen = Object.values(gameState.ants).find(
+      ant => ant.type === 'queen' && ant.owner === currentPlayerId
+    );
+
+    if (queen) {
+      const queenPixel = hexToPixel(queen.position, hexSize);
+      // Center on queen (account for the SVG viewport center)
+      setCameraOffset({
+        x: -queenPixel.x,
+        y: -queenPixel.y
+      });
+    }
+  };
+
+  // Auto-center on queen when turn starts (or game mode changes)
+  useEffect(() => {
+    if (gameMode && gameState) {
+      centerOnQueen();
+    }
+  }, [gameState.turn, gameMode?.playerRole]);
+
+  // Handle mouse down for panning (middle mouse button or ctrl+left click)
+  const handleMouseDown = (e) => {
+    // Middle mouse button or Ctrl+Left click for panning
+    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - cameraOffset.x, y: e.clientY - cameraOffset.y });
+    }
+  };
+
+  // Handle mouse move for panning
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setCameraOffset({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  // Handle mouse up for panning
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Handle mouse wheel for zooming
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel + delta));
+    setZoomLevel(newZoom);
+  };
+
+  // Keyboard controls for panning
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const panSpeed = 50;
+      switch(e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          setCameraOffset(prev => ({ x: prev.x, y: prev.y + panSpeed }));
+          e.preventDefault();
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          setCameraOffset(prev => ({ x: prev.x, y: prev.y - panSpeed }));
+          e.preventDefault();
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          setCameraOffset(prev => ({ x: prev.x + panSpeed, y: prev.y }));
+          e.preventDefault();
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          setCameraOffset(prev => ({ x: prev.x - panSpeed, y: prev.y }));
+          e.preventDefault();
+          break;
+        case '+':
+        case '=':
+          setZoomLevel(prev => Math.min(MAX_ZOOM, prev + 0.1));
+          e.preventDefault();
+          break;
+        case '-':
+        case '_':
+          setZoomLevel(prev => Math.max(MIN_ZOOM, prev - 0.1));
+          e.preventDefault();
+          break;
+        case 'Home':
+        case 'c':
+        case 'C':
+          centerOnQueen();
+          e.preventDefault();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState, gameMode]);
 
   // Function to show damage number
   const showDamageNumber = (damage, position) => {
@@ -1030,12 +1149,8 @@ function App() {
           useBirthingPoolPattern = false;
         }
 
-        // Calculate center offset based on grid size
-        const centerOffsetX = 600;
-        const centerOffsetY = 600;
-
         hexagons.push(
-          <g key={`${q},${r}`} transform={`translate(${x + centerOffsetX}, ${y + centerOffsetY})`}>
+          <g key={`${q},${r}`} transform={`translate(${x}, ${y})`}>
             <polygon
               points="50,0 25,-43 -25,-43 -50,0 -25,43 25,43"
               fill={fillColor}
@@ -1366,22 +1481,22 @@ function App() {
                       }}
                       disabled={!affordable || !isMyTurn()}
                       style={{
-                        padding: '10px',
-                        fontSize: '13px',
+                        padding: '12px',
+                        fontSize: '15px',
                         backgroundColor: affordable ? '#4CAF50' : '#ccc',
                         color: affordable ? 'white' : '#666',
                         border: 'none',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      <div style={{ fontWeight: 'bold' }}>{ant.icon} {ant.name}</div>
-                      <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{ant.icon} {ant.name}</div>
+                      <div style={{ fontSize: '13px', marginTop: '5px' }}>
                         Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
                       </div>
-                      <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
+                      <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.8 }}>
                         {ant.description}
                       </div>
                     </button>
@@ -1400,21 +1515,29 @@ function App() {
 
         {/* Game Board */}
         <div style={{ flex: '0 0 auto' }}>
-          <svg width="1200" height="1200" style={{ border: '2px solid #333', backgroundColor: '#fff' }}>
-            {renderHexGrid()}
+          <svg
+            width="1200"
+            height="1200"
+            style={{ border: '2px solid #333', backgroundColor: '#fff', cursor: isDragging ? 'grabbing' : 'default' }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          >
+            <g transform={`translate(600, 600) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
+              {renderHexGrid()}
 
             {/* Projectiles */}
             {projectiles.map(({ id, startPos, endPos, timestamp }) => {
               const start = hexToPixel(startPos, hexSize);
               const end = hexToPixel(endPos, hexSize);
-              const centerOffsetX = 600;
-              const centerOffsetY = 600;
               const elapsed = Date.now() - timestamp;
               const progress = Math.min(elapsed / 300, 1); // 0 to 1 over 0.3 seconds
 
               // Interpolate position
-              const x = start.x + (end.x - start.x) * progress + centerOffsetX;
-              const y = start.y + (end.y - start.y) * progress + centerOffsetY;
+              const x = start.x + (end.x - start.x) * progress;
+              const y = start.y + (end.y - start.y) * progress;
 
               return (
                 <g key={id} transform={`translate(${x}, ${y})`}>
@@ -1431,8 +1554,6 @@ function App() {
             {/* Damage Numbers */}
             {damageNumbers.map(({ id, damage, position, timestamp }) => {
               const { x, y } = hexToPixel(position, hexSize);
-              const centerOffsetX = 600;
-              const centerOffsetY = 600;
               const elapsed = Date.now() - timestamp;
               const progress = elapsed / 1000; // 0 to 1 over 1 second
 
@@ -1444,7 +1565,7 @@ function App() {
               return (
                 <g
                   key={id}
-                  transform={`translate(${x + centerOffsetX}, ${y + centerOffsetY + offsetY})`}
+                  transform={`translate(${x}, ${y + offsetY})`}
                   style={{ pointerEvents: 'none' }}
                 >
                   <text
@@ -1467,8 +1588,6 @@ function App() {
             {/* Resource Gain Numbers */}
             {resourceGainNumbers.map(({ id, amount, type, position, timestamp }) => {
               const { x, y } = hexToPixel(position, hexSize);
-              const centerOffsetX = 600;
-              const centerOffsetY = 600;
               const elapsed = Date.now() - timestamp;
               const progress = elapsed / 1000; // 0 to 1 over 1 second
 
@@ -1483,7 +1602,7 @@ function App() {
               return (
                 <g
                   key={id}
-                  transform={`translate(${x + centerOffsetX}, ${y + centerOffsetY + offsetY})`}
+                  transform={`translate(${x}, ${y + offsetY})`}
                   style={{ pointerEvents: 'none' }}
                 >
                   <text
@@ -1502,6 +1621,7 @@ function App() {
                 </g>
               );
             })}
+            </g>
           </svg>
         </div>
 
@@ -1553,24 +1673,24 @@ function App() {
                       }}
                       disabled={!affordable || !isMyTurn()}
                       style={{
-                        padding: '10px',
-                        fontSize: '13px',
+                        padding: '12px',
+                        fontSize: '15px',
                         backgroundColor: isMaxed ? '#888' : (affordable ? '#9C27B0' : '#ccc'),
                         color: 'white',
                         border: 'none',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      <div style={{ fontWeight: 'bold' }}>{upgrade.icon} {upgrade.name} (Tier {currentTier}/{upgrade.maxTier})</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{upgrade.icon} {upgrade.name} (Tier {currentTier}/{upgrade.maxTier})</div>
                       {!isMaxed && cost && (
-                        <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                        <div style={{ fontSize: '13px', marginTop: '5px' }}>
                           Cost: {cost.food}🍃 {cost.minerals}💎
                         </div>
                       )}
-                      <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.9 }}>
+                      <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.9 }}>
                         {upgrade.description}
                       </div>
                     </button>
@@ -1616,23 +1736,23 @@ function App() {
                   }}
                   disabled={!affordable || !isMyTurn()}
                   style={{
-                    padding: '10px',
-                    fontSize: '13px',
+                    padding: '12px',
+                    fontSize: '15px',
                     backgroundColor: affordable ? '#FF6B00' : '#ccc',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
                     textAlign: 'left',
                     width: '100%',
                     opacity: isMyTurn() ? 1 : 0.6
                   }}
                 >
-                  <div style={{ fontWeight: 'bold' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
-                  <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
+                  <div style={{ fontSize: '13px', marginTop: '5px' }}>
                     Cost: {nextTierData.cost.food}🍃 {nextTierData.cost.minerals}💎
                   </div>
-                  <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.9 }}>
+                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
                     • -5 Egg Cost ({GameConstants.EGG_LAY_ENERGY_COST - QueenTiers[currentTier].eggCostReduction}⚡ → {GameConstants.EGG_LAY_ENERGY_COST - nextTierData.eggCostReduction}⚡)<br/>
                     • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy<br/>
@@ -1892,6 +2012,101 @@ function App() {
         </div>
       </div>
 
+      {/* Camera Controls - Bottom Right */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        zIndex: 1000
+      }}>
+        {/* Zoom In */}
+        <button
+          onClick={() => setZoomLevel(prev => Math.min(MAX_ZOOM, prev + 0.2))}
+          style={{
+            padding: '0',
+            borderRadius: '10px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            fontSize: '36px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            width: '70px',
+            height: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Zoom In (+)"
+        >
+          +
+        </button>
+        {/* Zoom Out */}
+        <button
+          onClick={() => setZoomLevel(prev => Math.max(MIN_ZOOM, prev - 0.2))}
+          style={{
+            padding: '0',
+            borderRadius: '10px',
+            backgroundColor: '#f44336',
+            color: 'white',
+            border: 'none',
+            fontSize: '36px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            width: '70px',
+            height: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Zoom Out (-)"
+        >
+          -
+        </button>
+        {/* Center on Queen */}
+        <button
+          onClick={centerOnQueen}
+          style={{
+            padding: '0',
+            borderRadius: '10px',
+            backgroundColor: '#FF9800',
+            color: 'white',
+            border: 'none',
+            fontSize: '32px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            width: '70px',
+            height: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Center on Queen (C)"
+        >
+          👑
+        </button>
+        {/* Zoom Level Display */}
+        <div style={{
+          padding: '12px',
+          borderRadius: '10px',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          fontSize: '16px',
+          textAlign: 'center',
+          fontWeight: 'bold',
+          width: '70px',
+          boxSizing: 'border-box'
+        }}>
+          {Math.round(zoomLevel * 100)}%
+        </div>
+      </div>
+
       {/* Help Button - Bottom Left */}
       <button
         onClick={() => setShowHelpGuide(true)}
@@ -1918,6 +2133,26 @@ function App() {
       >
         how to play
       </button>
+
+      {/* Camera Controls Info - Bottom Left (under help button) */}
+      <div style={{
+        position: 'fixed',
+        bottom: '70px',
+        left: '20px',
+        padding: '10px 15px',
+        borderRadius: '8px',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        fontSize: '12px',
+        zIndex: 1000,
+        maxWidth: '200px'
+      }}>
+        <strong>Camera Controls:</strong><br/>
+        Mouse Wheel: Zoom<br/>
+        Middle Click: Pan<br/>
+        WASD/Arrows: Pan<br/>
+        C: Center on Queen
+      </div>
 
       {/* Help Guide Popup Modal */}
       {showHelpGuide && (
@@ -1984,6 +2219,7 @@ function App() {
                 <li><strong>Turn-Based:</strong> Each player takes turns. End your turn when all actions are complete</li>
                 <li><strong>Queen Energy:</strong> Queens have energy for laying eggs and healing. Energy regenerates each round</li>
                 <li><strong>Fog of War:</strong> In multiplayer, you can only see areas within your units' vision range</li>
+                <li><strong>Camera:</strong> The view centers on your Queen each turn. Use mouse wheel to zoom, middle-click or WASD/arrows to pan</li>
               </ul>
             </section>
 
@@ -2090,6 +2326,11 @@ function App() {
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
                 <li><strong>Left Click:</strong> Select units, select actions, move, attack</li>
                 <li><strong>Right Click:</strong> Deselect/Cancel</li>
+                <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
+                <li><strong>Middle Click / Ctrl+Drag:</strong> Pan camera</li>
+                <li><strong>WASD / Arrow Keys:</strong> Pan camera</li>
+                <li><strong>+/- Keys:</strong> Zoom in/out</li>
+                <li><strong>C Key / 👑 Button:</strong> Center camera on your Queen</li>
                 <li><strong>Build Ants (Left Panel):</strong> Click an ant type to queue egg laying</li>
                 <li><strong>Upgrades (Right Panel):</strong> Purchase upgrades to boost your army</li>
                 <li><strong>End Turn:</strong> Complete your turn and switch to opponent</li>
