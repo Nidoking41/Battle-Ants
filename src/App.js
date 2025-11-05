@@ -101,6 +101,12 @@ function App() {
     const handleKeyDown = (e) => {
       const panSpeed = 50;
       switch(e.key) {
+        case 'Tab':
+          if (isMyTurn()) {
+            cycleToNextActiveAnt();
+            e.preventDefault();
+          }
+          break;
         case 'ArrowUp':
         case 'w':
         case 'W':
@@ -148,7 +154,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, gameMode]);
+  }, [gameState, gameMode, selectedAnt]);
 
   // Function to show damage number
   const showDamageNumber = (damage, position) => {
@@ -978,6 +984,51 @@ function App() {
     setSelectedAnt(null);
     setSelectedEggHex(null);
     setShowAntTypeSelector(false);
+  };
+
+  // Cycle to next ant with remaining actions
+  const cycleToNextActiveAnt = () => {
+    const currentState = getGameStateForLogic();
+    const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
+
+    // Get all ants with remaining actions
+    const antsWithActions = Object.values(currentState.ants).filter(ant =>
+      ant.owner === currentPlayerId && hasRemainingActions(ant)
+    );
+
+    if (antsWithActions.length === 0) {
+      alert('No ants with available actions!');
+      return;
+    }
+
+    // Find current selected ant index
+    let currentIndex = -1;
+    if (selectedAnt) {
+      currentIndex = antsWithActions.findIndex(ant => ant.id === selectedAnt);
+    }
+
+    // Get next ant (wrap around to start)
+    const nextIndex = (currentIndex + 1) % antsWithActions.length;
+    const nextAnt = antsWithActions[nextIndex];
+
+    // Select the ant and auto-select appropriate action
+    setSelectedAnt(nextAnt.id);
+    setSelectedEgg(null);
+
+    if (nextAnt.type === 'queen') {
+      setSelectedAction('layEgg');
+    } else if (nextAnt.type === 'bomber') {
+      setSelectedAction(null);
+    } else {
+      setSelectedAction('move');
+    }
+
+    // Center camera on the selected ant
+    const queenPixel = hexToPixel(nextAnt.position, hexSize);
+    setCameraOffset({
+      x: -queenPixel.x,
+      y: -queenPixel.y
+    });
   };
 
   // Check if an ant has any remaining actions this turn
@@ -2022,6 +2073,31 @@ function App() {
         gap: '12px',
         zIndex: 1000
       }}>
+        {/* Cycle to Next Active Ant */}
+        <button
+          onClick={cycleToNextActiveAnt}
+          disabled={!isMyTurn()}
+          style={{
+            padding: '0',
+            borderRadius: '10px',
+            backgroundColor: isMyTurn() ? '#9C27B0' : '#ccc',
+            color: 'white',
+            border: 'none',
+            fontSize: '28px',
+            fontWeight: 'bold',
+            cursor: isMyTurn() ? 'pointer' : 'not-allowed',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            width: '70px',
+            height: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: isMyTurn() ? 1 : 0.5
+          }}
+          title="Cycle to Next Active Ant (Tab)"
+        >
+          🐜⟳
+        </button>
         {/* Zoom In */}
         <button
           onClick={() => setZoomLevel(prev => Math.min(MAX_ZOOM, prev + 0.2))}
@@ -2147,7 +2223,8 @@ function App() {
         zIndex: 1000,
         maxWidth: '200px'
       }}>
-        <strong>Camera Controls:</strong><br/>
+        <strong>Controls:</strong><br/>
+        Tab: Next Active Ant<br/>
         Mouse Wheel: Zoom<br/>
         Middle Click: Pan<br/>
         WASD/Arrows: Pan<br/>
@@ -2326,6 +2403,7 @@ function App() {
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
                 <li><strong>Left Click:</strong> Select units, select actions, move, attack</li>
                 <li><strong>Right Click:</strong> Deselect/Cancel</li>
+                <li><strong>Tab Key / 🐜⟳ Button:</strong> Cycle to next ant with available actions</li>
                 <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
                 <li><strong>Middle Click / Ctrl+Drag:</strong> Pan camera</li>
                 <li><strong>WASD / Arrow Keys:</strong> Pan camera</li>
