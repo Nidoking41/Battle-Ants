@@ -369,6 +369,11 @@ function App() {
 
   // Handle detonating a bomber
   const handleDetonate = () => {
+    if (!isMyTurn()) {
+      alert("It's not your turn!");
+      return;
+    }
+
     const currentState = getGameStateForLogic();
     if (!selectedAnt || !currentState.ants[selectedAnt]) return;
     const ant = currentState.ants[selectedAnt];
@@ -2161,54 +2166,60 @@ function App() {
                 <p>Energy: {gameState.ants[selectedAnt].energy}/{gameState.ants[selectedAnt].maxEnergy}</p>
               )}
 
-              {gameState.ants[selectedAnt].type === 'bomber' ? (
+              <>
                 <button
-                  onClick={handleDetonate}
+                  onClick={() => setSelectedAction('move')}
                   style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#e74c3c',
-                    color: 'white',
+                    marginRight: '5px',
+                    padding: '8px 12px',
+                    backgroundColor: selectedAction === 'move' ? '#3498db' : '#ecf0f1',
+                    color: selectedAction === 'move' ? 'white' : 'black',
                     border: 'none',
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '14px'
+                    fontWeight: selectedAction === 'move' ? 'bold' : 'normal'
                   }}
                 >
-                  💥 DETONATE 💥
+                  Move
                 </button>
-              ) : (
-                <>
+                <button
+                  onClick={() => setSelectedAction('attack')}
+                  style={{
+                    marginRight: '5px',
+                    padding: '8px 12px',
+                    backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
+                    color: selectedAction === 'attack' ? 'white' : 'black',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
+                  }}
+                >
+                  Attack
+                </button>
+
+                {/* Bomber-specific detonate button */}
+                {gameState.ants[selectedAnt].type === 'bomber' && (
                   <button
-                    onClick={() => setSelectedAction('move')}
+                    onClick={handleDetonate}
+                    disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
                     style={{
-                      marginRight: '5px',
-                      padding: '8px 12px',
-                      backgroundColor: selectedAction === 'move' ? '#3498db' : '#ecf0f1',
-                      color: selectedAction === 'move' ? 'white' : 'black',
+                      marginTop: '10px',
+                      padding: '10px 20px',
+                      backgroundColor: gameState.ants[selectedAnt].hasAttacked ? '#95a5a6' : '#e74c3c',
+                      color: 'white',
                       border: 'none',
                       borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: selectedAction === 'move' ? 'bold' : 'normal'
+                      cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                      fontWeight: 'bold',
+                      fontSize: '14px',
+                      width: '100%',
+                      opacity: isMyTurn() ? 1 : 0.6
                     }}
                   >
-                    Move
+                    💥 DETONATE 💥
                   </button>
-                  <button
-                    onClick={() => setSelectedAction('attack')}
-                    style={{
-                      marginRight: '5px',
-                      padding: '8px 12px',
-                      backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
-                      color: selectedAction === 'attack' ? 'white' : 'black',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
-                    }}
-                  >
-                    Attack
-                  </button>
+                )}
                   {gameState.ants[selectedAnt].type === 'queen' && (
                     <>
                       <button
@@ -2259,7 +2270,6 @@ function App() {
                     </button>
                   )}
                 </>
-              )}
             </div>
           )}
 
