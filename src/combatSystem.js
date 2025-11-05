@@ -234,7 +234,8 @@ export function resolveCombat(gameState, attackerId, defenderId) {
           ...attackerPlayer,
           resources: {
             ...attackerPlayer.resources,
-            food: attackerPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN
+            food: attackerPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN,
+            minerals: attackerPlayer.resources.minerals + GameConstants.CANNIBALISM_MINERAL_GAIN
           }
         }
       };
@@ -315,7 +316,8 @@ export function resolveCombat(gameState, attackerId, defenderId) {
             ...defenderPlayer,
             resources: {
               ...defenderPlayer.resources,
-              food: defenderPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN
+              food: defenderPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN,
+              minerals: defenderPlayer.resources.minerals + GameConstants.CANNIBALISM_MINERAL_GAIN
             }
           }
         };

@@ -2820,7 +2820,7 @@ function App() {
                 {Object.values(Upgrades).map(upgrade => (
                   <div key={upgrade.id} style={{ marginBottom: '10px' }}>
                     <strong>{upgrade.icon} {upgrade.name}:</strong> {upgrade.description}
-                    {upgrade.id === 'cannibalism' && <> - Grants {GameConstants.CANNIBALISM_FOOD_GAIN} food when melee units kill enemies</>}
+                    {upgrade.id === 'cannibalism' && <> - Grants {GameConstants.CANNIBALISM_FOOD_GAIN} food and {GameConstants.CANNIBALISM_MINERAL_GAIN} minerals when melee units kill enemies</>}
                     <br/>
                     <em style={{ fontSize: '12px', color: '#666' }}>
                       Max Tier: {upgrade.maxTier} | Costs: {upgrade.costs.map((c, i) => `T${i+1}: ${c.food}🍃 ${c.minerals}💎`).join(', ')}

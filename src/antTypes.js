@@ -164,7 +164,8 @@ export const GameConstants = {
   // Queen Passive Income
   QUEEN_BASE_FOOD_INCOME: 5,
   // Cannibalism
-  CANNIBALISM_FOOD_GAIN: 3
+  CANNIBALISM_FOOD_GAIN: 3,
+  CANNIBALISM_MINERAL_GAIN: 3
 };
 
 export const Upgrades = {
@@ -207,11 +208,11 @@ export const Upgrades = {
   CANNIBALISM: {
     id: 'cannibalism',
     name: 'Cannibalism',
-    description: '+3 Food when melee units kill',
+    description: '+3 Food and +3 Minerals when melee units kill',
     icon: '🍖',
     maxTier: 1,
     costs: [
-      { food: 30, minerals: 20 }  // Tier 1
+      { food: 15, minerals: 10 }  // Tier 1
     ]
   },
   BURROW: {
