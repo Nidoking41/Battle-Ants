@@ -132,6 +132,33 @@ export const AntTypes = {
     resourceGatherRate: 5,
     description: 'Poor combatant but can build anthills to generate passive income.',
     icon: '⛏️🐜'
+  },
+
+  HEALER: {
+    id: 'healer',
+    name: 'Healer Ant',
+    cost: { food: 20, minerals: 15 },
+    hatchTime: 2,
+    maxHealth: 30,
+    attack: 0, // Cannot attack
+    defense: 1,
+    moveSpeed: 2,
+    moveRange: 2,
+    attackRange: 0, // No attack range
+    resourceGatherRate: 0,
+    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
+    // Energy system for abilities
+    maxEnergy: 50,
+    energyRegen: 10,
+    // Abilities
+    healRange: 1, // Melee range healing
+    healAmount: 20,
+    healEnergyCost: 15,
+    ensnareRange: 3,
+    ensnareDuration: 3, // turns
+    ensnareEnergyCost: 20,
+    description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
+    icon: '✨🐜'
   }
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations } from './gameState';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
@@ -1183,6 +1183,48 @@ function App() {
       return;
     }
 
+    // If using heal ability (healer only)
+    if (selectedAction === 'heal' && selectedAnt) {
+      const healer = currentState.ants[selectedAnt];
+      if (!healer || healer.type !== 'healer') return;
+
+      // Find if there's an ally at the clicked hex
+      const allyAtHex = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner === healer.owner
+      );
+
+      if (allyAtHex) {
+        const newState = healAlly(currentState, selectedAnt, allyAtHex.id);
+        updateGame(newState);
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      } else {
+        alert('Invalid heal target! Must click on a wounded ally.');
+      }
+      return;
+    }
+
+    // If using ensnare ability (healer only)
+    if (selectedAction === 'ensnare' && selectedAnt) {
+      const healer = currentState.ants[selectedAnt];
+      if (!healer || healer.type !== 'healer') return;
+
+      // Find if there's an enemy at the clicked hex
+      const enemyAtHex = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner !== healer.owner
+      );
+
+      if (enemyAtHex) {
+        const newState = ensnareEnemy(currentState, selectedAnt, enemyAtHex.id);
+        updateGame(newState);
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      } else {
+        alert('Invalid ensnare target! Must click on an enemy unit.');
+      }
+      return;
+    }
+
     // Check if clicking on an egg
     const clickedEgg = Object.values(currentState.eggs).find(e => hexEquals(e.position, hex));
     if (clickedEgg) {
@@ -1421,6 +1463,11 @@ function App() {
         return [];
       }
 
+      // Ensnared units can only move 1 hex
+      if (ant.ensnared && ant.ensnared > 0) {
+        return getMovementRange(ant.position, 1, gridRadius);
+      }
+
       return getMovementRange(ant.position, antType.moveRange, gridRadius);
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       return getNeighbors(ant.position);
@@ -1435,6 +1482,10 @@ function App() {
     const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
     const teleportDestinations = selectedAction === 'teleport' && selectedAnt ?
       getValidTeleportDestinations(getGameStateForLogic(), selectedAnt) : [];
+    const healTargets = selectedAction === 'heal' && selectedAnt ?
+      getValidHealTargets(getGameStateForLogic(), selectedAnt) : [];
+    const ensnareTargets = selectedAction === 'ensnare' && selectedAnt ?
+      getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
 
     // Calculate visible hexes for fog of war in multiplayer
     let visibleHexes = null;
@@ -1480,6 +1531,8 @@ function App() {
         const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
         const isAttackable = enemiesInRange.some(e => hexEquals(e.position, hex));
         const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
+        const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
+        const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
 
         // Check if this hex is visible (for fog of war)
         const hexKey = `${q},${r}`;
@@ -1528,6 +1581,14 @@ function App() {
         }
         if (isTeleportDestination) {
           fillColor = '#BB8FCE'; // Purple for teleport destinations
+          useBirthingPoolPattern = false;
+        }
+        if (isHealTarget) {
+          fillColor = '#90EE90'; // Light green for heal targets
+          useBirthingPoolPattern = false;
+        }
+        if (isEnsnareTarget) {
+          fillColor = '#F0E68C'; // Khaki/yellow for ensnare targets
           useBirthingPoolPattern = false;
         }
         if (isSelected) {
@@ -2272,8 +2333,11 @@ function App() {
               <h4>Selected Ant</h4>
               <p>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : AntTypes[gameState.ants[selectedAnt].type.toUpperCase()].name}</p>
               <p>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
-              {gameState.ants[selectedAnt].type === 'queen' && (
-                <p>Energy: {gameState.ants[selectedAnt].energy}/{gameState.ants[selectedAnt].maxEnergy}</p>
+              {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer') && gameState.ants[selectedAnt].maxEnergy && (
+                <p>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
+              )}
+              {gameState.ants[selectedAnt].ensnared && gameState.ants[selectedAnt].ensnared > 0 && (
+                <p style={{ color: '#f39c12', fontWeight: 'bold' }}>🕸️ Ensnared ({gameState.ants[selectedAnt].ensnared} turns)</p>
               )}
 
               <>
@@ -2340,6 +2404,44 @@ function App() {
                   >
                     💥 DETONATE (Suicide Attack) 💥
                   </button>
+                ) : gameState.ants[selectedAnt].type === 'healer' ? (
+                  <>
+                    {/* Healer-specific: Heal and Ensnare buttons instead of Attack */}
+                    <button
+                      onClick={() => setSelectedAction('heal')}
+                      disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        backgroundColor: selectedAction === 'heal' ? '#27ae60' : '#ecf0f1',
+                        color: selectedAction === 'heal' ? 'white' : 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                        fontWeight: selectedAction === 'heal' ? 'bold' : 'normal',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      ✨ Heal
+                    </button>
+                    <button
+                      onClick={() => setSelectedAction('ensnare')}
+                      disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        backgroundColor: selectedAction === 'ensnare' ? '#f39c12' : '#ecf0f1',
+                        color: selectedAction === 'ensnare' ? 'white' : 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                        fontWeight: selectedAction === 'ensnare' ? 'bold' : 'normal',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      🕸️ Ensnare
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={() => setSelectedAction('attack')}

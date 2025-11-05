@@ -167,7 +167,7 @@ export function createAnt(type, owner, position) {
     throw new Error(`Unknown ant type: ${type}`);
   }
 
-  return {
+  const ant = {
     id: `ant_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
     type: antType.id,
     owner,
@@ -176,6 +176,14 @@ export function createAnt(type, owner, position) {
     maxHealth: antType.maxHealth,
     hasMoved: false
   };
+
+  // Add energy system for units that have it (like healers)
+  if (antType.maxEnergy) {
+    ant.energy = antType.maxEnergy;
+    ant.maxEnergy = antType.maxEnergy;
+  }
+
+  return ant;
 }
 
 // Create a new egg
@@ -319,6 +327,21 @@ export function endTurn(gameState) {
         const queenTier = QueenTiers[ant.queenTier || 'queen'];
         const newEnergy = Math.min(ant.maxEnergy, ant.energy + queenTier.energyRegen);
         updates.energy = newEnergy;
+      }
+
+      // Regenerate energy for healers at the start of their turn
+      if (ant.type === 'healer' && ant.maxEnergy) {
+        const healerType = AntTypes.HEALER;
+        const newEnergy = Math.min(ant.maxEnergy, (ant.energy || 0) + healerType.energyRegen);
+        updates.energy = newEnergy;
+      }
+
+      // Decrease ensnare duration
+      if (ant.ensnared && ant.ensnared > 0) {
+        updates.ensnared = ant.ensnared - 1;
+        if (updates.ensnared <= 0) {
+          delete updates.ensnared;
+        }
       }
 
       updatedAnts[ant.id] = updates;
@@ -834,6 +857,131 @@ export function getValidTeleportDestinations(gameState, antId) {
                   otherAnt.position.r === anthill.position.r
     );
     return !antAtPosition;
+  });
+}
+
+// Healer: Heal a friendly unit
+export function healAlly(gameState, healerId, targetId) {
+  const healer = gameState.ants[healerId];
+  const target = gameState.ants[targetId];
+
+  if (!healer || !target) return gameState;
+  if (healer.type !== 'healer') return gameState;
+  if (healer.owner !== target.owner) return gameState; // Can only heal allies
+
+  const healerType = AntTypes.HEALER;
+
+  // Check energy cost
+  if ((healer.energy || 0) < healerType.healEnergyCost) return gameState;
+
+  // Check range
+  const distance = Math.max(
+    Math.abs(healer.position.q - target.position.q),
+    Math.abs(healer.position.r - target.position.r),
+    Math.abs((-healer.position.q - healer.position.r) - (-target.position.q - target.position.r))
+  );
+  if (distance > healerType.healRange) return gameState;
+
+  // Apply healing
+  const newHealth = Math.min(target.maxHealth, target.health + healerType.healAmount);
+
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [healerId]: {
+        ...healer,
+        energy: healer.energy - healerType.healEnergyCost,
+        hasAttacked: true // Using heal counts as an action
+      },
+      [targetId]: {
+        ...target,
+        health: newHealth
+      }
+    }
+  };
+}
+
+// Healer: Ensnare an enemy unit
+export function ensnareEnemy(gameState, healerId, targetId) {
+  const healer = gameState.ants[healerId];
+  const target = gameState.ants[targetId];
+
+  if (!healer || !target) return gameState;
+  if (healer.type !== 'healer') return gameState;
+  if (healer.owner === target.owner) return gameState; // Can only ensnare enemies
+  if (target.ensnared) return gameState; // Already ensnared
+
+  const healerType = AntTypes.HEALER;
+
+  // Check energy cost
+  if ((healer.energy || 0) < healerType.ensnareEnergyCost) return gameState;
+
+  // Check range
+  const distance = Math.max(
+    Math.abs(healer.position.q - target.position.q),
+    Math.abs(healer.position.r - target.position.r),
+    Math.abs((-healer.position.q - healer.position.r) - (-target.position.q - target.position.r))
+  );
+  if (distance > healerType.ensnareRange) return gameState;
+
+  // Apply ensnare
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [healerId]: {
+        ...healer,
+        energy: healer.energy - healerType.ensnareEnergyCost,
+        hasAttacked: true // Using ensnare counts as an action
+      },
+      [targetId]: {
+        ...target,
+        ensnared: healerType.ensnareDuration // Turns remaining
+      }
+    }
+  };
+}
+
+// Get valid heal targets for a healer
+export function getValidHealTargets(gameState, healerId) {
+  const healer = gameState.ants[healerId];
+  if (!healer || healer.type !== 'healer') return [];
+
+  const healerType = AntTypes.HEALER;
+  if ((healer.energy || 0) < healerType.healEnergyCost) return [];
+
+  return Object.values(gameState.ants).filter(ally => {
+    if (ally.owner !== healer.owner) return false;
+    if (ally.health >= ally.maxHealth) return false; // Already at full health
+
+    const distance = Math.max(
+      Math.abs(healer.position.q - ally.position.q),
+      Math.abs(healer.position.r - ally.position.r),
+      Math.abs((-healer.position.q - healer.position.r) - (-ally.position.q - ally.position.r))
+    );
+    return distance <= healerType.healRange;
+  });
+}
+
+// Get valid ensnare targets for a healer
+export function getValidEnsnareTargets(gameState, healerId) {
+  const healer = gameState.ants[healerId];
+  if (!healer || healer.type !== 'healer') return [];
+
+  const healerType = AntTypes.HEALER;
+  if ((healer.energy || 0) < healerType.ensnareEnergyCost) return [];
+
+  return Object.values(gameState.ants).filter(enemy => {
+    if (enemy.owner === healer.owner) return false;
+    if (enemy.ensnared) return false; // Already ensnared
+
+    const distance = Math.max(
+      Math.abs(healer.position.q - enemy.position.q),
+      Math.abs(healer.position.r - enemy.position.r),
+      Math.abs((-healer.position.q - healer.position.r) - (-enemy.position.q - enemy.position.r))
+    );
+    return distance <= healerType.ensnareRange;
   });
 }
 
