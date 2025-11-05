@@ -2,6 +2,61 @@ import { AntTypes, GameConstants } from './antTypes';
 import { hexDistance, getNeighbors } from './hexUtils';
 import { getAntAttack, getAntDefense } from './gameState';
 
+// Attack an egg
+export function attackEgg(gameState, attackerId, eggId) {
+  const attacker = gameState.ants[attackerId];
+  const egg = gameState.eggs[eggId];
+
+  if (!attacker || !egg) {
+    return { gameState, damageDealt: [], attackAnimation: null };
+  }
+
+  // Can't attack your own egg
+  if (attacker.owner === egg.owner) {
+    return { gameState, damageDealt: [], attackAnimation: null };
+  }
+
+  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerPlayer = gameState.players[attacker.owner];
+  const baseAttack = getAntAttack(attacker, attackerPlayer);
+
+  // Health-based damage scaling
+  const healthPercent = attacker.health / attacker.maxHealth;
+  const damageMultiplier = Math.min(1.0, healthPercent + 0.05);
+  const damage = Math.floor(baseAttack * damageMultiplier);
+
+  const damageDealt = [{ damage, position: egg.position }];
+  const newEggHealth = egg.health - damage;
+
+  const updatedEggs = { ...gameState.eggs };
+
+  if (newEggHealth <= 0) {
+    // Egg is destroyed
+    delete updatedEggs[eggId];
+  } else {
+    updatedEggs[eggId] = {
+      ...egg,
+      health: newEggHealth
+    };
+  }
+
+  // Include attack animation data
+  const attackAnimation = {
+    attackerId: attackerId,
+    targetPosition: egg.position,
+    isRanged: attackerType.attackRange > 1
+  };
+
+  return {
+    gameState: {
+      ...gameState,
+      eggs: updatedEggs
+    },
+    damageDealt,
+    attackAnimation
+  };
+}
+
 // Attack an anthill
 export function attackAnthill(gameState, attackerId, anthillId) {
   const attacker = gameState.ants[attackerId];

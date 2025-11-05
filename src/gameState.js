@@ -190,7 +190,9 @@ export function createEgg(antType, owner, position, currentTurn) {
     antType: type.id,
     owner,
     position,
-    hatchTurn: currentTurn + type.hatchTime
+    hatchTurn: currentTurn + type.hatchTime,
+    health: 5, // Eggs have 5 health and can be targeted
+    maxHealth: 5
   };
 }
 
@@ -204,7 +206,8 @@ export function createAnthillInProgress(resourceId, owner, position, resourceTyp
     resourceType, // 'food' or 'minerals'
     buildProgress: initialProgress, // 0-2, needs 2 to complete
     isComplete: false,
-    health: 20 // Anthills have health once completed
+    health: 5, // Under construction anthills have 5 health and can be targeted
+    maxHealth: 20 // Full health once completed
   };
 }
 
@@ -213,7 +216,9 @@ export function completeAnthill(anthill) {
   return {
     ...anthill,
     buildProgress: GameConstants.ANTHILL_BUILD_PROGRESS_REQUIRED,
-    isComplete: true
+    isComplete: true,
+    health: 20, // Full health when completed
+    maxHealth: 20
   };
 }
 

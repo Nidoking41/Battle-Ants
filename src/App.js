@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes } from './gameState';
-import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill } from './combatSystem';
+import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
@@ -450,9 +450,14 @@ function App() {
         a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
-      // Find if there's an enemy anthill at the clicked hex
+      // Find if there's an enemy egg at the clicked hex
+      const eggAtHex = Object.values(currentState.eggs || {}).find(
+        e => hexEquals(e.position, hex) && e.owner !== ant.owner
+      );
+
+      // Find if there's an enemy anthill at the clicked hex (complete or incomplete)
       const anthillAtHex = Object.values(currentState.anthills || {}).find(
-        a => hexEquals(a.position, hex) && a.owner !== ant.owner && a.isComplete
+        a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
       // If there's an ant on the hex, must attack the ant first
@@ -507,7 +512,67 @@ function App() {
           return;
         }
       }
-      // If there's an anthill and no ant, can attack the anthill
+      // If there's an egg and no ant, can attack the egg
+      else if (eggAtHex) {
+        // Check if egg is in range
+        const antType = AntTypes[ant.type.toUpperCase()];
+        const distance = Math.max(
+          Math.abs(ant.position.q - eggAtHex.position.q),
+          Math.abs(ant.position.r - eggAtHex.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-eggAtHex.position.q - eggAtHex.position.r))
+        );
+
+        if (distance > antType.attackRange) {
+          alert('Egg is out of attack range!');
+          return;
+        }
+
+        // Check minimum attack range
+        if (antType.minAttackRange && distance < antType.minAttackRange) {
+          alert('Too close! This unit cannot attack at this range.');
+          return;
+        }
+
+        // Determine if this is a ranged attack
+        const isRanged = antType.attackRange > 1;
+
+        // Show attack animation
+        showAttackAnimation(selectedAnt, eggAtHex.position, isRanged);
+
+        // Delay damage and state update to match animation timing
+        setTimeout(() => {
+          const combatResult = attackEgg(currentState, selectedAnt, eggAtHex.id);
+          const newState = combatResult.gameState;
+
+          // Show damage numbers
+          combatResult.damageDealt.forEach(({ damage, position }) => {
+            showDamageNumber(damage, position);
+          });
+
+          // Mark ant as having attacked and store combat action for multiplayer
+          const markedState = {
+            ...newState,
+            ants: {
+              ...newState.ants,
+              [selectedAnt]: {
+                ...newState.ants[selectedAnt],
+                hasAttacked: true
+              }
+            },
+            // Store combat action for multiplayer animation replay
+            lastCombatAction: combatResult.attackAnimation ? {
+              ...combatResult.attackAnimation,
+              damageDealt: combatResult.damageDealt,
+              timestamp: Date.now()
+            } : undefined
+          };
+          updateGame(markedState);
+          setSelectedAction(null);
+          setSelectedAnt(null);
+        }, isRanged ? 500 : 400);
+        return;
+      }
+      // If there's an anthill and no ant/egg, can attack the anthill
       else if (anthillAtHex) {
         // Check if anthill is in range
         const antType = AntTypes[ant.type.toUpperCase()];
@@ -749,9 +814,14 @@ function App() {
         a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
-      // Check if clicking on an enemy anthill to attack
+      // Check if clicking on an enemy egg to attack
+      const eggAtHex = Object.values(currentState.eggs || {}).find(
+        e => hexEquals(e.position, hex) && e.owner !== ant.owner
+      );
+
+      // Check if clicking on an enemy anthill to attack (complete or incomplete)
       const anthillAtHex = Object.values(currentState.anthills || {}).find(
-        a => hexEquals(a.position, hex) && a.owner !== ant.owner && a.isComplete
+        a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
       // If there's an enemy ant, prioritize attacking the ant
@@ -809,7 +879,74 @@ function App() {
           return;
         }
       }
-      // If there's an enemy anthill and no ant, can attack the anthill
+      // If there's an enemy egg and no ant, can attack the egg
+      else if (eggAtHex) {
+        // Check if ant has already attacked
+        if (ant.hasAttacked) {
+          alert('This unit has already attacked this turn!');
+          return;
+        }
+
+        // Check if egg is in range
+        const antType = AntTypes[ant.type.toUpperCase()];
+        const distance = Math.max(
+          Math.abs(ant.position.q - eggAtHex.position.q),
+          Math.abs(ant.position.r - eggAtHex.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-eggAtHex.position.q - eggAtHex.position.r))
+        );
+
+        if (distance > antType.attackRange) {
+          alert('Egg is out of attack range!');
+          return;
+        }
+
+        // Check minimum attack range
+        if (antType.minAttackRange && distance < antType.minAttackRange) {
+          alert('Too close! This unit cannot attack at this range.');
+          return;
+        }
+
+        // Determine if this is a ranged attack
+        const isRanged = antType.attackRange > 1;
+
+        // Show attack animation
+        showAttackAnimation(selectedAnt, eggAtHex.position, isRanged);
+
+        // Delay damage and state update to match animation timing
+        setTimeout(() => {
+          const combatResult = attackEgg(currentState, selectedAnt, eggAtHex.id);
+          const newState = combatResult.gameState;
+
+          // Show damage numbers
+          combatResult.damageDealt.forEach(({ damage, position }) => {
+            showDamageNumber(damage, position);
+          });
+
+          // Mark as both moved and attacked after attacking and store combat action for multiplayer
+          const markedState = {
+            ...newState,
+            ants: {
+              ...newState.ants,
+              [selectedAnt]: {
+                ...newState.ants[selectedAnt],
+                hasMoved: true,
+                hasAttacked: true
+              }
+            },
+            // Store combat action for multiplayer animation replay
+            lastCombatAction: combatResult.attackAnimation ? {
+              ...combatResult.attackAnimation,
+              damageDealt: combatResult.damageDealt,
+              timestamp: Date.now()
+            } : undefined
+          };
+          updateGame(markedState);
+          setSelectedAction(null);
+          setSelectedAnt(null);
+        }, isRanged ? 500 : 400);
+        return;
+      }
+      // If there's an enemy anthill and no ant/egg, can attack the anthill
       else if (anthillAtHex) {
         // Check if ant has already attacked
         if (ant.hasAttacked) {
