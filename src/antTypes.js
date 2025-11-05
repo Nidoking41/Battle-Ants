@@ -224,6 +224,17 @@ export const Upgrades = {
     costs: [
       { food: 15, minerals: 15 }  // Tier 1
     ]
+  },
+  CONNECTED_TUNNELS: {
+    id: 'connectedTunnels',
+    name: 'Connected Tunnels',
+    description: 'Units on anthills can teleport to other friendly anthills',
+    icon: '🌀',
+    maxTier: 1,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
+    ]
   }
 };
 

@@ -458,10 +458,17 @@ export function buildAnthill(gameState, droneId, resourceId) {
 }
 
 // Check if player can afford an upgrade
-export function canAffordUpgrade(player, upgradeId) {
+export function canAffordUpgrade(player, upgradeId, queen) {
   // Find the upgrade by matching the id field
   const upgrade = Object.values(Upgrades).find(u => u.id === upgradeId);
   if (!upgrade) return false;
+
+  // Check if upgrade requires a specific queen tier
+  if (upgrade.requiresQueenTier) {
+    if (!queen || queen.queenTier !== upgrade.requiresQueenTier) {
+      return false; // Queen must be at required tier
+    }
+  }
 
   const currentTier = player.upgrades[upgradeId];
   if (currentTier >= upgrade.maxTier) return false; // Already at max tier
@@ -755,6 +762,79 @@ export function canUnburrow(gameState, antId) {
   );
 
   return !antAbove;
+}
+
+// Teleport an ant to another anthill (Connected Tunnels upgrade)
+export function teleportAnt(gameState, antId, targetAnthillId) {
+  const ant = gameState.ants[antId];
+  if (!ant) return gameState;
+
+  // Check if player has Connected Tunnels upgrade
+  const player = gameState.players[ant.owner];
+  if (!player.upgrades.connectedTunnels) return gameState;
+
+  const targetAnthill = gameState.anthills[targetAnthillId];
+  if (!targetAnthill) return gameState;
+
+  // Verify target anthill is owned by the player
+  if (targetAnthill.owner !== ant.owner) return gameState;
+
+  // Verify target anthill is complete
+  if (!targetAnthill.isComplete) return gameState;
+
+  // Check if there's already an ant at the target position
+  const antAtTarget = Object.values(gameState.ants).some(
+    otherAnt => otherAnt.id !== antId &&
+                otherAnt.position.q === targetAnthill.position.q &&
+                otherAnt.position.r === targetAnthill.position.r
+  );
+  if (antAtTarget) return gameState;
+
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [antId]: {
+        ...ant,
+        position: { ...targetAnthill.position },
+        hasMoved: true, // Teleporting uses the entire turn
+        hasAttacked: true // Cannot attack after teleporting
+      }
+    }
+  };
+}
+
+// Get valid teleport destinations for an ant (all friendly completed anthills except current)
+export function getValidTeleportDestinations(gameState, antId) {
+  const ant = gameState.ants[antId];
+  if (!ant) return [];
+
+  // Check if player has Connected Tunnels upgrade
+  const player = gameState.players[ant.owner];
+  if (!player.upgrades.connectedTunnels) return [];
+
+  // Check if ant is on an anthill
+  const currentAnthill = Object.values(gameState.anthills).find(
+    anthill => anthill.owner === ant.owner &&
+               anthill.isComplete &&
+               anthill.position.q === ant.position.q &&
+               anthill.position.r === ant.position.r
+  );
+  if (!currentAnthill) return [];
+
+  // Get all other friendly completed anthills with no ant on them
+  return Object.values(gameState.anthills).filter(anthill => {
+    if (anthill.id === currentAnthill.id) return false;
+    if (anthill.owner !== ant.owner) return false;
+    if (!anthill.isComplete) return false;
+
+    // Check if there's an ant at this anthill
+    const antAtPosition = Object.values(gameState.ants).some(
+      otherAnt => otherAnt.position.q === anthill.position.q &&
+                  otherAnt.position.r === anthill.position.r
+    );
+    return !antAtPosition;
+  });
 }
 
 // Get valid spawning pool hexes for a queen based on tier

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow } from './gameState';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
@@ -1162,6 +1162,27 @@ function App() {
       return;
     }
 
+    // If teleporting ant
+    if (selectedAction === 'teleport' && selectedAnt) {
+      const ant = currentState.ants[selectedAnt];
+      const validDestinations = getValidTeleportDestinations(currentState, selectedAnt);
+
+      // Check if clicked hex contains a valid destination anthill
+      const destinationAnthill = validDestinations.find(
+        anthill => hexEquals(anthill.position, hex)
+      );
+
+      if (destinationAnthill) {
+        const newState = teleportAnt(currentState, selectedAnt, destinationAnthill.id);
+        updateGame(newState);
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      } else {
+        alert('Invalid teleport destination! Must click on a friendly anthill.');
+      }
+      return;
+    }
+
     // Check if clicking on an egg
     const clickedEgg = Object.values(currentState.eggs).find(e => hexEquals(e.position, hex));
     if (clickedEgg) {
@@ -1412,6 +1433,8 @@ function App() {
     const hexagons = [];
     const validMoves = getValidMovesForSelectedAnt();
     const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
+    const teleportDestinations = selectedAction === 'teleport' && selectedAnt ?
+      getValidTeleportDestinations(getGameStateForLogic(), selectedAnt) : [];
 
     // Calculate visible hexes for fog of war in multiplayer
     let visibleHexes = null;
@@ -1456,6 +1479,7 @@ function App() {
         const isValidMove = validMoves.some(v => hexEquals(v, hex));
         const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
         const isAttackable = enemiesInRange.some(e => hexEquals(e.position, hex));
+        const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
 
         // Check if this hex is visible (for fog of war)
         const hexKey = `${q},${r}`;
@@ -1500,6 +1524,10 @@ function App() {
         }
         if (isAttackable) {
           fillColor = '#FF6B6B'; // Red for attackable enemies
+          useBirthingPoolPattern = false;
+        }
+        if (isTeleportDestination) {
+          fillColor = '#BB8FCE'; // Purple for teleport destinations
           useBirthingPoolPattern = false;
         }
         if (isSelected) {
@@ -2098,9 +2126,10 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {Object.values(Upgrades).map(upgrade => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
+                  const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
                   const currentTier = currentPlayer.upgrades[upgrade.id];
                   const isMaxed = currentTier >= upgrade.maxTier;
-                  const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id);
+                  const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id, queen);
                   const cost = isMaxed ? null : upgrade.costs[currentTier];
 
                   return (
@@ -2136,6 +2165,11 @@ function App() {
                       <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.9 }}>
                         {upgrade.description}
                       </div>
+                      {upgrade.requiresQueenTier && (
+                        <div style={{ fontSize: '11px', marginTop: '5px', fontStyle: 'italic', color: '#FFD700' }}>
+                          Requires: Swarm Queen upgrade
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -2258,6 +2292,32 @@ function App() {
                 >
                   Move
                 </button>
+
+                {/* Teleport button (Connected Tunnels upgrade) */}
+                {(() => {
+                  const currentState = getGameStateForLogic();
+                  const validDestinations = getValidTeleportDestinations(currentState, selectedAnt);
+                  if (validDestinations.length > 0 && !gameState.ants[selectedAnt].hasMoved) {
+                    return (
+                      <button
+                        onClick={() => setSelectedAction('teleport')}
+                        style={{
+                          marginRight: '5px',
+                          padding: '8px 12px',
+                          backgroundColor: selectedAction === 'teleport' ? '#9b59b6' : '#ecf0f1',
+                          color: selectedAction === 'teleport' ? 'white' : 'black',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: selectedAction === 'teleport' ? 'bold' : 'normal'
+                        }}
+                      >
+                        🌀 Teleport
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Bomber-specific: only detonate button, no normal attack */}
                 {gameState.ants[selectedAnt].type === 'bomber' ? (
