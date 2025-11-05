@@ -171,7 +171,7 @@ export const Upgrades = {
   MELEE_ATTACK: {
     id: 'meleeAttack',
     name: 'Melee Attack',
-    description: '+1 Attack for melee units',
+    description: '+20% Attack for melee units (min +1)',
     icon: '⚔️',
     maxTier: 3,
     costs: [
@@ -183,7 +183,7 @@ export const Upgrades = {
   RANGED_ATTACK: {
     id: 'rangedAttack',
     name: 'Ranged Attack',
-    description: '+1 Attack for ranged units',
+    description: '+20% Attack for ranged units (min +1)',
     icon: '🏹',
     maxTier: 3,
     costs: [
@@ -195,7 +195,7 @@ export const Upgrades = {
   DEFENSE: {
     id: 'defense',
     name: 'Defense',
-    description: '+1 Defense for all units',
+    description: '+20% Defense for all units (min +1)',
     icon: '🛡️',
     maxTier: 3,
     costs: [

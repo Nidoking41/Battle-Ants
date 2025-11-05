@@ -509,12 +509,21 @@ export function getAntAttack(ant, player) {
   let attack = antType.attack;
 
   // Apply melee attack upgrade (for attackRange <= 1)
+  // Each tier adds +20% (rounded down, minimum +1 per tier)
   if (antType.attackRange <= 1) {
-    attack += player.upgrades.meleeAttack || 0;
+    const tier = player.upgrades.meleeAttack || 0;
+    if (tier > 0) {
+      const bonus = Math.max(tier, Math.floor(antType.attack * 0.2 * tier));
+      attack += bonus;
+    }
   }
   // Apply ranged attack upgrade (for attackRange > 1)
   else {
-    attack += player.upgrades.rangedAttack || 0;
+    const tier = player.upgrades.rangedAttack || 0;
+    if (tier > 0) {
+      const bonus = Math.max(tier, Math.floor(antType.attack * 0.2 * tier));
+      attack += bonus;
+    }
   }
 
   return attack;
@@ -523,7 +532,14 @@ export function getAntAttack(ant, player) {
 // Get ant's defense with upgrades applied
 export function getAntDefense(ant, player, gameState) {
   const antType = AntTypes[ant.type.toUpperCase()];
-  let defense = antType.defense + (player.upgrades.defense || 0);
+  let defense = antType.defense;
+
+  // Apply defense upgrade: +20% per tier (rounded down, minimum +1 per tier)
+  const tier = player.upgrades.defense || 0;
+  if (tier > 0) {
+    const bonus = Math.max(tier, Math.floor(antType.defense * 0.2 * tier));
+    defense += bonus;
+  }
 
   // Check if ant is on an anthill for +2 defense bonus
   if (gameState && gameState.anthills) {
