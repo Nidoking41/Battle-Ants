@@ -35,7 +35,7 @@ export const AntTypes = {
 
   SOLDIER: {
     id: 'soldier',
-    name: 'Soldier Ant',
+    name: 'Marauder Ant',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
     maxHealth: 45,
@@ -51,7 +51,7 @@ export const AntTypes = {
 
   TANK: {
     id: 'tank',
-    name: 'Tank Ant',
+    name: 'Bullet Ant',
     cost: { food: 30, minerals: 25 },
     hatchTime: 2,
     maxHealth: 80,
@@ -67,7 +67,7 @@ export const AntTypes = {
 
   SPITTER: {
     id: 'spitter',
-    name: 'Acid Spitter',
+    name: 'Acid Ant',
     cost: { food: 15, minerals: 10 },
     hatchTime: 2,
     maxHealth: 25,
@@ -83,7 +83,7 @@ export const AntTypes = {
 
   BOMBER: {
     id: 'bomber',
-    name: 'Acid Bomber',
+    name: 'Exploding Ant',
     cost: { food: 10, minerals: 10 },
     hatchTime: 2,
     maxHealth: 40,
