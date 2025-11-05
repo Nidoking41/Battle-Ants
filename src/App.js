@@ -420,6 +420,69 @@ function App() {
     return enemies;
   };
 
+  // Check if ant can still perform actions after moving
+  const canAntStillAct = (antId, state) => {
+    const ant = state.ants[antId];
+    if (!ant || ant.hasAttacked) return false;
+
+    const antType = AntTypes[ant.type.toUpperCase()];
+
+    // Check if can attack enemies
+    const hasEnemiesInRange = Object.values(state.ants).some(enemyAnt => {
+      if (enemyAnt.owner !== ant.owner) {
+        const distance = Math.max(
+          Math.abs(ant.position.q - enemyAnt.position.q),
+          Math.abs(ant.position.r - enemyAnt.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-enemyAnt.position.q - enemyAnt.position.r))
+        );
+        return distance <= antType.attackRange;
+      }
+      return false;
+    });
+
+    if (hasEnemiesInRange) return true;
+
+    // Check if can attack eggs
+    const hasEggsInRange = Object.values(state.eggs).some(egg => {
+      if (egg.owner !== ant.owner) {
+        const distance = Math.max(
+          Math.abs(ant.position.q - egg.position.q),
+          Math.abs(ant.position.r - egg.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-egg.position.q - egg.position.r))
+        );
+        return distance <= antType.attackRange;
+      }
+      return false;
+    });
+
+    if (hasEggsInRange) return true;
+
+    // Check if can attack anthills
+    const hasAnthillsInRange = Object.values(state.anthills).some(anthill => {
+      if (anthill.owner !== ant.owner) {
+        const distance = Math.max(
+          Math.abs(ant.position.q - anthill.position.q),
+          Math.abs(ant.position.r - anthill.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-anthill.position.q - anthill.position.r))
+        );
+        return distance <= antType.attackRange;
+      }
+      return false;
+    });
+
+    if (hasAnthillsInRange) return true;
+
+    // Check if drone can build anthill
+    if (ant.type === 'drone') {
+      const isOnResourceNode = Object.values(state.resourceNodes).some(
+        node => node.position.q === ant.position.q && node.position.r === ant.position.r
+      );
+      if (isOnResourceNode) return true;
+    }
+
+    return false;
+  };
+
   // Handle hex click
   const handleHexClick = (hex) => {
     if (!isMyTurn()) {
@@ -1067,8 +1130,15 @@ function App() {
         const newState = moveAnt(currentState, selectedAnt, hex);
         const finalState = markAntMoved(newState, selectedAnt);
         updateGame(finalState);
-        setSelectedAction(null);
-        setSelectedAnt(null);
+
+        // Keep ant selected if it can still perform actions
+        if (canAntStillAct(selectedAnt, finalState)) {
+          setSelectedAction(null); // Clear the move action
+          // selectedAnt stays selected
+        } else {
+          setSelectedAction(null);
+          setSelectedAnt(null);
+        }
       } else {
         alert('Invalid move!');
       }
