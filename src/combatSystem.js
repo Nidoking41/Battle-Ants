@@ -8,12 +8,12 @@ export function attackAnthill(gameState, attackerId, anthillId) {
   const anthill = gameState.anthills[anthillId];
 
   if (!attacker || !anthill) {
-    return { gameState, damageDealt: [] };
+    return { gameState, damageDealt: [], attackAnimation: null };
   }
 
   // Can't attack your own anthill
   if (attacker.owner === anthill.owner) {
-    return { gameState, damageDealt: [] };
+    return { gameState, damageDealt: [], attackAnimation: null };
   }
 
   const attackerType = AntTypes[attacker.type.toUpperCase()];
@@ -40,12 +40,20 @@ export function attackAnthill(gameState, attackerId, anthillId) {
     };
   }
 
+  // Include attack animation data
+  const attackAnimation = {
+    attackerId: attackerId,
+    targetPosition: anthill.position,
+    isRanged: attackerType.attackRange > 1
+  };
+
   return {
     gameState: {
       ...gameState,
       anthills: updatedAnthills
     },
-    damageDealt
+    damageDealt,
+    attackAnimation
   };
 }
 
@@ -134,7 +142,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   const defender = gameState.ants[defenderId];
 
   if (!attacker || !defender) {
-    return { gameState, damageDealt: [] };
+    return { gameState, damageDealt: [], attackAnimation: null };
   }
 
   const attackerType = AntTypes[attacker.type.toUpperCase()];
@@ -142,6 +150,13 @@ export function resolveCombat(gameState, attackerId, defenderId) {
 
   // Track all damage dealt for animations
   const damageDealt = [{ damage, position: defender.position }];
+
+  // Include attack animation data
+  const attackAnimation = {
+    attackerId: attackerId,
+    targetPosition: defender.position,
+    isRanged: attackerType.attackRange > 1
+  };
 
   // Check if it's a splash damage attack
   const updatedAnts = { ...gameState.ants };
@@ -180,7 +195,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     if (defender.type === 'bomber') {
       updatedGameState.ants = updatedAnts;
       updatedGameState = detonateBomber(updatedGameState, defenderId);
-      return { gameState: updatedGameState, damageDealt };
+      return { gameState: updatedGameState, damageDealt, attackAnimation };
     }
   } else {
     updatedAnts[defenderId] = {
@@ -261,7 +276,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       if (attacker.type === 'bomber') {
         updatedGameState.ants = updatedAnts;
         updatedGameState = detonateBomber(updatedGameState, attackerId);
-        return { gameState: updatedGameState, damageDealt };
+        return { gameState: updatedGameState, damageDealt, attackAnimation };
       }
     } else {
       updatedAnts[attackerId] = {
@@ -276,7 +291,8 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       ...updatedGameState,
       ants: updatedAnts
     },
-    damageDealt
+    damageDealt,
+    attackAnimation
   };
 }
 

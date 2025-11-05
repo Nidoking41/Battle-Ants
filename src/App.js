@@ -281,6 +281,45 @@ function App() {
       const unsubscribe = subscribeToGameState(gameMode.gameId, (newState) => {
         // Store the full state for fog of war calculations
         setFullGameState(newState);
+
+        // Check if there was a recent combat action and show animations
+        if (newState.lastCombatAction) {
+          const { attackerId, targetPosition, isRanged, damageDealt } = newState.lastCombatAction;
+
+          // Check if attacker is visible to current player
+          const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
+          const attacker = newState.ants[attackerId];
+          const attackerVisible = attacker && visibleHexes.some(hex =>
+            hex.q === attacker.position.q && hex.r === attacker.position.r
+          );
+          const targetVisible = visibleHexes.some(hex =>
+            hex.q === targetPosition.q && hex.r === targetPosition.r
+          );
+
+          // Show animation based on visibility
+          if (targetVisible) {
+            // If target is visible, show appropriate animation
+            if (isRanged && !attackerVisible) {
+              // Ranged attack from fog of war - only show projectile impact
+              if (damageDealt && damageDealt.length > 0) {
+                damageDealt.forEach(({ damage, position }) => {
+                  showDamageNumber(damage, position);
+                });
+              }
+            } else if (attackerVisible) {
+              // Attacker is visible, show full animation
+              showAttackAnimation(attackerId, targetPosition, isRanged);
+              if (damageDealt && damageDealt.length > 0) {
+                setTimeout(() => {
+                  damageDealt.forEach(({ damage, position }) => {
+                    showDamageNumber(damage, position);
+                  });
+                }, isRanged ? 300 : 200);
+              }
+            }
+          }
+        }
+
         // Apply fog of war for multiplayer games
         const filteredState = applyFogOfWar(newState, gameMode.playerRole);
         setGameState(filteredState);
@@ -437,7 +476,7 @@ function App() {
               showDamageNumber(damage, position);
             });
 
-            // Mark ant as having attacked
+            // Mark ant as having attacked and store combat action for multiplayer
             const markedState = {
               ...newState,
               ants: {
@@ -446,7 +485,13 @@ function App() {
                   ...newState.ants[selectedAnt],
                   hasAttacked: true
                 } : undefined
-              }
+              },
+              // Store combat action for multiplayer animation replay
+              lastCombatAction: combatResult.attackAnimation ? {
+                ...combatResult.attackAnimation,
+                damageDealt: combatResult.damageDealt,
+                timestamp: Date.now()
+              } : undefined
             };
             // Remove undefined ants (in case the attacker died in combat)
             if (markedState.ants[selectedAnt] === undefined) {
@@ -499,7 +544,7 @@ function App() {
             showDamageNumber(damage, position);
           });
 
-          // Mark ant as having attacked
+          // Mark ant as having attacked and store combat action for multiplayer
           const markedState = {
             ...newState,
             ants: {
@@ -508,7 +553,13 @@ function App() {
                 ...newState.ants[selectedAnt],
                 hasAttacked: true
               }
-            }
+            },
+            // Store combat action for multiplayer animation replay
+            lastCombatAction: combatResult.attackAnimation ? {
+              ...combatResult.attackAnimation,
+              damageDealt: combatResult.damageDealt,
+              timestamp: Date.now()
+            } : undefined
           };
           updateGame(markedState);
           setSelectedAction(null);
@@ -730,7 +781,7 @@ function App() {
               showDamageNumber(damage, position);
             });
 
-            // Mark as both moved and attacked after attacking
+            // Mark as both moved and attacked after attacking and store combat action for multiplayer
             const markedState = {
               ...newState,
               ants: {
@@ -740,7 +791,13 @@ function App() {
                   hasMoved: true,
                   hasAttacked: true
                 }
-              }
+              },
+              // Store combat action for multiplayer animation replay
+              lastCombatAction: combatResult.attackAnimation ? {
+                ...combatResult.attackAnimation,
+                damageDealt: combatResult.damageDealt,
+                timestamp: Date.now()
+              } : undefined
             };
             updateGame(markedState);
             setSelectedAction(null);
@@ -795,7 +852,7 @@ function App() {
             showDamageNumber(damage, position);
           });
 
-          // Mark as both moved and attacked after attacking
+          // Mark as both moved and attacked after attacking and store combat action for multiplayer
           const markedState = {
             ...newState,
             ants: {
@@ -805,7 +862,13 @@ function App() {
                 hasMoved: true,
                 hasAttacked: true
               }
-            }
+            },
+            // Store combat action for multiplayer animation replay
+            lastCombatAction: combatResult.attackAnimation ? {
+              ...combatResult.attackAnimation,
+              damageDealt: combatResult.damageDealt,
+              timestamp: Date.now()
+            } : undefined
           };
           updateGame(markedState);
           setSelectedAction(null);
