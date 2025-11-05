@@ -439,13 +439,13 @@ function App() {
 
   // Check if ant can still perform actions after moving
   const canAntStillAct = (antId, state) => {
-    const ant = state.ants[antId];
+    const ant = state.ants?.[antId];
     if (!ant || ant.hasAttacked) return false;
 
     const antType = AntTypes[ant.type.toUpperCase()];
 
     // Check if can attack enemies
-    const hasEnemiesInRange = Object.values(state.ants).some(enemyAnt => {
+    const hasEnemiesInRange = state.ants ? Object.values(state.ants).some(enemyAnt => {
       if (enemyAnt.owner !== ant.owner) {
         const distance = Math.max(
           Math.abs(ant.position.q - enemyAnt.position.q),
@@ -455,12 +455,12 @@ function App() {
         return distance <= antType.attackRange;
       }
       return false;
-    });
+    }) : false;
 
     if (hasEnemiesInRange) return true;
 
     // Check if can attack eggs
-    const hasEggsInRange = Object.values(state.eggs).some(egg => {
+    const hasEggsInRange = state.eggs ? Object.values(state.eggs).some(egg => {
       if (egg.owner !== ant.owner) {
         const distance = Math.max(
           Math.abs(ant.position.q - egg.position.q),
@@ -470,12 +470,12 @@ function App() {
         return distance <= antType.attackRange;
       }
       return false;
-    });
+    }) : false;
 
     if (hasEggsInRange) return true;
 
     // Check if can attack anthills
-    const hasAnthillsInRange = Object.values(state.anthills).some(anthill => {
+    const hasAnthillsInRange = state.anthills ? Object.values(state.anthills).some(anthill => {
       if (anthill.owner !== ant.owner) {
         const distance = Math.max(
           Math.abs(ant.position.q - anthill.position.q),
@@ -485,15 +485,15 @@ function App() {
         return distance <= antType.attackRange;
       }
       return false;
-    });
+    }) : false;
 
     if (hasAnthillsInRange) return true;
 
     // Check if drone can build anthill
     if (ant.type === 'drone') {
-      const isOnResourceNode = Object.values(state.resourceNodes).some(
+      const isOnResourceNode = state.resourceNodes ? Object.values(state.resourceNodes).some(
         node => node.position.q === ant.position.q && node.position.r === ant.position.r
-      );
+      ) : false;
       if (isOnResourceNode) return true;
     }
 
