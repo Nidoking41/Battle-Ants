@@ -22,6 +22,7 @@ function App() {
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
+  const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -1897,65 +1898,24 @@ function App() {
         <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
           {isMyTurn() ? (
             <>
-              {/* Upgrades Section */}
-              <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid #ddd' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Upgrades</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {Object.values(Upgrades).map(upgrade => {
-                    const currentPlayer = gameState.players[gameState.currentPlayer];
-                    const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
-                    const currentTier = currentPlayer.upgrades[upgrade.id] || 0;
-                    const isMaxed = currentTier >= upgrade.maxTier;
-                    const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id, queen);
-                    const cost = isMaxed ? null : upgrade.costs[currentTier];
-                    const isBinaryUpgrade = upgrade.maxTier === 1; // Cannibalism, Burrow, Connected Tunnels
-
-                    return (
-                      <button
-                        key={upgrade.id}
-                        onClick={() => {
-                          if (!affordable) {
-                            alert(isMaxed ? 'Already purchased!' : 'Not enough resources!');
-                            return;
-                          }
-                          const currentState = getGameStateForLogic();
-                          updateGame(purchaseUpgrade(currentState, upgrade.id));
-                        }}
-                        disabled={!affordable || !isMyTurn()}
-                        style={{
-                          padding: '12px',
-                          fontSize: '15px',
-                          backgroundColor: isMaxed ? '#888' : (affordable ? '#9C27B0' : '#ccc'),
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
-                          textAlign: 'left',
-                          opacity: isMyTurn() ? 1 : 0.6
-                        }}
-                      >
-                        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                          {upgrade.icon} {upgrade.name}
-                          {!isBinaryUpgrade && ` (Tier ${currentTier}/${upgrade.maxTier})`}
-                        </div>
-                        {!isMaxed && cost && (
-                          <div style={{ fontSize: '13px', marginTop: '5px' }}>
-                            Cost: {cost.food}🍃 {cost.minerals}💎
-                          </div>
-                        )}
-                        <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.9 }}>
-                          {upgrade.description}
-                        </div>
-                        {upgrade.requiresQueenTier && (
-                          <div style={{ fontSize: '11px', marginTop: '5px', fontStyle: 'italic', color: '#FFD700' }}>
-                            Requires: Swarm Queen upgrade
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Upgrades Button */}
+              <button
+                onClick={() => setShowUpgradesModal(true)}
+                style={{
+                  width: '100%',
+                  padding: '15px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  backgroundColor: '#9C27B0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  marginBottom: '20px'
+                }}
+              >
+                ⚡ Upgrades
+              </button>
 
               <h3 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2842,6 +2802,118 @@ function App() {
         WASD/Arrows: Pan<br/>
         C: Center on Queen
       </div>
+
+      {/* Upgrades Modal */}
+      {showUpgradesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}
+        onClick={() => setShowUpgradesModal(false)}
+        >
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '10px',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            padding: '30px',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowUpgradesModal(false)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                width: '35px',
+                height: '35px',
+                borderRadius: '50%',
+                backgroundColor: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              ×
+            </button>
+
+            <h2 style={{ marginTop: 0, color: '#9C27B0', borderBottom: '3px solid #9C27B0', paddingBottom: '10px' }}>
+              ⚡ Upgrades
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+              {Object.values(Upgrades).map(upgrade => {
+                const currentPlayer = gameState.players[gameState.currentPlayer];
+                const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
+                const currentTier = currentPlayer.upgrades[upgrade.id] || 0;
+                const isMaxed = currentTier >= upgrade.maxTier;
+                const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id, queen);
+                const cost = isMaxed ? null : upgrade.costs[currentTier];
+                const isBinaryUpgrade = upgrade.maxTier === 1;
+
+                return (
+                  <button
+                    key={upgrade.id}
+                    onClick={() => {
+                      if (!affordable) {
+                        alert(isMaxed ? 'Already purchased!' : 'Not enough resources!');
+                        return;
+                      }
+                      const currentState = getGameStateForLogic();
+                      updateGame(purchaseUpgrade(currentState, upgrade.id));
+                    }}
+                    disabled={!affordable}
+                    style={{
+                      padding: '15px',
+                      fontSize: '15px',
+                      backgroundColor: isMaxed ? '#888' : (affordable ? '#9C27B0' : '#ccc'),
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: affordable ? 'pointer' : 'not-allowed',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: '17px', marginBottom: '8px' }}>
+                      {upgrade.icon} {upgrade.name}
+                      {!isBinaryUpgrade && ` (Tier ${currentTier}/${upgrade.maxTier})`}
+                      {isMaxed && <span style={{ marginLeft: '10px', fontSize: '14px', opacity: 0.8 }}>✓ Owned</span>}
+                    </div>
+                    {!isMaxed && cost && (
+                      <div style={{ fontSize: '14px', marginBottom: '6px' }}>
+                        Cost: {cost.food}🍃 {cost.minerals}💎
+                      </div>
+                    )}
+                    <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.4' }}>
+                      {upgrade.description}
+                    </div>
+                    {upgrade.requiresQueenTier && !queen?.queenTier !== 'swarmQueen' && (
+                      <div style={{ fontSize: '12px', marginTop: '6px', fontStyle: 'italic', color: '#FFD700' }}>
+                        Requires: Swarm Queen upgrade
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Help Guide Popup Modal */}
       {showHelpGuide && (
