@@ -1608,7 +1608,7 @@ function App() {
                     fill="white"
                     style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
                   >
-                    {AntTypes[ant.type.toUpperCase()].icon}
+                    {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
                   </text>
                   {/* "No moves" indicator */}
                   {!hasActions && (
