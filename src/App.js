@@ -2182,24 +2182,9 @@ function App() {
                 >
                   Move
                 </button>
-                <button
-                  onClick={() => setSelectedAction('attack')}
-                  style={{
-                    marginRight: '5px',
-                    padding: '8px 12px',
-                    backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
-                    color: selectedAction === 'attack' ? 'white' : 'black',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
-                  }}
-                >
-                  Attack
-                </button>
 
-                {/* Bomber-specific detonate button */}
-                {gameState.ants[selectedAnt].type === 'bomber' && (
+                {/* Bomber-specific: only detonate button, no normal attack */}
+                {gameState.ants[selectedAnt].type === 'bomber' ? (
                   <button
                     onClick={handleDetonate}
                     disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
@@ -2217,7 +2202,23 @@ function App() {
                       opacity: isMyTurn() ? 1 : 0.6
                     }}
                   >
-                    💥 DETONATE 💥
+                    💥 DETONATE (Suicide Attack) 💥
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setSelectedAction('attack')}
+                    style={{
+                      marginRight: '5px',
+                      padding: '8px 12px',
+                      backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
+                      color: selectedAction === 'attack' ? 'white' : 'black',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
+                    }}
+                  >
+                    Attack
                   </button>
                 )}
                   {gameState.ants[selectedAnt].type === 'queen' && (
