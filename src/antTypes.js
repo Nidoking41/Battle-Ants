@@ -136,7 +136,7 @@ export const AntTypes = {
 
   HEALER: {
     id: 'healer',
-    name: 'Healer Ant',
+    name: 'Weaver Ant',
     cost: { food: 20, minerals: 15 },
     hatchTime: 2,
     maxHealth: 30,
