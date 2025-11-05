@@ -23,6 +23,8 @@ function App() {
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
+  const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
+  const [attackPositions, setAttackPositions] = useState([]); // Valid positions to attack from
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -1235,6 +1237,96 @@ function App() {
       return;
     }
 
+    // If an ant is selected and user clicks on an enemy, handle smart attack
+    if (selectedAnt && selectedAction === 'move') {
+      const ant = currentState.ants[selectedAnt];
+      const clickedEnemy = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner !== ant.owner
+      );
+
+      if (clickedEnemy) {
+        const antType = AntTypes[ant.type.toUpperCase()];
+
+        // Check if enemy is already in attack range
+        if (canAttack(ant, clickedEnemy, currentState)) {
+          // Enemy is in range, attack directly
+          setSelectedAction('attack');
+          // Trigger attack in next frame
+          setTimeout(() => handleHexClick(hex), 0);
+          return;
+        }
+
+        // Enemy not in range - find positions we can move to that would put enemy in range
+        const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius);
+        const attackablePositions = validMoves.filter(movePos => {
+          // Check if this position is occupied by a friendly unit
+          const occupiedByFriendly = Object.values(currentState.ants).some(
+            a => a.id !== ant.id && a.owner === ant.owner && hexEquals(a.position, movePos)
+          );
+          if (occupiedByFriendly) return false;
+
+          // Calculate distance from this position to enemy
+          const distance = Math.max(
+            Math.abs(movePos.q - clickedEnemy.position.q),
+            Math.abs(movePos.r - clickedEnemy.position.r),
+            Math.abs((-movePos.q - movePos.r) - (-clickedEnemy.position.q - clickedEnemy.position.r))
+          );
+
+          // Check if enemy would be in attack range from this position
+          return distance <= antType.attackRange && (!antType.minAttackRange || distance >= antType.minAttackRange);
+        });
+
+        if (attackablePositions.length === 0) {
+          alert('Cannot reach enemy to attack!');
+          return;
+        } else if (attackablePositions.length === 1) {
+          // Only one position - auto-move there
+          const movePos = attackablePositions[0];
+          const newState = moveAnt(currentState, selectedAnt, movePos);
+          const markedState = markAntMoved(newState, selectedAnt);
+          updateGame(markedState);
+
+          // Keep ant selected and set to attack mode, targeting the enemy
+          setSelectedAction('attack');
+          setTimeout(() => handleHexClick(clickedEnemy.position), 100);
+          return;
+        } else {
+          // Multiple positions - let user choose
+          setAttackTarget(clickedEnemy);
+          setAttackPositions(attackablePositions);
+          alert('Click on a hex to attack from (highlighted in red)');
+          return;
+        }
+      }
+    }
+
+    // If selecting an attack position from multiple options
+    if (attackTarget && attackPositions.length > 0) {
+      const selectedPosition = attackPositions.find(pos => hexEquals(pos, hex));
+      if (selectedPosition) {
+        const ant = currentState.ants[selectedAnt];
+        // Move to selected position
+        const newState = moveAnt(currentState, selectedAnt, selectedPosition);
+        const markedState = markAntMoved(newState, selectedAnt);
+        updateGame(markedState);
+
+        // Clear attack position selection
+        setAttackPositions([]);
+
+        // Set to attack mode and attack the target
+        setSelectedAction('attack');
+        setTimeout(() => {
+          handleHexClick(attackTarget.position);
+          setAttackTarget(null);
+        }, 100);
+        return;
+      } else {
+        // Clicked somewhere else - cancel attack position selection
+        setAttackTarget(null);
+        setAttackPositions([]);
+      }
+    }
+
     // Select ant and auto-select move action
     const clickedAnt = Object.values(currentState.ants).find(
       a => hexEquals(a.position, hex) && a.owner === currentState.currentPlayer
@@ -1529,6 +1621,7 @@ function App() {
         const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
         const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
         const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
+        const isAttackPosition = attackPositions.some(pos => hexEquals(pos, hex));
 
         // Check if this hex is visible (for fog of war)
         const hexKey = `${q},${r}`;
@@ -1585,6 +1678,10 @@ function App() {
         }
         if (isEnsnareTarget) {
           fillColor = '#F0E68C'; // Khaki/yellow for ensnare targets
+          useBirthingPoolPattern = false;
+        }
+        if (isAttackPosition) {
+          fillColor = '#FF4444'; // Bright red for attack positions
           useBirthingPoolPattern = false;
         }
         if (isSelected) {
