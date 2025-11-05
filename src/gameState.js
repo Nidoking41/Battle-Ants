@@ -493,7 +493,7 @@ export function canAffordUpgrade(player, upgradeId, queen) {
     }
   }
 
-  const currentTier = player.upgrades[upgradeId];
+  const currentTier = player.upgrades[upgradeId] || 0;
   if (currentTier >= upgrade.maxTier) return false; // Already at max tier
 
   const cost = upgrade.costs[currentTier];
@@ -507,7 +507,7 @@ export function purchaseUpgrade(gameState, upgradeId) {
   if (!upgrade) return gameState;
 
   const currentPlayer = gameState.players[gameState.currentPlayer];
-  const currentTier = currentPlayer.upgrades[upgradeId];
+  const currentTier = currentPlayer.upgrades[upgradeId] || 0;
 
   if (currentTier >= upgrade.maxTier) return gameState; // Already at max tier
   if (!canAffordUpgrade(currentPlayer, upgradeId)) return gameState; // Can't afford
