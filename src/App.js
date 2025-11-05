@@ -20,6 +20,7 @@ function App() {
   const [attackAnimations, setAttackAnimations] = useState([]); // Array of {id, attackerId, targetPos, timestamp, isRanged}
   const [projectiles, setProjectiles] = useState([]); // Array of {id, startPos, endPos, timestamp}
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
+  const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
 
   // Camera/view state for pan and zoom
@@ -387,6 +388,19 @@ function App() {
       alert('This bomber has already detonated this turn!');
       return;
     }
+
+    // Show explosion animation
+    const explosionId = `explosion_${Date.now()}`;
+    setExplosions(prev => [...prev, {
+      id: explosionId,
+      position: ant.position,
+      timestamp: Date.now()
+    }]);
+
+    // Remove explosion after animation completes (1 second)
+    setTimeout(() => {
+      setExplosions(prev => prev.filter(e => e.id !== explosionId));
+    }, 1000);
 
     const newState = detonateBomber(currentState, selectedAnt);
     updateGame(newState);
@@ -1911,6 +1925,54 @@ function App() {
                   >
                     -{damage}
                   </text>
+                </g>
+              );
+            })}
+
+            {/* Bomber Explosion Animations */}
+            {explosions.map(({ id, position, timestamp }) => {
+              const { x, y } = hexToPixel(position, hexSize);
+              const elapsed = Date.now() - timestamp;
+              const progress = elapsed / 1000; // 0 to 1 over 1 second
+
+              // Create multiple expanding waves in different shades of green
+              const waves = [
+                { delay: 0, color: '#00ff00', maxRadius: hexSize * 2.5 },
+                { delay: 0.1, color: '#32cd32', maxRadius: hexSize * 2.2 },
+                { delay: 0.2, color: '#7fff00', maxRadius: hexSize * 1.9 },
+                { delay: 0.3, color: '#adff2f', maxRadius: hexSize * 1.6 }
+              ];
+
+              return (
+                <g key={id} transform={`translate(${x}, ${y})`} style={{ pointerEvents: 'none' }}>
+                  {waves.map((wave, idx) => {
+                    const waveProgress = Math.max(0, Math.min(1, (progress - wave.delay) / (0.7 - wave.delay)));
+                    const radius = waveProgress * wave.maxRadius;
+                    const opacity = (1 - waveProgress) * 0.8;
+
+                    return (
+                      <circle
+                        key={idx}
+                        cx={0}
+                        cy={0}
+                        r={radius}
+                        fill="none"
+                        stroke={wave.color}
+                        strokeWidth={8 * (1 - waveProgress * 0.5)}
+                        opacity={opacity}
+                      />
+                    );
+                  })}
+                  {/* Central flash */}
+                  {progress < 0.3 && (
+                    <circle
+                      cx={0}
+                      cy={0}
+                      r={hexSize * 0.8 * (1 - progress / 0.3)}
+                      fill="#ffffff"
+                      opacity={(1 - progress / 0.3) * 0.9}
+                    />
+                  )}
                 </g>
               );
             })}
