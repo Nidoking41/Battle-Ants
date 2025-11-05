@@ -459,10 +459,11 @@ export function buildAnthill(gameState, droneId, resourceId) {
 
 // Check if player can afford an upgrade
 export function canAffordUpgrade(player, upgradeId) {
-  const upgrade = Upgrades[upgradeId.toUpperCase()];
+  // Find the upgrade by matching the id field
+  const upgrade = Object.values(Upgrades).find(u => u.id === upgradeId);
   if (!upgrade) return false;
 
-  const currentTier = player.upgrades[upgrade.id];
+  const currentTier = player.upgrades[upgradeId];
   if (currentTier >= upgrade.maxTier) return false; // Already at max tier
 
   const cost = upgrade.costs[currentTier];
@@ -471,11 +472,12 @@ export function canAffordUpgrade(player, upgradeId) {
 
 // Purchase an upgrade
 export function purchaseUpgrade(gameState, upgradeId) {
-  const upgrade = Upgrades[upgradeId.toUpperCase()];
+  // Find the upgrade by matching the id field
+  const upgrade = Object.values(Upgrades).find(u => u.id === upgradeId);
   if (!upgrade) return gameState;
 
   const currentPlayer = gameState.players[gameState.currentPlayer];
-  const currentTier = currentPlayer.upgrades[upgrade.id];
+  const currentTier = currentPlayer.upgrades[upgradeId];
 
   if (currentTier >= upgrade.maxTier) return gameState; // Already at max tier
   if (!canAffordUpgrade(currentPlayer, upgradeId)) return gameState; // Can't afford
@@ -494,7 +496,7 @@ export function purchaseUpgrade(gameState, upgradeId) {
         },
         upgrades: {
           ...currentPlayer.upgrades,
-          [upgrade.id]: currentTier + 1
+          [upgradeId]: currentTier + 1
         }
       }
     }
