@@ -1897,6 +1897,66 @@ function App() {
         <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
           {isMyTurn() ? (
             <>
+              {/* Upgrades Section */}
+              <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid #ddd' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Upgrades</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {Object.values(Upgrades).map(upgrade => {
+                    const currentPlayer = gameState.players[gameState.currentPlayer];
+                    const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
+                    const currentTier = currentPlayer.upgrades[upgrade.id] || 0;
+                    const isMaxed = currentTier >= upgrade.maxTier;
+                    const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id, queen);
+                    const cost = isMaxed ? null : upgrade.costs[currentTier];
+                    const isBinaryUpgrade = upgrade.maxTier === 1; // Cannibalism, Burrow, Connected Tunnels
+
+                    return (
+                      <button
+                        key={upgrade.id}
+                        onClick={() => {
+                          if (!affordable) {
+                            alert(isMaxed ? 'Already purchased!' : 'Not enough resources!');
+                            return;
+                          }
+                          const currentState = getGameStateForLogic();
+                          updateGame(purchaseUpgrade(currentState, upgrade.id));
+                        }}
+                        disabled={!affordable || !isMyTurn()}
+                        style={{
+                          padding: '12px',
+                          fontSize: '15px',
+                          backgroundColor: isMaxed ? '#888' : (affordable ? '#9C27B0' : '#ccc'),
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
+                          textAlign: 'left',
+                          opacity: isMyTurn() ? 1 : 0.6
+                        }}
+                      >
+                        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+                          {upgrade.icon} {upgrade.name}
+                          {!isBinaryUpgrade && ` (Tier ${currentTier}/${upgrade.maxTier})`}
+                        </div>
+                        {!isMaxed && cost && (
+                          <div style={{ fontSize: '13px', marginTop: '5px' }}>
+                            Cost: {cost.food}🍃 {cost.minerals}💎
+                          </div>
+                        )}
+                        <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.9 }}>
+                          {upgrade.description}
+                        </div>
+                        {upgrade.requiresQueenTier && (
+                          <div style={{ fontSize: '11px', marginTop: '5px', fontStyle: 'italic', color: '#FFD700' }}>
+                            Requires: Swarm Queen upgrade
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <h3 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {Object.values(AntTypes).filter(t => t.id !== 'queen').map(ant => {
@@ -2179,64 +2239,6 @@ function App() {
               );
             })()}
           </div>
-
-          {/* Upgrades Section */}
-          {isMyTurn() && (
-            <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid #ddd' }}>
-              <h4>Upgrades</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.values(Upgrades).map(upgrade => {
-                  const currentPlayer = gameState.players[gameState.currentPlayer];
-                  const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
-                  const currentTier = currentPlayer.upgrades[upgrade.id];
-                  const isMaxed = currentTier >= upgrade.maxTier;
-                  const affordable = !isMaxed && canAffordUpgrade(currentPlayer, upgrade.id, queen);
-                  const cost = isMaxed ? null : upgrade.costs[currentTier];
-
-                  return (
-                    <button
-                      key={upgrade.id}
-                      onClick={() => {
-                        if (!affordable) {
-                          alert(isMaxed ? 'Already at max tier!' : 'Not enough resources!');
-                          return;
-                        }
-                        const currentState = getGameStateForLogic();
-                        updateGame(purchaseUpgrade(currentState, upgrade.id));
-                      }}
-                      disabled={!affordable || !isMyTurn()}
-                      style={{
-                        padding: '12px',
-                        fontSize: '15px',
-                        backgroundColor: isMaxed ? '#888' : (affordable ? '#9C27B0' : '#ccc'),
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
-                        textAlign: 'left',
-                        opacity: isMyTurn() ? 1 : 0.6
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{upgrade.icon} {upgrade.name} (Tier {currentTier}/{upgrade.maxTier})</div>
-                      {!isMaxed && cost && (
-                        <div style={{ fontSize: '13px', marginTop: '5px' }}>
-                          Cost: {cost.food}🍃 {cost.minerals}💎
-                        </div>
-                      )}
-                      <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.9 }}>
-                        {upgrade.description}
-                      </div>
-                      {upgrade.requiresQueenTier && (
-                        <div style={{ fontSize: '11px', marginTop: '5px', fontStyle: 'italic', color: '#FFD700' }}>
-                          Requires: Swarm Queen upgrade
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Queen Upgrade Section */}
           {isMyTurn() && (() => {
