@@ -2348,7 +2348,7 @@ function App() {
                   )}
 
                   {/* Burrow/Unburrow buttons (not for tank or bombardier) */}
-                  {!gameState.ants[selectedAnt].isBurrowed && canBurrow(gameState.ants[selectedAnt]) && (
+                  {!gameState.ants[selectedAnt].isBurrowed && canBurrow(getGameStateForLogic(), gameState.ants[selectedAnt]) && (
                     <button
                       onClick={() => {
                         const currentState = getGameStateForLogic();

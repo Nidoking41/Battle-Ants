@@ -677,6 +677,10 @@ export function burrowAnt(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!ant) return gameState;
 
+  // Check if player has researched burrow upgrade
+  const player = gameState.players[ant.owner];
+  if (!player.upgrades.burrow) return gameState;
+
   // Tank and Bombardier cannot burrow
   if (ant.type === 'tank' || ant.type === 'bombardier') return gameState;
 
@@ -724,8 +728,13 @@ export function unburrowAnt(gameState, antId) {
 }
 
 // Check if an ant can burrow
-export function canBurrow(ant) {
+export function canBurrow(gameState, ant) {
   if (!ant) return false;
+
+  // Check if player has researched burrow upgrade
+  const player = gameState.players[ant.owner];
+  if (!player.upgrades.burrow) return false;
+
   if (ant.type === 'tank' || ant.type === 'bombardier') return false;
   if (ant.isBurrowed) return false;
   if (ant.hasMoved) return false;

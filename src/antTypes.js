@@ -213,6 +213,16 @@ export const Upgrades = {
     costs: [
       { food: 30, minerals: 20 }  // Tier 1
     ]
+  },
+  BURROW: {
+    id: 'burrow',
+    name: 'Burrow',
+    description: 'Unlock burrow ability for all units (except Tank/Bombardier)',
+    icon: '🕳️',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
+    ]
   }
 };
 
