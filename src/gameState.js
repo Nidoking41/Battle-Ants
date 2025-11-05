@@ -402,9 +402,43 @@ export function buildAnthill(gameState, droneId, resourceId) {
       updatedAnthills[existingAnthill.id] = existingAnthill;
     }
   } else {
+    // Starting a new anthill costs food
+    const player = gameState.players[drone.owner];
+    if (player.resources.food < GameConstants.ANTHILL_BUILD_COST) {
+      return gameState; // Not enough food
+    }
+
+    // Deduct the cost
+    const updatedPlayers = {
+      ...gameState.players,
+      [drone.owner]: {
+        ...player,
+        resources: {
+          ...player.resources,
+          food: player.resources.food - GameConstants.ANTHILL_BUILD_COST
+        }
+      }
+    };
+
     // Create a new anthill under construction with 1 progress
     const newAnthill = createAnthillInProgress(resourceId, drone.owner, resource.position, resource.type, 1);
     updatedAnthills[newAnthill.id] = newAnthill;
+
+    // Mark drone as having built (ends their turn completely)
+    return {
+      ...gameState,
+      anthills: updatedAnthills,
+      players: updatedPlayers,
+      ants: {
+        ...gameState.ants,
+        [droneId]: {
+          ...drone,
+          hasMoved: true,
+          hasAttacked: true, // Building ends the turn like attacking does
+          hasBuilt: true
+        }
+      }
+    };
   }
 
   // Mark drone as having built (ends their turn completely)

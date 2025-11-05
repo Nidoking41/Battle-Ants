@@ -797,6 +797,15 @@ function App() {
         return;
       }
 
+      // Check if player can afford to start a new anthill
+      if (!existingAnthill) {
+        const player = currentState.players[drone.owner];
+        if (player.resources.food < GameConstants.ANTHILL_BUILD_COST) {
+          alert(`Not enough food to start building an anthill! Cost: ${GameConstants.ANTHILL_BUILD_COST} food`);
+          return;
+        }
+      }
+
       // Build or continue building the anthill
       const newState = buildAnthill(currentState, selectedAnt, resourceAtHex.id);
       updateGame(newState);

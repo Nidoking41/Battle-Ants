@@ -149,6 +149,7 @@ export const GameConstants = {
   HEX_GRID_SIZE: 10, // 10x10 hex grid
   RESOURCE_SPAWN_COUNT: 6, // number of resource nodes on map
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
+  ANTHILL_BUILD_COST: 10, // Food cost to start building an anthill
   ANTHILL_PASSIVE_INCOME: {
     food: 7,  // Per turn for food anthills
     minerals: 7  // Per turn for mineral anthills
