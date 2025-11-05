@@ -56,12 +56,7 @@ function App() {
     }
   };
 
-  // Auto-center on queen when turn starts (or game mode changes)
-  useEffect(() => {
-    if (gameMode && gameState) {
-      centerOnQueen();
-    }
-  }, [gameState.turn, gameMode?.playerRole]);
+  // Camera no longer auto-centers on turn change - players keep their current view
 
   // Handle mouse down for panning (middle mouse button or ctrl+left click)
   const handleMouseDown = (e) => {
