@@ -136,8 +136,8 @@ export function detonateBomber(gameState, bomberId) {
   adjacentAnts.forEach(target => {
     const targetType = AntTypes[target.type.toUpperCase()];
     const defense = targetType.defense;
-    const damage = Math.max(1, bomberType.detonationDamage - Math.floor(defense / 2));
-    const newHealth = target.health - damage;
+    const damage = Math.max(1, bomberType.attack - Math.floor(defense / 2));
+    const newHealth = target.hp - damage;
 
     if (newHealth <= 0) {
       // Target dies
@@ -156,7 +156,7 @@ export function detonateBomber(gameState, bomberId) {
     } else {
       updatedAnts[target.id] = {
         ...target,
-        health: newHealth
+        hp: newHealth
       };
     }
   });
