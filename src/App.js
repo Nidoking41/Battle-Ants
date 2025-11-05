@@ -1256,6 +1256,12 @@ function App() {
           return;
         }
 
+        // Check if ant has already moved
+        if (ant.hasMoved) {
+          alert('This unit has already moved and cannot reach the enemy!');
+          return;
+        }
+
         // Enemy not in range - find positions we can move to that would put enemy in range
         const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius);
         const attackablePositions = validMoves.filter(movePos => {
