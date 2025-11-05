@@ -290,16 +290,60 @@ export function getVisibleHexes(gameState, playerId) {
   return visibleHexes;
 }
 
+// Get detected burrowed enemy ants (scouts are detectors)
+export function getDetectedBurrowedAnts(gameState, playerId) {
+  const detectedBurrowed = new Set(); // Set of ant IDs
+
+  // Get all enemy burrowed ants
+  const enemyBurrowedAnts = Object.values(gameState.ants).filter(
+    ant => ant.owner !== playerId && ant.isBurrowed
+  );
+
+  // Check if any player scouts can detect them
+  const playerScouts = Object.values(gameState.ants).filter(
+    ant => ant.owner === playerId && ant.type === 'scout'
+  );
+
+  playerScouts.forEach(scout => {
+    // Scouts detect in vision range (same as their vision)
+    let DETECTION_RADIUS = 2; // Base scout vision
+
+    // Scouts on player-owned anthills get +1 detection bonus
+    const anthillAtPosition = Object.values(gameState.anthills).find(
+      anthill => anthill.position.q === scout.position.q &&
+                 anthill.position.r === scout.position.r &&
+                 anthill.owner === playerId
+    );
+    if (anthillAtPosition) {
+      DETECTION_RADIUS += 1;
+    }
+
+    enemyBurrowedAnts.forEach(burrowedAnt => {
+      const distance = hexDistance(scout.position, burrowedAnt.position);
+      if (distance <= DETECTION_RADIUS) {
+        detectedBurrowed.add(burrowedAnt.id);
+      }
+    });
+  });
+
+  return detectedBurrowed;
+}
+
 // Apply fog of war to game state for a specific player
 export function applyFogOfWar(gameState, playerId) {
   const visibleHexes = getVisibleHexes(gameState, playerId);
+  const detectedBurrowed = getDetectedBurrowedAnts(gameState, playerId);
 
-  // Filter ants - only show enemy ants in visible range
+  // Filter ants - only show enemy ants in visible range OR if they are detected while burrowed
   const filteredAnts = {};
   Object.entries(gameState.ants).forEach(([id, ant]) => {
     const hexKey = `${ant.position.q},${ant.position.r}`;
-    // Always show own ants, only show enemy ants if visible
-    if (ant.owner === playerId || visibleHexes.has(hexKey)) {
+    // Always show own ants
+    if (ant.owner === playerId) {
+      filteredAnts[id] = ant;
+    }
+    // Show enemy ants if visible OR if detected while burrowed
+    else if (visibleHexes.has(hexKey) || detectedBurrowed.has(id)) {
       filteredAnts[id] = ant;
     }
   });
