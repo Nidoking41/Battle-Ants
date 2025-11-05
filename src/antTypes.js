@@ -150,8 +150,8 @@ export const GameConstants = {
   RESOURCE_SPAWN_COUNT: 6, // number of resource nodes on map
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
   ANTHILL_PASSIVE_INCOME: {
-    food: 8,  // Per turn for food anthills
-    minerals: 6  // Per turn for mineral anthills
+    food: 7,  // Per turn for food anthills
+    minerals: 7  // Per turn for mineral anthills
   },
   // Queen Energy System
   QUEEN_BASE_ENERGY: 100,
