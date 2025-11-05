@@ -247,9 +247,22 @@ export function getVisibleHexes(gameState, playerId) {
   Object.values(gameState.ants).forEach(ant => {
     if (ant.owner === playerId) {
       playerAntCount++;
-      // Determine vision radius based on ant type
-      // Scouts get 3 vision range, all others get 2
-      const VISION_RADIUS = ant.type === 'scout' ? 3 : 2;
+
+      // Base vision reduced by 1 for all units
+      // Scouts get 2 vision range (was 3), all others get 1 (was 2)
+      let VISION_RADIUS = ant.type === 'scout' ? 2 : 1;
+
+      // Scouts on player-owned anthills get +1 vision bonus
+      if (ant.type === 'scout') {
+        const anthillAtPosition = Object.values(gameState.anthills).find(
+          anthill => anthill.position.q === ant.position.q &&
+                     anthill.position.r === ant.position.r &&
+                     anthill.owner === playerId
+        );
+        if (anthillAtPosition) {
+          VISION_RADIUS += 1; // Scout on anthill gets 3 vision
+        }
+      }
 
       // Add all hexes within vision radius of this ant
       for (let q = -VISION_RADIUS; q <= VISION_RADIUS; q++) {
@@ -263,6 +276,13 @@ export function getVisibleHexes(gameState, playerId) {
           }
         }
       }
+    }
+  });
+
+  // Add player-owned anthills to visible hexes (always visible)
+  Object.values(gameState.anthills).forEach(anthill => {
+    if (anthill.owner === playerId) {
+      visibleHexes.add(`${anthill.position.q},${anthill.position.r}`);
     }
   });
 
