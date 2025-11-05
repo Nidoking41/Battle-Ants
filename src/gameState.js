@@ -672,6 +672,82 @@ export function canAffordQueenUpgrade(gameState, queenId) {
          currentPlayer.resources.minerals >= nextTierData.cost.minerals;
 }
 
+// Burrow an ant
+export function burrowAnt(gameState, antId) {
+  const ant = gameState.ants[antId];
+  if (!ant) return gameState;
+
+  // Tank and Bombardier cannot burrow
+  if (ant.type === 'tank' || ant.type === 'bombardier') return gameState;
+
+  // Cannot burrow if already burrowed
+  if (ant.isBurrowed) return gameState;
+
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [antId]: {
+        ...ant,
+        isBurrowed: true,
+        hasMoved: true // Burrowing counts as your move action
+      }
+    }
+  };
+}
+
+// Unburrow an ant
+export function unburrowAnt(gameState, antId) {
+  const ant = gameState.ants[antId];
+  if (!ant || !ant.isBurrowed) return gameState;
+
+  // Check if another ant is directly above (same position)
+  const antAbove = Object.values(gameState.ants).some(
+    otherAnt => otherAnt.id !== antId &&
+                otherAnt.position.q === ant.position.q &&
+                otherAnt.position.r === ant.position.r
+  );
+
+  if (antAbove) return gameState; // Cannot unburrow
+
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [antId]: {
+        ...ant,
+        isBurrowed: false,
+        hasMoved: true // Unburrowing counts as your move action
+      }
+    }
+  };
+}
+
+// Check if an ant can burrow
+export function canBurrow(ant) {
+  if (!ant) return false;
+  if (ant.type === 'tank' || ant.type === 'bombardier') return false;
+  if (ant.isBurrowed) return false;
+  if (ant.hasMoved) return false;
+  return true;
+}
+
+// Check if an ant can unburrow
+export function canUnburrow(gameState, antId) {
+  const ant = gameState.ants[antId];
+  if (!ant || !ant.isBurrowed) return false;
+  if (ant.hasMoved) return false;
+
+  // Check if another ant is directly above
+  const antAbove = Object.values(gameState.ants).some(
+    otherAnt => otherAnt.id !== antId &&
+                otherAnt.position.q === ant.position.q &&
+                otherAnt.position.r === ant.position.r
+  );
+
+  return !antAbove;
+}
+
 // Get valid spawning pool hexes for a queen based on tier
 export function getSpawningPoolHexes(queen, getNeighborsFunc) {
   const queenTier = QueenTiers[queen.queenTier || 'queen'];

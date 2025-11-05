@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes } from './gameState';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
@@ -414,6 +414,9 @@ function App() {
     const currentState = getGameStateForLogic();
     const ant = currentState.ants[selectedAnt];
     if (!ant) return [];
+
+    // Burrowed units cannot attack (detonate is handled separately)
+    if (ant.isBurrowed) return [];
 
     const antType = AntTypes[ant.type.toUpperCase()];
     const enemies = [];
@@ -1386,6 +1389,17 @@ function App() {
       if (ant.type === 'queen') {
         return [];
       }
+
+      // Burrowed units have limited movement
+      if (ant.isBurrowed) {
+        // Only soldiers can move while burrowed (1 hex)
+        if (ant.type === 'soldier') {
+          return getMovementRange(ant.position, 1, gridRadius);
+        }
+        // Other burrowed units cannot move
+        return [];
+      }
+
       return getMovementRange(ant.position, antType.moveRange, gridRadius);
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       return getNeighbors(ant.position);
@@ -2330,6 +2344,56 @@ function App() {
                       }}
                     >
                       Build Anthill
+                    </button>
+                  )}
+
+                  {/* Burrow/Unburrow buttons (not for tank or bombardier) */}
+                  {!gameState.ants[selectedAnt].isBurrowed && canBurrow(gameState.ants[selectedAnt]) && (
+                    <button
+                      onClick={() => {
+                        const currentState = getGameStateForLogic();
+                        const newState = burrowAnt(currentState, selectedAnt);
+                        updateGame(newState);
+                      }}
+                      disabled={!isMyTurn()}
+                      style={{
+                        marginTop: '10px',
+                        padding: '8px 12px',
+                        backgroundColor: '#8B4513',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: isMyTurn() ? 'pointer' : 'not-allowed',
+                        width: '100%',
+                        fontWeight: 'bold',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      🌍 BURROW
+                    </button>
+                  )}
+                  {gameState.ants[selectedAnt].isBurrowed && canUnburrow(getGameStateForLogic(), selectedAnt) && (
+                    <button
+                      onClick={() => {
+                        const currentState = getGameStateForLogic();
+                        const newState = unburrowAnt(currentState, selectedAnt);
+                        updateGame(newState);
+                      }}
+                      disabled={!isMyTurn()}
+                      style={{
+                        marginTop: '10px',
+                        padding: '8px 12px',
+                        backgroundColor: '#DAA520',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: isMyTurn() ? 'pointer' : 'not-allowed',
+                        width: '100%',
+                        fontWeight: 'bold',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      ⬆️ UNBURROW
                     </button>
                   )}
                 </>
