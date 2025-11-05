@@ -1270,12 +1270,9 @@ function App() {
       setSelectedAnt(clickedAnt.id);
       // Auto-select action based on unit type:
       // - Queens: lay egg
-      // - Bombers: no auto-select (must click detonate button)
-      // - Others: move
+      // - Others (including bombers): move
       if (clickedAnt.type === 'queen') {
         setSelectedAction('layEgg');
-      } else if (clickedAnt.type === 'bomber') {
-        setSelectedAction(null);
       } else {
         setSelectedAction('move');
       }
@@ -1377,8 +1374,6 @@ function App() {
 
     if (nextAnt.type === 'queen') {
       setSelectedAction('layEgg');
-    } else if (nextAnt.type === 'bomber') {
-      setSelectedAction(null);
     } else {
       setSelectedAction('move');
     }
