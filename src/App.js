@@ -1904,8 +1904,45 @@ function App() {
           {/* Resources */}
           <div style={{ marginBottom: '20px' }}>
             <h4>Your Resources</h4>
-            <p>🍃 Food: {gameState.players[gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer].resources.food}</p>
-            <p>💎 Minerals: {gameState.players[gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer].resources.minerals}</p>
+            {(() => {
+              const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+              const player = gameState.players[currentPlayerId];
+
+              // Calculate income from anthills
+              let foodIncome = 0;
+              let mineralIncome = 0;
+              Object.values(gameState.anthills || {}).forEach(anthill => {
+                if (anthill.owner === currentPlayerId && anthill.isComplete) {
+                  if (anthill.resourceType === 'food') {
+                    foodIncome += GameConstants.ANTHILL_PASSIVE_INCOME.food;
+                  } else {
+                    mineralIncome += GameConstants.ANTHILL_PASSIVE_INCOME.minerals;
+                  }
+                }
+              });
+
+              // Add queen food income
+              const queen = Object.values(gameState.ants).find(
+                ant => ant.type === 'queen' && ant.owner === currentPlayerId
+              );
+              if (queen) {
+                const queenTier = queen.queenTier || 'queen';
+                foodIncome += QueenTiers[queenTier].foodIncome;
+              }
+
+              return (
+                <>
+                  <p>
+                    🍃 Food: {player.resources.food}
+                    {foodIncome > 0 && <span style={{ color: '#27ae60', fontWeight: 'bold' }}> (+{foodIncome}/turn)</span>}
+                  </p>
+                  <p>
+                    💎 Minerals: {player.resources.minerals}
+                    {mineralIncome > 0 && <span style={{ color: '#3498db', fontWeight: 'bold' }}> (+{mineralIncome}/turn)</span>}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           {/* Upgrades Section */}
