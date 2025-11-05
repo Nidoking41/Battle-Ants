@@ -170,7 +170,7 @@ export const ResourceTypes = {
 export const GameConstants = {
   MOVES_PER_TURN: 3,
   STARTING_RESOURCES: {
-    food: 25,
+    food: 35,
     minerals: 0
   },
   HEX_GRID_SIZE: 10, // 10x10 hex grid
