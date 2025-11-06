@@ -13,28 +13,34 @@ export function serializeGameState(gameState) {
   };
 
   // Serialize ants
-  Object.entries(gameState.ants).forEach(([id, ant]) => {
-    serialized.ants[id] = {
-      ...ant,
-      position: { q: ant.position.q, r: ant.position.r }
-    };
-  });
+  if (gameState.ants) {
+    Object.entries(gameState.ants).forEach(([id, ant]) => {
+      serialized.ants[id] = {
+        ...ant,
+        position: { q: ant.position.q, r: ant.position.r }
+      };
+    });
+  }
 
   // Serialize eggs
-  Object.entries(gameState.eggs).forEach(([id, egg]) => {
-    serialized.eggs[id] = {
-      ...egg,
-      position: { q: egg.position.q, r: egg.position.r }
-    };
-  });
+  if (gameState.eggs) {
+    Object.entries(gameState.eggs).forEach(([id, egg]) => {
+      serialized.eggs[id] = {
+        ...egg,
+        position: { q: egg.position.q, r: egg.position.r }
+      };
+    });
+  }
 
   // Serialize resources
-  Object.entries(gameState.resources).forEach(([id, resource]) => {
-    serialized.resources[id] = {
-      ...resource,
-      position: { q: resource.position.q, r: resource.position.r }
-    };
-  });
+  if (gameState.resources) {
+    Object.entries(gameState.resources).forEach(([id, resource]) => {
+      serialized.resources[id] = {
+        ...resource,
+        position: { q: resource.position.q, r: resource.position.r }
+      };
+    });
+  }
 
   return serialized;
 }
@@ -236,55 +242,61 @@ export function getVisibleHexes(gameState, playerId) {
   const visibleHexes = new Set();
 
   console.log('getVisibleHexes called with playerId:', playerId);
-  console.log('Total ants in game state:', Object.keys(gameState.ants).length);
+  console.log('Total ants in game state:', gameState.ants ? Object.keys(gameState.ants).length : 0);
 
   // Debug: Log all ant owners
-  const antOwners = Object.values(gameState.ants).map(a => a.owner);
-  console.log('Ant owners:', antOwners);
+  if (gameState.ants) {
+    const antOwners = Object.values(gameState.ants).map(a => a.owner);
+    console.log('Ant owners:', antOwners);
+  }
 
   // Get all ants owned by the player
   let playerAntCount = 0;
-  Object.values(gameState.ants).forEach(ant => {
-    if (ant.owner === playerId) {
-      playerAntCount++;
+  if (gameState.ants) {
+    Object.values(gameState.ants).forEach(ant => {
+      if (ant.owner === playerId) {
+        playerAntCount++;
 
-      // Base vision reduced by 1 for all units
-      // Scouts get 2 vision range (was 3), all others get 1 (was 2)
-      let VISION_RADIUS = ant.type === 'scout' ? 2 : 1;
+        // Base vision reduced by 1 for all units
+        // Scouts get 2 vision range (was 3), all others get 1 (was 2)
+        let VISION_RADIUS = ant.type === 'scout' ? 2 : 1;
 
-      // Scouts on player-owned anthills get +1 vision bonus
-      if (ant.type === 'scout') {
-        const anthillAtPosition = Object.values(gameState.anthills).find(
-          anthill => anthill.position.q === ant.position.q &&
-                     anthill.position.r === ant.position.r &&
-                     anthill.owner === playerId
-        );
-        if (anthillAtPosition) {
-          VISION_RADIUS += 1; // Scout on anthill gets 3 vision
+        // Scouts on player-owned anthills get +1 vision bonus
+        if (ant.type === 'scout' && gameState.anthills) {
+          const anthillAtPosition = Object.values(gameState.anthills).find(
+            anthill => anthill.position.q === ant.position.q &&
+                       anthill.position.r === ant.position.r &&
+                       anthill.owner === playerId
+          );
+          if (anthillAtPosition) {
+            VISION_RADIUS += 1; // Scout on anthill gets 3 vision
+          }
         }
-      }
 
-      // Add all hexes within vision radius of this ant
-      for (let q = -VISION_RADIUS; q <= VISION_RADIUS; q++) {
-        for (let r = -VISION_RADIUS; r <= VISION_RADIUS; r++) {
-          const s = -q - r;
-          if (Math.abs(q) <= VISION_RADIUS && Math.abs(r) <= VISION_RADIUS && Math.abs(s) <= VISION_RADIUS) {
-            const visibleHex = new HexCoord(ant.position.q + q, ant.position.r + r);
-            if (hexDistance(ant.position, visibleHex) <= VISION_RADIUS) {
-              visibleHexes.add(`${visibleHex.q},${visibleHex.r}`);
+        // Add all hexes within vision radius of this ant
+        for (let q = -VISION_RADIUS; q <= VISION_RADIUS; q++) {
+          for (let r = -VISION_RADIUS; r <= VISION_RADIUS; r++) {
+            const s = -q - r;
+            if (Math.abs(q) <= VISION_RADIUS && Math.abs(r) <= VISION_RADIUS && Math.abs(s) <= VISION_RADIUS) {
+              const visibleHex = new HexCoord(ant.position.q + q, ant.position.r + r);
+              if (hexDistance(ant.position, visibleHex) <= VISION_RADIUS) {
+                visibleHexes.add(`${visibleHex.q},${visibleHex.r}`);
+              }
             }
           }
         }
       }
-    }
-  });
+    });
+  }
 
   // Add player-owned anthills to visible hexes (always visible)
-  Object.values(gameState.anthills).forEach(anthill => {
-    if (anthill.owner === playerId) {
-      visibleHexes.add(`${anthill.position.q},${anthill.position.r}`);
-    }
-  });
+  if (gameState.anthills) {
+    Object.values(gameState.anthills).forEach(anthill => {
+      if (anthill.owner === playerId) {
+        visibleHexes.add(`${anthill.position.q},${anthill.position.r}`);
+      }
+    });
+  }
 
   console.log(`Player ${playerId} has ${playerAntCount} ants, visible hexes:`, visibleHexes.size);
   return visibleHexes;
@@ -293,6 +305,10 @@ export function getVisibleHexes(gameState, playerId) {
 // Get detected burrowed enemy ants (scouts are detectors)
 export function getDetectedBurrowedAnts(gameState, playerId) {
   const detectedBurrowed = new Set(); // Set of ant IDs
+
+  if (!gameState.ants) {
+    return detectedBurrowed;
+  }
 
   // Get all enemy burrowed ants
   const enemyBurrowedAnts = Object.values(gameState.ants).filter(
@@ -309,13 +325,15 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     let DETECTION_RADIUS = 2; // Base scout vision
 
     // Scouts on player-owned anthills get +1 detection bonus
-    const anthillAtPosition = Object.values(gameState.anthills).find(
-      anthill => anthill.position.q === scout.position.q &&
-                 anthill.position.r === scout.position.r &&
-                 anthill.owner === playerId
-    );
-    if (anthillAtPosition) {
-      DETECTION_RADIUS += 1;
+    if (gameState.anthills) {
+      const anthillAtPosition = Object.values(gameState.anthills).find(
+        anthill => anthill.position.q === scout.position.q &&
+                   anthill.position.r === scout.position.r &&
+                   anthill.owner === playerId
+      );
+      if (anthillAtPosition) {
+        DETECTION_RADIUS += 1;
+      }
     }
 
     enemyBurrowedAnts.forEach(burrowedAnt => {
@@ -336,36 +354,42 @@ export function applyFogOfWar(gameState, playerId) {
 
   // Filter ants - only show enemy ants in visible range OR if they are detected while burrowed
   const filteredAnts = {};
-  Object.entries(gameState.ants).forEach(([id, ant]) => {
-    const hexKey = `${ant.position.q},${ant.position.r}`;
-    // Always show own ants
-    if (ant.owner === playerId) {
-      filteredAnts[id] = ant;
-    }
-    // Show enemy ants if visible OR if detected while burrowed
-    else if (visibleHexes.has(hexKey) || detectedBurrowed.has(id)) {
-      filteredAnts[id] = ant;
-    }
-  });
+  if (gameState.ants) {
+    Object.entries(gameState.ants).forEach(([id, ant]) => {
+      const hexKey = `${ant.position.q},${ant.position.r}`;
+      // Always show own ants
+      if (ant.owner === playerId) {
+        filteredAnts[id] = ant;
+      }
+      // Show enemy ants if visible OR if detected while burrowed
+      else if (visibleHexes.has(hexKey) || detectedBurrowed.has(id)) {
+        filteredAnts[id] = ant;
+      }
+    });
+  }
 
   // Filter eggs - only show eggs in visible range
   const filteredEggs = {};
-  Object.entries(gameState.eggs).forEach(([id, egg]) => {
-    const hexKey = `${egg.position.q},${egg.position.r}`;
-    if (visibleHexes.has(hexKey)) {
-      filteredEggs[id] = egg;
-    }
-  });
+  if (gameState.eggs) {
+    Object.entries(gameState.eggs).forEach(([id, egg]) => {
+      const hexKey = `${egg.position.q},${egg.position.r}`;
+      if (visibleHexes.has(hexKey)) {
+        filteredEggs[id] = egg;
+      }
+    });
+  }
 
   // Resources are always visible once discovered (they stay visible)
   // For true fog of war, you might want to track discovered resources separately
   const filteredResources = {};
-  Object.entries(gameState.resources).forEach(([id, resource]) => {
-    const hexKey = `${resource.position.q},${resource.position.r}`;
-    if (visibleHexes.has(hexKey)) {
-      filteredResources[id] = resource;
-    }
-  });
+  if (gameState.resources) {
+    Object.entries(gameState.resources).forEach(([id, resource]) => {
+      const hexKey = `${resource.position.q},${resource.position.r}`;
+      if (visibleHexes.has(hexKey)) {
+        filteredResources[id] = resource;
+      }
+    });
+  }
 
   // Filter anthills - only show anthills in visible range
   const filteredAnthills = {};
