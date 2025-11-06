@@ -288,12 +288,8 @@ function App() {
           // Check if attacker is visible to current player
           const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
           const attacker = newState.ants[attackerId];
-          const attackerVisible = attacker && visibleHexes.some(hex =>
-            hex.q === attacker.position.q && hex.r === attacker.position.r
-          );
-          const targetVisible = visibleHexes.some(hex =>
-            hex.q === targetPosition.q && hex.r === targetPosition.r
-          );
+          const attackerVisible = attacker && visibleHexes.has(`${attacker.position.q},${attacker.position.r}`);
+          const targetVisible = visibleHexes.has(`${targetPosition.q},${targetPosition.r}`);
 
           // Show animation based on visibility
           if (targetVisible) {
