@@ -133,11 +133,15 @@ export function detonateBomber(gameState, bomberId) {
   });
 
   // Apply detonation damage to all adjacent ants (including friendly fire)
+  const damageDealt = [];
   adjacentAnts.forEach(target => {
     const targetType = AntTypes[target.type.toUpperCase()];
     const defense = targetType.defense;
     const damage = Math.max(1, bomberType.attack - Math.floor(defense / 2));
-    const newHealth = target.hp - damage;
+    const newHealth = target.health - damage;
+
+    // Track damage for animation
+    damageDealt.push({ damage, position: target.position });
 
     if (newHealth <= 0) {
       // Target dies
@@ -156,7 +160,7 @@ export function detonateBomber(gameState, bomberId) {
     } else {
       updatedAnts[target.id] = {
         ...target,
-        hp: newHealth
+        health: newHealth
       };
     }
   });
@@ -165,8 +169,11 @@ export function detonateBomber(gameState, bomberId) {
   delete updatedAnts[bomberId];
 
   return {
-    ...updatedGameState,
-    ants: updatedAnts
+    gameState: {
+      ...updatedGameState,
+      ants: updatedAnts
+    },
+    damageDealt
   };
 }
 

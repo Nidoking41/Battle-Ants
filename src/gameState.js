@@ -118,44 +118,92 @@ export function createInitialGameState() {
   };
 }
 
-// Generate symmetrical resource nodes on the map
+// Generate symmetrical resource nodes on the map (randomly placed but mirrored)
 function generateResourceNodes() {
   const resources = {};
+  const gridRadius = 6; // Must match the gridRadius in App.js rendering
 
-  // Symmetrical placement - mirrored across horizontal center
-  // 4 food and 3 minerals on each side (14 total) + 2 center food + 1 center mineral (17 total)
-  const resourcePlacements = [
-    // North side (Player 2) - 4 food + 3 minerals
-    [new HexCoord(-4, -2), 'food', 'C5'],     // North-west food
-    [new HexCoord(4, -2), 'food', 'K5'],      // North-east food
-    [new HexCoord(-2, -1), 'food', 'E6'],     // North food (new)
-    [new HexCoord(2, -3), 'food', 'I4'],      // North food (new)
-    [new HexCoord(-6, 1), 'minerals', 'A8'],  // North-west minerals
-    [new HexCoord(6, -6), 'minerals', 'M1'],  // North-center minerals
-    [new HexCoord(4, -6), 'minerals', 'K1'],  // North-east minerals
+  // Define possible spawn positions for one half of the map (north side, r < 0)
+  // We'll mirror these to the south side
+  const northPositions = [];
 
-    // South side (Player 1) - 4 food + 3 minerals (mirrored)
-    [new HexCoord(-4, 2), 'food', 'C9'],      // South-west food
-    [new HexCoord(4, 2), 'food', 'K9'],       // South-east food
-    [new HexCoord(-2, 3), 'food', 'E10'],     // South food (new)
-    [new HexCoord(2, 1), 'food', 'I8'],       // South food (new)
-    [new HexCoord(-6, 6), 'minerals', 'A13'], // South-west minerals
-    [new HexCoord(2, 5), 'minerals', 'I12'],  // South-center minerals
-    [new HexCoord(-4, 6), 'minerals', 'C13'], // South-east minerals
+  // Queens are at (0, 5) for player1 (south) and (0, -5) for player2 (north)
+  // Generate all valid hexes on north side (excluding center row and near queens)
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
 
-    // Center line resources - neutral
-    [new HexCoord(-6, 0), 'food', 'A7'],      // Center-west food
-    [new HexCoord(6, 0), 'food', 'M7'],       // Center-east food
-    [new HexCoord(6, -1), 'minerals', 'M6'],  // Center-east mineral
-  ];
+        // Exclude positions too close to north queen at (0, -5, 5)
+        const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(r - (-5)), Math.abs(s - 5));
 
-  resourcePlacements.forEach(([pos, type, label], index) => {
-    resources[`resource_${index}`] = {
-      id: `resource_${index}`,
+        // Also check if the mirrored position would be too close to south queen at (0, 5, -5)
+        // When we mirror (q, r, s) to (-q, -r, -s) (180-degree rotation)
+        const mirroredQ = -q;
+        const mirroredR = -r;
+        const mirroredS = -s;
+        const distToSouthQueen = Math.max(Math.abs(mirroredQ - 0), Math.abs(mirroredR - 5), Math.abs(mirroredS - (-5)));
+
+        // Only include if both north and mirrored south positions are far enough from queens
+        if (distToNorthQueen >= 3 && distToSouthQueen >= 3) {
+          northPositions.push(hex);
+        }
+      }
+    }
+  }
+
+  console.log('Valid north positions found:', northPositions.length);
+  console.log('Sample valid positions:', northPositions.slice(0, 5).map(h => `(${h.q},${h.r})`));
+
+  // Shuffle the positions
+  const shuffled = northPositions.sort(() => Math.random() - 0.5);
+
+  // Fixed resource distribution: 4 food and 2 minerals per side (12 total)
+  const numFoodPerSide = 4;
+  const numMineralsPerSide = 2;
+  const totalResourcesPerSide = numFoodPerSide + numMineralsPerSide;
+
+  // Select positions for resources
+  const selectedNorth = shuffled.slice(0, totalResourcesPerSide);
+
+  console.log('Selected north positions:', selectedNorth.length);
+  console.log('Selected positions:', selectedNorth.map(h => `(${h.q},${h.r})`));
+
+  let resourceIndex = 0;
+
+  // Assign resource types: first numFoodPerSide positions get food, rest get minerals
+  selectedNorth.forEach((northPos, index) => {
+    const type = index < numFoodPerSide ? 'food' : 'minerals';
+
+    // North resource
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
       type,
-      position: pos
+      position: northPos
     };
+    resourceIndex++;
+
+    // Mirror to south (180-degree rotation: negate both q and r)
+    const southPos = new HexCoord(-northPos.q, -northPos.r);
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type,
+      position: southPos
+    };
+    resourceIndex++;
   });
+
+  console.log('Total resources generated:', Object.keys(resources).length);
+  console.log('Resources by type:',
+    Object.values(resources).reduce((acc, r) => {
+      acc[r.type] = (acc[r.type] || 0) + 1;
+      return acc;
+    }, {})
+  );
+  console.log('Resource positions:',
+    Object.values(resources).map(r => `${r.type} at (${r.position.q},${r.position.r})`)
+  );
 
   return resources;
 }

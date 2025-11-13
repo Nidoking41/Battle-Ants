@@ -379,17 +379,9 @@ export function applyFogOfWar(gameState, playerId) {
     });
   }
 
-  // Resources are always visible once discovered (they stay visible)
-  // For true fog of war, you might want to track discovered resources separately
-  const filteredResources = {};
-  if (gameState.resources) {
-    Object.entries(gameState.resources).forEach(([id, resource]) => {
-      const hexKey = `${resource.position.q},${resource.position.r}`;
-      if (visibleHexes.has(hexKey)) {
-        filteredResources[id] = resource;
-      }
-    });
-  }
+  // Resources are always visible (no fog of war for resource nodes)
+  // This helps players plan their strategy from the start
+  const filteredResources = gameState.resources || {};
 
   // Filter anthills - only show anthills in visible range
   const filteredAnthills = {};

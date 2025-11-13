@@ -9,7 +9,7 @@ import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes }
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, object = game started
-  const [gameState, setGameState] = useState(createInitialGameState());
+  const [gameState, setGameState] = useState(() => createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null); // Store unfiltered state for multiplayer
   const [selectedAnt, setSelectedAnt] = useState(null);
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
@@ -99,6 +99,59 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const panSpeed = 50;
+
+      // Action hotkeys when an ant is selected
+      if (selectedAnt && isMyTurn()) {
+        const ant = gameState.ants[selectedAnt];
+
+        switch(e.key.toLowerCase()) {
+          case 'a':
+            // Attack action
+            if (ant && ant.type !== 'drone') {
+              const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+              const enemiesInRange = Object.values(gameState.ants).filter(enemy => {
+                if (enemy.owner === currentPlayerId) return false;
+                return canAttack(ant, enemy.position);
+              });
+
+              if (enemiesInRange.length > 0) {
+                setSelectedAction('attack');
+                e.preventDefault();
+                return;
+              }
+            }
+            break;
+          case 'b':
+            // Build action (for drones)
+            if (ant && ant.type === 'drone') {
+              const antType = AntTypes[ant.type.toUpperCase()];
+              if (antType.canBuildAnthill) {
+                setSelectedAction('build');
+                e.preventDefault();
+                return;
+              }
+            }
+            break;
+          case 'm':
+            // Move action
+            if (ant && !ant.hasMoved) {
+              setSelectedAction('move');
+              e.preventDefault();
+              return;
+            }
+            break;
+          case 'escape':
+            // Deselect ant
+            setSelectedAnt(null);
+            setSelectedAction(null);
+            e.preventDefault();
+            return;
+          default:
+            break;
+        }
+      }
+
+      // Global hotkeys
       switch(e.key) {
         case 'Tab':
           if (isMyTurn()) {
@@ -119,16 +172,28 @@ function App() {
           e.preventDefault();
           break;
         case 'ArrowLeft':
-        case 'a':
-        case 'A':
           setCameraOffset(prev => ({ x: prev.x + panSpeed, y: prev.y }));
           e.preventDefault();
           break;
         case 'ArrowRight':
-        case 'd':
-        case 'D':
           setCameraOffset(prev => ({ x: prev.x - panSpeed, y: prev.y }));
           e.preventDefault();
+          break;
+        case 'a':
+        case 'A':
+          // Only pan with 'a' if no ant is selected
+          if (!selectedAnt) {
+            setCameraOffset(prev => ({ x: prev.x + panSpeed, y: prev.y }));
+            e.preventDefault();
+          }
+          break;
+        case 'd':
+        case 'D':
+          // Only pan with 'd' if no ant is selected
+          if (!selectedAnt) {
+            setCameraOffset(prev => ({ x: prev.x - panSpeed, y: prev.y }));
+            e.preventDefault();
+          }
           break;
         case '+':
         case '=':
@@ -401,8 +466,16 @@ function App() {
       setExplosions(prev => prev.filter(e => e.id !== explosionId));
     }, 1000);
 
-    const newState = detonateBomber(currentState, selectedAnt);
-    updateGame(newState);
+    const detonationResult = detonateBomber(currentState, selectedAnt);
+
+    // Show damage numbers for all affected targets
+    if (detonationResult.damageDealt) {
+      detonationResult.damageDealt.forEach(({ damage, position }) => {
+        showDamageNumber(damage, position);
+      });
+    }
+
+    updateGame(detonationResult.gameState);
     setSelectedAction(null);
     setSelectedAnt(null);
   };
@@ -1329,6 +1402,32 @@ function App() {
       }
     }
 
+    // Check if a drone is selected and clicked on an adjacent resource node
+    if (selectedAnt && !selectedAction) {
+      const selectedDrone = currentState.ants[selectedAnt];
+      if (selectedDrone && selectedDrone.type === 'drone' && !selectedDrone.hasBuilt) {
+        // Check if clicked hex has a resource
+        const resourceAtHex = Object.values(currentState.resources).find(r => hexEquals(r.position, hex));
+
+        if (resourceAtHex) {
+          // Check if drone is adjacent to the resource
+          const distance = Math.max(
+            Math.abs(selectedDrone.position.q - hex.q),
+            Math.abs(selectedDrone.position.r - hex.r),
+            Math.abs((-selectedDrone.position.q - selectedDrone.position.r) - (-hex.q - hex.r))
+          );
+
+          if (distance === 1) {
+            // Drone is adjacent to resource - automatically trigger build anthill
+            setSelectedAction('buildAnthill');
+            // Trigger the build in the next frame to ensure state is updated
+            setTimeout(() => handleHexClick(hex), 0);
+            return;
+          }
+        }
+      }
+    }
+
     // Select ant and auto-select move action
     const clickedAnt = Object.values(currentState.ants).find(
       a => hexEquals(a.position, hex) && a.owner === currentState.currentPlayer
@@ -1560,13 +1659,29 @@ function App() {
 
       return getMovementRange(ant.position, antType.moveRange, gridRadius);
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
-      return getNeighbors(ant.position);
+      // Get spawning pool hexes based on queen tier
+      const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
+
+      // Filter out occupied hexes
+      return spawningPool.filter(hex => {
+        const occupied = Object.values(gameState.ants).some(a => hexEquals(a.position, hex)) ||
+                        Object.values(gameState.eggs).some(e => hexEquals(e.position, hex));
+        return !occupied;
+      });
     }
     return [];
   };
 
   // Render hexagons in a symmetrical hexagon shape
   const renderHexGrid = () => {
+    // Debug: Check what resources are in gameState when rendering
+    if (gameState.resources) {
+      const resourceCount = Object.keys(gameState.resources).length;
+      if (resourceCount > 0) {
+        console.log('Rendering with resources:', resourceCount, Object.values(gameState.resources).map(r => `${r.type} at (${r.position.q},${r.position.r})`));
+      }
+    }
+
     const hexagons = [];
     const validMoves = getValidMovesForSelectedAnt();
     const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
@@ -1616,6 +1731,18 @@ function App() {
         const ant = Object.values(gameState.ants).find(a => hexEquals(a.position, hex));
         const egg = Object.values(gameState.eggs).find(e => hexEquals(e.position, hex));
         const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, hex));
+
+        // Debug: Log when we find any resource
+        if (resource) {
+          console.log(`Found ${resource.type} resource at`, q, r, 'resource:', resource);
+        }
+        // Debug: Check specific positions for minerals
+        if (q === -2 && r === -1) {
+          console.log('Checking (-2,-1): resource found?', !!resource, 'resource:', resource);
+        }
+        if (q === -2 && r === 1) {
+          console.log('Checking (-2,1): resource found?', !!resource, 'resource:', resource);
+        }
         const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, hex));
         const isValidMove = validMoves.some(v => hexEquals(v, hex));
         const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
@@ -2075,18 +2202,19 @@ function App() {
         </div>
 
         {/* Game Board */}
-        <div style={{ flex: '0 0 auto' }}>
+        <div style={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
           <svg
-            width="1200"
-            height="1200"
-            style={{ border: '2px solid #333', backgroundColor: '#fff', cursor: isDragging ? 'grabbing' : 'default' }}
+            width="900"
+            height="900"
+            viewBox="0 0 900 900"
+            style={{ border: '2px solid #333', backgroundColor: '#fff', cursor: isDragging ? 'grabbing' : 'default', maxWidth: '100%', maxHeight: 'calc(100vh - 80px)' }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
           >
-            <g transform={`translate(600, 600) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
+            <g transform={`translate(450, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
             {/* Projectiles */}
@@ -2734,8 +2862,9 @@ function App() {
         position: 'fixed',
         bottom: '20px',
         right: '20px',
-        display: 'flex',
-        flexDirection: 'column',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 70px)',
+        gridTemplateRows: 'repeat(2, 70px) auto',
         gap: '12px',
         zIndex: 1000
       }}>
@@ -2763,6 +2892,29 @@ function App() {
           title="Cycle to Next Active Ant (Tab)"
         >
           🐜⟳
+        </button>
+        {/* Center on Queen */}
+        <button
+          onClick={centerOnQueen}
+          style={{
+            padding: '0',
+            borderRadius: '10px',
+            backgroundColor: '#FF9800',
+            color: 'white',
+            border: 'none',
+            fontSize: '32px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            width: '70px',
+            height: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Center on Queen (C)"
+        >
+          👑
         </button>
         {/* Zoom In */}
         <button
@@ -2810,29 +2962,6 @@ function App() {
         >
           -
         </button>
-        {/* Center on Queen */}
-        <button
-          onClick={centerOnQueen}
-          style={{
-            padding: '0',
-            borderRadius: '10px',
-            backgroundColor: '#FF9800',
-            color: 'white',
-            border: 'none',
-            fontSize: '32px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            width: '70px',
-            height: '70px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          title="Center on Queen (C)"
-        >
-          👑
-        </button>
         {/* Zoom Level Display */}
         <div style={{
           padding: '12px',
@@ -2842,20 +2971,20 @@ function App() {
           fontSize: '16px',
           textAlign: 'center',
           fontWeight: 'bold',
-          width: '70px',
+          gridColumn: 'span 2',
           boxSizing: 'border-box'
         }}>
           {Math.round(zoomLevel * 100)}%
         </div>
       </div>
 
-      {/* Help Button - Bottom Left */}
+      {/* Help Button - Bottom Right (left of camera controls) */}
       <button
         onClick={() => setShowHelpGuide(true)}
         style={{
           position: 'fixed',
           bottom: '20px',
-          left: '20px',
+          right: '180px',
           padding: '12px 20px',
           borderRadius: '25px',
           backgroundColor: '#2196F3',
@@ -2876,11 +3005,11 @@ function App() {
         how to play
       </button>
 
-      {/* Camera Controls Info - Bottom Left (under help button) */}
+      {/* Camera Controls Info - Bottom Right (under help button) */}
       <div style={{
         position: 'fixed',
         bottom: '70px',
-        left: '20px',
+        right: '180px',
         padding: '10px 15px',
         borderRadius: '8px',
         backgroundColor: 'rgba(0,0,0,0.7)',
