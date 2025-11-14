@@ -92,19 +92,20 @@ export function isValidHex(hex, gridSize) {
          Math.abs(hex.q + hex.r) <= gridSize;
 }
 
-// Get all valid hexes in movement range
-export function getMovementRange(startHex, range, gridSize, blockedHexes = []) {
+// Get all valid hexes in movement range (with paths)
+// Returns: { hex: HexCoord, path: HexCoord[] }[]
+export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes = []) {
   const visited = new Set();
-  const frontier = [[startHex, 0]];
+  const frontier = [[startHex, 0, []]]; // [hex, distance, path]
   visited.add(startHex.toString());
 
   const reachable = [];
 
   while (frontier.length > 0) {
-    const [current, distance] = frontier.shift();
+    const [current, distance, path] = frontier.shift();
 
     if (distance > 0) {
-      reachable.push(current);
+      reachable.push({ hex: current, path: [...path, current] });
     }
 
     if (distance < range) {
@@ -115,11 +116,17 @@ export function getMovementRange(startHex, range, gridSize, blockedHexes = []) {
             isValidHex(neighbor, gridSize) &&
             !blockedHexes.some(blocked => blocked.equals(neighbor))) {
           visited.add(key);
-          frontier.push([neighbor, distance + 1]);
+          frontier.push([neighbor, distance + 1, [...path, current]]);
         }
       }
     }
   }
 
   return reachable;
+}
+
+// Get all valid hexes in movement range (backwards compatible)
+export function getMovementRange(startHex, range, gridSize, blockedHexes = []) {
+  const withPaths = getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes);
+  return withPaths.map(item => item.hex);
 }

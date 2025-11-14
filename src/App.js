@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets } from './gameState';
-import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg } from './combatSystem';
+import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
-import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
+import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
+import GameLobby from './GameLobby';
+import LocalGameSetup from './LocalGameSetup';
+import AIGameSetup from './AIGameSetup';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
+import { executeAITurn } from './aiController';
 
 function App() {
-  const [gameMode, setGameMode] = useState(null); // null = menu, object = game started
+  const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
+  const [lobbySettings, setLobbySettings] = useState(null); // Settings from lobby before game starts
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null); // Store unfiltered state for multiplayer
+  const [isAIThinking, setIsAIThinking] = useState(false); // Track if AI is currently taking its turn
   const [selectedAnt, setSelectedAnt] = useState(null);
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
+  const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
+  const [movementPaths, setMovementPaths] = useState(new Map()); // Map of hex -> path
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
   const [showAntTypeSelector, setShowAntTypeSelector] = useState(false); // Show ant type buttons
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
@@ -33,7 +41,8 @@ function App() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Drag start position
 
   const hexSize = 50;
-  const gridRadius = 6; // Creates a hexagon with radius 6
+  // Get gridRadius from gameState (defaults to 6 if not set)
+  const gridRadius = gameState.gridRadius || 6;
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 2.0;
 
@@ -100,51 +109,61 @@ function App() {
     const handleKeyDown = (e) => {
       const panSpeed = 50;
 
+      // Check if it's my turn
+      const myTurn = !gameMode || !gameMode.isMultiplayer || gameState.currentPlayer === gameMode.playerRole;
+
+      console.log('Key pressed:', e.key, 'selectedAnt:', selectedAnt, 'myTurn:', myTurn);
+
       // Action hotkeys when an ant is selected
-      if (selectedAnt && isMyTurn()) {
+      if (selectedAnt && myTurn) {
         const ant = gameState.ants[selectedAnt];
+        console.log('Ant selected, checking action hotkey. Key:', e.key.toLowerCase(), 'Ant type:', ant?.type);
 
         switch(e.key.toLowerCase()) {
           case 'a':
+            console.log('Attack hotkey triggered');
+            e.preventDefault();
             // Attack action
             if (ant && ant.type !== 'drone') {
               const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
               const enemiesInRange = Object.values(gameState.ants).filter(enemy => {
                 if (enemy.owner === currentPlayerId) return false;
-                return canAttack(ant, enemy.position);
+                return canAttack(ant, enemy, gameState);
               });
 
               if (enemiesInRange.length > 0) {
                 setSelectedAction('attack');
-                e.preventDefault();
                 return;
               }
             }
-            break;
+            return;
           case 'b':
+            console.log('Build hotkey triggered');
+            e.preventDefault();
             // Build action (for drones)
             if (ant && ant.type === 'drone') {
               const antType = AntTypes[ant.type.toUpperCase()];
               if (antType.canBuildAnthill) {
-                setSelectedAction('build');
-                e.preventDefault();
+                setSelectedAction('buildAnthill');
                 return;
               }
             }
-            break;
+            return;
           case 'm':
+            console.log('Move hotkey triggered');
+            e.preventDefault();
             // Move action
             if (ant && !ant.hasMoved) {
               setSelectedAction('move');
-              e.preventDefault();
               return;
             }
-            break;
+            return;
           case 'escape':
+            console.log('Escape hotkey triggered');
+            e.preventDefault();
             // Deselect ant
             setSelectedAnt(null);
             setSelectedAction(null);
-            e.preventDefault();
             return;
           default:
             break;
@@ -154,7 +173,7 @@ function App() {
       // Global hotkeys
       switch(e.key) {
         case 'Tab':
-          if (isMyTurn()) {
+          if (myTurn) {
             cycleToNextActiveAnt();
             e.preventDefault();
           }
@@ -218,7 +237,58 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, gameMode, selectedAnt]);
+  }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions]);
+
+  // Calculate movement paths when selectedAnt or selectedAction changes
+  useEffect(() => {
+    if (!selectedAnt || !gameState.ants[selectedAnt] || selectedAction !== 'move') {
+      setMovementPaths(new Map());
+      return;
+    }
+
+    const ant = gameState.ants[selectedAnt];
+    const antType = AntTypes[ant.type.toUpperCase()];
+
+    // Queens cannot move
+    if (ant.type === 'queen') {
+      setMovementPaths(new Map());
+      return;
+    }
+
+    // Get blocked hexes (only enemy units block movement)
+    const blockedHexes = Object.values(gameState.ants)
+      .filter(a => a.owner !== ant.owner) // Only block enemies, not friendly units
+      .map(a => new HexCoord(a.position.q, a.position.r));
+
+    let range = antType.moveRange;
+
+    // Burrowed units have limited movement
+    if (ant.isBurrowed) {
+      // Only soldiers can move while burrowed (1 hex)
+      if (ant.type === 'soldier') {
+        range = 1;
+      } else {
+        // Other burrowed units cannot move
+        setMovementPaths(new Map());
+        return;
+      }
+    }
+
+    // Ensnared units can only move 1 hex
+    if (ant.ensnared && ant.ensnared > 0) {
+      range = 1;
+    }
+
+    // Get movement range with paths
+    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes);
+
+    // Store paths in map
+    const pathsMap = new Map();
+    movesWithPaths.forEach(({hex, path}) => {
+      pathsMap.set(hex.toString(), path);
+    });
+    setMovementPaths(pathsMap);
+  }, [selectedAnt, selectedAction, gameState, gridRadius]);
 
   // Function to show damage number
   const showDamageNumber = (damage, position) => {
@@ -380,8 +450,9 @@ function App() {
           }
         }
 
-        // Apply fog of war for multiplayer games
-        const filteredState = applyFogOfWar(newState, gameMode.playerRole);
+        // Apply fog of war for multiplayer games or AI games with fog of war enabled
+        const shouldApplyFog = gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false);
+        const filteredState = shouldApplyFog ? applyFogOfWar(newState, gameMode.playerRole || 'player1') : newState;
         setGameState(filteredState);
       });
 
@@ -389,9 +460,38 @@ function App() {
     }
   }, [gameMode]);
 
-  // Get the game state to use for game logic (full state for multiplayer, filtered for local)
+  // Automatically execute AI turn when it's the AI's turn
+  useEffect(() => {
+    const executeAITurnAutomatically = async () => {
+      if (!gameMode?.isAI || isAIThinking) return;
+
+      const currentState = getGameStateForLogic();
+      if (!currentState || currentState.currentPlayer !== 'player2') return;
+
+      console.log('AI turn detected - automatically executing AI turn');
+      setIsAIThinking(true);
+
+      try {
+        // Small delay so player can see turn changed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Execute AI turn
+        const aiState = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+
+        // End AI turn to switch back to player
+        const { gameState: finalState } = endTurn(aiState);
+        updateGame(finalState);
+      } finally {
+        setIsAIThinking(false);
+      }
+    };
+
+    executeAITurnAutomatically();
+  }, [gameState.currentPlayer, gameState.turn, gameMode?.isAI, isAIThinking]);
+
+  // Get the game state to use for game logic (full state for multiplayer/AI with fog, filtered for display)
   const getGameStateForLogic = () => {
-    if (gameMode?.isMultiplayer) {
+    if (gameMode?.isMultiplayer || (gameMode?.isAI && gameMode.fogOfWar !== false)) {
       return fullGameState || gameState;
     }
     return gameState;
@@ -407,29 +507,169 @@ function App() {
       }
       // The Firebase subscription will handle updating both fullGameState and the filtered gameState
     } else {
-      // For local games, just update the state directly
-      setGameState(newState);
+      // For local games and AI games
+      if (gameMode?.isAI) {
+        // Always update fullGameState for AI games
+        setFullGameState(newState);
+
+        if (gameMode.fogOfWar !== false) {
+          // Apply fog of war filtering for display
+          const filteredState = applyFogOfWar(newState, 'player1');
+          setGameState(filteredState);
+        } else {
+          // No fog of war, display full state
+          setGameState(newState);
+        }
+      } else {
+        // For local games without AI, just update the state directly
+        setGameState(newState);
+      }
     }
   };
 
   // Check if it's current player's turn
   const isMyTurn = () => {
     if (!gameMode) return false;
+    // In AI mode, only allow input on player1's turn and not while AI is thinking
+    if (gameMode.isAI) {
+      return gameState.currentPlayer === 'player1' && !isAIThinking;
+    }
     if (!gameMode.isMultiplayer) return true; // Local game = always your turn
     return gameState.currentPlayer === gameMode.playerRole;
   };
 
   // Handle start game from menu
+  const handleEnterLobby = (settings) => {
+    // Settings include: gameId, playerId, playerRole, isMultiplayer
+    setLobbySettings(settings);
+    setGameMode('lobby');
+  };
+
+  const handleEnterLocalSetup = () => {
+    setGameMode('localSetup');
+  };
+
+  const handleEnterAISetup = () => {
+    setGameMode('aiSetup');
+  };
+
   const handleStartGame = (mode) => {
-    setGameMode(mode);
-    if (!mode.isMultiplayer) {
-      setGameState(createInitialGameState());
+    // Mode includes lobby settings: mapSize, player1Color, player2Color, etc.
+    const gameOptions = {};
+    if (mode.mapSize) {
+      gameOptions.mapSize = mode.mapSize;
     }
+    if (mode.player1Color) {
+      gameOptions.player1Color = mode.player1Color;
+    }
+    if (mode.player2Color) {
+      gameOptions.player2Color = mode.player2Color;
+    }
+
+    const newGameState = createInitialGameState(gameOptions);
+
+    // For AI games, always set fullGameState for AI logic
+    console.log('Starting AI game - fogOfWar setting:', mode.fogOfWar, 'Will apply fog?', mode.isAI && mode.fogOfWar !== false);
+    if (mode.isAI) {
+      setFullGameState(newGameState);
+
+      if (mode.fogOfWar !== false) {
+        console.log('Applying fog of war - filtering state for player1');
+        const filteredState = applyFogOfWar(newGameState, 'player1');
+        setGameState(filteredState);
+      } else {
+        console.log('NOT applying fog of war - using full state for display');
+        setGameState(newGameState);
+      }
+    } else {
+      setGameState(newGameState);
+    }
+
+    // Set game mode with full settings
+    setGameMode({
+      ...mode,
+      gameId: mode.gameId || lobbySettings?.gameId,
+      playerId: mode.playerId || lobbySettings?.playerId,
+      playerRole: mode.playerRole || lobbySettings?.playerRole,
+      isMultiplayer: mode.isMultiplayer !== undefined ? mode.isMultiplayer : lobbySettings?.isMultiplayer
+    });
+  };
+
+  const handleBackToMenu = () => {
+    setGameMode(null);
+    setLobbySettings(null);
+    setGameState(createInitialGameState());
+  };
+
+  // Handle end turn with AI support
+  const handleEndTurn = async () => {
+    const currentState = getGameStateForLogic();
+    const { gameState: newState, resourceGains } = endTurn(currentState);
+
+    // Show resource gain animations - only for owned anthills or visible anthills
+    if (resourceGains && resourceGains.length > 0) {
+      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+      const visibleHexes = gameMode?.isMultiplayer ? getVisibleHexes(newState, currentPlayerId) : null;
+
+      resourceGains.forEach(gain => {
+        const hexKey = `${gain.position.q},${gain.position.r}`;
+        // Show animation if: owned by current player OR visible to current player
+        const shouldShow = gain.owner === currentPlayerId ||
+                          (visibleHexes && visibleHexes.has(hexKey)) ||
+                          !gameMode?.isMultiplayer; // Always show in local games
+
+        if (shouldShow) {
+          showResourceGain(gain.amount, gain.type, gain.position);
+        }
+      });
+    }
+
+    updateGame(newState);
+    setSelectedAnt(null);
+    setSelectedAction(null);
+    setSelectedEgg(null);
+    setSelectedEggHex(null);
+    setShowAntTypeSelector(false);
+
+    // AI turn will be handled automatically by useEffect
   };
 
   // Show menu if game hasn't started
   if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} />;
+    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} />;
+  }
+
+  // Show lobby if in lobby mode
+  if (gameMode === 'lobby' && lobbySettings) {
+    return (
+      <GameLobby
+        roomCode={lobbySettings.gameId}
+        playerId={lobbySettings.playerId}
+        playerRole={lobbySettings.playerRole}
+        onStartGame={handleStartGame}
+        onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  // Show local game setup if in local setup mode
+  if (gameMode === 'localSetup') {
+    return (
+      <LocalGameSetup
+        onStartGame={handleStartGame}
+        onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  // Show AI game setup if in AI setup mode
+  if (gameMode === 'aiSetup') {
+    return (
+      <AIGameSetup
+        onStartGame={handleStartGame}
+        onBack={handleBackToMenu}
+      />
+    );
   }
 
   // Handle detonating a bomber
@@ -1197,25 +1437,40 @@ function App() {
       const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius);
 
       if (validMoves.some(h => hexEquals(h, hex))) {
-        // Check if there's ANY ant at the target position
-        const antAtHex = Object.values(currentState.ants).find(
-          a => hexEquals(a.position, hex)
-        );
+        // Validate the path is clear (no ants blocking the way)
+        const hexKey = hex.toString();
+        const path = movementPaths.get(hexKey);
 
-        if (antAtHex) {
-          alert('Cannot move to a space occupied by another ant!');
+        if (!path || path.length === 0) {
+          alert('No valid path to that destination!');
           return;
         }
 
-        // Check if there's an egg at the target position
-        const eggAtHex = Object.values(currentState.eggs).find(e => hexEquals(e.position, hex));
-        if (eggAtHex) {
-          alert('Cannot move to a space occupied by an egg!');
-          return;
+        // Check each hex in the path to ensure it's not occupied by enemies
+        for (let i = 0; i < path.length; i++) {
+          const pathHex = path[i];
+
+          // Check if there's an ENEMY ant at this position in the path
+          const enemyAtPathHex = Object.values(currentState.ants).find(
+            a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
+          );
+
+          if (enemyAtPathHex) {
+            alert('Path is blocked by an enemy ant!');
+            return;
+          }
+
+          // Check if there's an enemy egg at this position in the path
+          const enemyEggAtPathHex = Object.values(currentState.eggs).find(
+            e => hexEquals(e.position, pathHex) && e.owner !== ant.owner
+          );
+          if (enemyEggAtPathHex) {
+            alert('Path is blocked by an enemy egg!');
+            return;
+          }
         }
 
-        // Ants can now move onto anthills (no restriction needed)
-
+        // All checks passed, move the ant
         const newState = moveAnt(currentState, selectedAnt, hex);
         const finalState = markAntMoved(newState, selectedAnt);
         updateGame(finalState);
@@ -1632,7 +1887,9 @@ function App() {
 
   // Calculate valid moves for selected ant
   const getValidMovesForSelectedAnt = () => {
-    if (!selectedAnt || !gameState.ants[selectedAnt]) return [];
+    if (!selectedAnt || !gameState.ants[selectedAnt]) {
+      return [];
+    }
     const ant = gameState.ants[selectedAnt];
     const antType = AntTypes[ant.type.toUpperCase()];
 
@@ -1642,22 +1899,32 @@ function App() {
         return [];
       }
 
+      // Get blocked hexes (only enemy units block movement)
+      const blockedHexes = Object.values(gameState.ants)
+        .filter(a => a.owner !== ant.owner) // Only block enemies, not friendly units
+        .map(a => new HexCoord(a.position.q, a.position.r));
+
+      let range = antType.moveRange;
+
       // Burrowed units have limited movement
       if (ant.isBurrowed) {
         // Only soldiers can move while burrowed (1 hex)
         if (ant.type === 'soldier') {
-          return getMovementRange(ant.position, 1, gridRadius);
+          range = 1;
+        } else {
+          // Other burrowed units cannot move
+          return [];
         }
-        // Other burrowed units cannot move
-        return [];
       }
 
       // Ensnared units can only move 1 hex
       if (ant.ensnared && ant.ensnared > 0) {
-        return getMovementRange(ant.position, 1, gridRadius);
+        range = 1;
       }
 
-      return getMovementRange(ant.position, antType.moveRange, gridRadius);
+      // Get movement range (paths are calculated in useEffect)
+      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes);
+      return movesWithPaths.map(item => item.hex);
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
@@ -1669,6 +1936,7 @@ function App() {
         return !occupied;
       });
     }
+
     return [];
   };
 
@@ -1692,11 +1960,17 @@ function App() {
     const ensnareTargets = selectedAction === 'ensnare' && selectedAnt ?
       getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
 
-    // Calculate visible hexes for fog of war in multiplayer
+    // Calculate visible hexes for fog of war in multiplayer or AI games
     let visibleHexes = null;
-    if (gameMode?.isMultiplayer && gameMode.playerRole && fullGameState) {
-      // Use fullGameState (unfiltered) to calculate vision, not the filtered gameState
-      visibleHexes = getVisibleHexes(fullGameState, gameMode.playerRole);
+    if (fullGameState && gameMode) {
+      // For multiplayer, use player role
+      if (gameMode.isMultiplayer && gameMode.playerRole) {
+        visibleHexes = getVisibleHexes(fullGameState, gameMode.playerRole);
+      }
+      // For AI games with fog of war enabled, show player1's vision
+      else if (gameMode.isAI && gameMode.fogOfWar !== false) {
+        visibleHexes = getVisibleHexes(fullGameState, 'player1');
+      }
     }
 
     // Define SVG patterns for birthing pools (only once)
@@ -1832,6 +2106,16 @@ function App() {
                 setSelectedAnt(null);
                 setSelectedAction(null);
                 setSelectedEgg(null);
+              }}
+              onMouseEnter={() => {
+                if (isValidMove) {
+                  setHoveredHex(hex);
+                }
+              }}
+              onMouseLeave={() => {
+                if (isValidMove) {
+                  setHoveredHex(null);
+                }
               }}
             />
             {useBirthingPoolPattern && (
@@ -1996,6 +2280,43 @@ function App() {
                       />
                     </g>
                   )}
+                  {/* Damage preview when in attack mode */}
+                  {selectedAction === 'attack' && selectedAnt && isAttackable && (() => {
+                    const attacker = gameState.ants[selectedAnt];
+                    if (!attacker) return null;
+
+                    const damage = calculateDamage(attacker, ant, getGameStateForLogic());
+                    const damagePercent = Math.round((damage / ant.maxHealth) * 100);
+
+                    return (
+                      <g>
+                        {/* Damage background */}
+                        <rect
+                          x="-25"
+                          y="-40"
+                          width="50"
+                          height="18"
+                          fill="rgba(255, 50, 50, 0.9)"
+                          stroke="#fff"
+                          strokeWidth="2"
+                          rx="4"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                        {/* Damage text */}
+                        <text
+                          textAnchor="middle"
+                          x="0"
+                          y="-28"
+                          fontSize="14"
+                          fill="#fff"
+                          fontWeight="bold"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          -{damagePercent}%
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </g>
               );
             })()}
@@ -2102,10 +2423,73 @@ function App() {
       }
     }
 
+    // Render path visualization if hovering over a valid move
+    const pathVisualization = [];
+    if (hoveredHex && movementPaths.size > 0) {
+      const hexKey = hoveredHex.toString();
+      const path = movementPaths.get(hexKey);
+
+      if (path && path.length > 0) {
+        // Draw arrows along the path
+        for (let i = 0; i < path.length; i++) {
+          const currentHex = path[i];
+          const { x, y } = hexToPixel(currentHex, hexSize);
+
+          if (i < path.length - 1) {
+            // Draw arrow from current to next hex
+            const nextHex = path[i + 1];
+            const { x: nextX, y: nextY } = hexToPixel(nextHex, hexSize);
+
+            // Calculate arrow direction
+            const dx = nextX - x;
+            const dy = nextY - y;
+            const angle = Math.atan2(dy, dx);
+
+            pathVisualization.push(
+              <g key={`path-${i}`}>
+                {/* Arrow line */}
+                <line
+                  x1={x}
+                  y1={y}
+                  x2={nextX}
+                  y2={nextY}
+                  stroke="#FF0000"
+                  strokeWidth="3"
+                  style={{ pointerEvents: 'none' }}
+                />
+                {/* Arrow head */}
+                <polygon
+                  points="0,-6 12,0 0,6"
+                  fill="#FF0000"
+                  transform={`translate(${nextX}, ${nextY}) rotate(${angle * 180 / Math.PI})`}
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
+            );
+          } else {
+            // Draw a circle at the final destination
+            pathVisualization.push(
+              <circle
+                key={`path-end-${i}`}
+                cx={x}
+                cy={y}
+                r="10"
+                fill="none"
+                stroke="#FF0000"
+                strokeWidth="3"
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          }
+        }
+      }
+    }
+
     return (
       <>
         {patterns}
         {hexagons}
+        {pathVisualization}
       </>
     );
   };
@@ -2138,8 +2522,8 @@ function App() {
                 ⚡ Upgrades
               </button>
 
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Build Ants</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Build Ants</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {Object.values(AntTypes).filter(t => t.id !== 'queen').map(ant => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
@@ -2169,22 +2553,22 @@ function App() {
                       }}
                       disabled={!affordable || !isMyTurn()}
                       style={{
-                        padding: '12px',
-                        fontSize: '15px',
+                        padding: '8px 10px',
+                        fontSize: '14px',
                         backgroundColor: affordable ? '#4CAF50' : '#ccc',
                         color: affordable ? 'white' : '#666',
                         border: 'none',
-                        borderRadius: '8px',
+                        borderRadius: '6px',
                         cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{ant.icon} {ant.name}</div>
-                      <div style={{ fontSize: '13px', marginTop: '5px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.icon} {ant.name}</div>
+                      <div style={{ fontSize: '12px', marginTop: '3px' }}>
                         Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
                       </div>
-                      <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.8 }}>
+                      <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2' }}>
                         {ant.description}
                       </div>
                     </button>
@@ -2363,7 +2747,7 @@ function App() {
         </div>
 
         {/* Game Info Panel - Right Side */}
-        <div style={{ width: '300px', backgroundColor: '#fff', padding: '20px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
+        <div style={{ width: '300px', backgroundColor: '#fff', padding: '20px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', paddingBottom: '200px' }}>
           {gameMode.isMultiplayer && (
             <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#ecf0f1', borderRadius: '5px' }}>
               <p><strong>Game Mode:</strong> Online</p>
@@ -2801,37 +3185,34 @@ function App() {
             </div>
           )}
 
+          {/* Turn Indicator - show for AI games */}
+          {gameMode?.isAI && (
+            <div style={{
+              width: '100%',
+              padding: '12px',
+              marginBottom: '10px',
+              backgroundColor: isAIThinking ? '#9b59b6' : (gameState.currentPlayer === 'player1' ? '#27ae60' : '#3498db'),
+              color: 'white',
+              borderRadius: '8px',
+              textAlign: 'center',
+              fontWeight: 'bold',
+              fontSize: '18px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              animation: isAIThinking ? 'pulse 1.5s infinite' : 'none'
+            }}>
+              {isAIThinking ? (
+                <>🤖 AI is thinking...</>
+              ) : gameState.currentPlayer === 'player1' ? (
+                <>👤 Your Turn</>
+              ) : (
+                <>🤖 AI's Turn</>
+              )}
+            </div>
+          )}
+
           {/* End Turn Button */}
           <button
-            onClick={() => {
-              const currentState = getGameStateForLogic();
-              const { gameState: newState, resourceGains } = endTurn(currentState);
-
-              // Show resource gain animations - only for owned anthills or visible anthills
-              if (resourceGains && resourceGains.length > 0) {
-                const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
-                const visibleHexes = gameMode?.isMultiplayer ? getVisibleHexes(newState, currentPlayerId) : null;
-
-                resourceGains.forEach(gain => {
-                  const hexKey = `${gain.position.q},${gain.position.r}`;
-                  // Show animation if: owned by current player OR visible to current player
-                  const shouldShow = gain.owner === currentPlayerId ||
-                                    (visibleHexes && visibleHexes.has(hexKey)) ||
-                                    !gameMode?.isMultiplayer; // Always show in local games
-
-                  if (shouldShow) {
-                    showResourceGain(gain.amount, gain.type, gain.position);
-                  }
-                });
-              }
-
-              updateGame(newState);
-              setSelectedAnt(null);
-              setSelectedAction(null);
-              setSelectedEgg(null);
-              setSelectedEggHex(null);
-              setShowAntTypeSelector(false);
-            }}
+            onClick={handleEndTurn}
             disabled={!isMyTurn()}
             style={{
               width: '100%',

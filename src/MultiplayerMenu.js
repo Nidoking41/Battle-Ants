@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createOrJoinGameRoom } from './multiplayerUtils';
 
-function MultiplayerMenu({ onStartGame }) {
+function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup }) {
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,13 +18,13 @@ function MultiplayerMenu({ onStartGame }) {
 
     setLoading(true);
     try {
-      const { createInitialGameState } = await import('./gameState');
-      const initialState = createInitialGameState();
       const playerId = `player_${Date.now()}`;
 
+      // Don't create game state here - that happens in the lobby
+      // Just determine the player role
       const { playerRole, isNewRoom } = await createOrJoinGameRoom(
         roomCode,
-        initialState,
+        null, // No initial state needed yet
         playerId
       );
 
@@ -34,7 +34,8 @@ function MultiplayerMenu({ onStartGame }) {
         alert(`Joined room ${roomCode}!`);
       }
 
-      onStartGame({
+      // Enter lobby instead of starting game
+      onEnterLobby({
         gameId: roomCode,
         playerId,
         playerRole,
@@ -53,15 +54,15 @@ function MultiplayerMenu({ onStartGame }) {
 
     setLoading(true);
     try {
-      const { createInitialGameState } = await import('./gameState');
-      const initialState = createInitialGameState();
       const playerId = `player_${Date.now()}`;
 
-      await createOrJoinGameRoom(code, initialState, playerId);
+      // Don't create game state here - that happens in the lobby
+      await createOrJoinGameRoom(code, null, playerId);
 
       alert(`Room ${code} created! Share this code with your opponent.`);
 
-      onStartGame({
+      // Enter lobby instead of starting game
+      onEnterLobby({
         gameId: code,
         playerId,
         playerRole: 'player1',
@@ -75,12 +76,13 @@ function MultiplayerMenu({ onStartGame }) {
   };
 
   const handleLocalGame = () => {
-    onStartGame({
-      gameId: null,
-      playerId: null,
-      playerRole: 'player1',
-      isMultiplayer: false
-    });
+    // Navigate to local game setup screen
+    onEnterLocalSetup();
+  };
+
+  const handleAIGame = () => {
+    // Navigate to AI game setup screen
+    onEnterAISetup();
   };
 
   return (
@@ -104,6 +106,25 @@ function MultiplayerMenu({ onStartGame }) {
         width: '100%'
       }}>
         <h2 style={{ marginBottom: '30px', textAlign: 'center' }}>Choose Game Mode</h2>
+
+        {/* AI Game */}
+        <button
+          onClick={handleAIGame}
+          style={{
+            width: '100%',
+            padding: '15px',
+            fontSize: '18px',
+            marginBottom: '15px',
+            backgroundColor: '#9b59b6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          🤖 VS AI
+        </button>
 
         {/* Local Game */}
         <button

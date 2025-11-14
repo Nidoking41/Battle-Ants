@@ -257,19 +257,19 @@ export function getVisibleHexes(gameState, playerId) {
       if (ant.owner === playerId) {
         playerAntCount++;
 
-        // Base vision reduced by 1 for all units
-        // Scouts get 2 vision range (was 3), all others get 1 (was 2)
+        // Base vision
+        // Scouts get 2 vision range, all others get 1
         let VISION_RADIUS = ant.type === 'scout' ? 2 : 1;
 
-        // Scouts on player-owned anthills get +1 vision bonus
-        if (ant.type === 'scout' && gameState.anthills) {
+        // Any unit on a player-owned anthill gets +1 vision bonus
+        if (gameState.anthills) {
           const anthillAtPosition = Object.values(gameState.anthills).find(
             anthill => anthill.position.q === ant.position.q &&
                        anthill.position.r === ant.position.r &&
                        anthill.owner === playerId
           );
           if (anthillAtPosition) {
-            VISION_RADIUS += 1; // Scout on anthill gets 3 vision
+            VISION_RADIUS += 1; // +1 vision bonus on friendly anthill
           }
         }
 
@@ -324,7 +324,7 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     // Scouts detect in vision range (same as their vision)
     let DETECTION_RADIUS = 2; // Base scout vision
 
-    // Scouts on player-owned anthills get +1 detection bonus
+    // Scouts on player-owned anthills get +1 detection bonus (consistent with vision)
     if (gameState.anthills) {
       const anthillAtPosition = Object.values(gameState.anthills).find(
         anthill => anthill.position.q === scout.position.q &&
@@ -332,7 +332,7 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
                    anthill.owner === playerId
       );
       if (anthillAtPosition) {
-        DETECTION_RADIUS += 1;
+        DETECTION_RADIUS += 1; // Scouts on anthills get 3 detection range
       }
     }
 

@@ -2,16 +2,32 @@ import { HexCoord } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers } from './antTypes';
 
 // Initialize a new game state
-export function createInitialGameState() {
+export function createInitialGameState(options = {}) {
+  const {
+    mapSize = 'large', // 'small', 'medium', 'large'
+    player1Color = '#FF0000',
+    player2Color = '#0000FF'
+  } = options;
+
+  // Map size to grid radius
+  const gridSizeMap = {
+    small: 4,   // 4 hex radius = ~7x7 grid
+    medium: 5,  // 5 hex radius = ~9x9 grid
+    large: 6    // 6 hex radius = ~11x11 grid (current)
+  };
+  const gridRadius = gridSizeMap[mapSize] || 6;
+
   return {
     turn: 1,
     currentPlayer: 'player1',
+    mapSize,
+    gridRadius,
     players: {
       player1: {
         id: 'player1',
         name: 'Player 1',
         resources: { ...GameConstants.STARTING_RESOURCES },
-        color: '#FF0000', // Red
+        color: player1Color,
         upgrades: {
           meleeAttack: 0,
           rangedAttack: 0,
@@ -23,7 +39,7 @@ export function createInitialGameState() {
         id: 'player2',
         name: 'Player 2',
         resources: { ...GameConstants.STARTING_RESOURCES },
-        color: '#0000FF', // Blue
+        color: player2Color,
         upgrades: {
           meleeAttack: 0,
           rangedAttack: 0,
@@ -34,11 +50,12 @@ export function createInitialGameState() {
     },
     ants: {
       // Initial queens - Player 1 at South, Player 2 at North
+      // Position scaled based on grid radius (subtract 1 to keep away from edge)
       'ant_p1_queen': {
         id: 'ant_p1_queen',
         type: 'queen',
         owner: 'player1',
-        position: new HexCoord(0, 5), // South position (moved down)
+        position: new HexCoord(0, gridRadius - 1), // South position
         health: AntTypes.QUEEN.maxHealth,
         maxHealth: AntTypes.QUEEN.maxHealth,
         energy: GameConstants.QUEEN_BASE_ENERGY,
@@ -49,19 +66,19 @@ export function createInitialGameState() {
         id: 'ant_p2_queen',
         type: 'queen',
         owner: 'player2',
-        position: new HexCoord(0, -5), // North position (moved up)
+        position: new HexCoord(0, -(gridRadius - 1)), // North position
         health: AntTypes.QUEEN.maxHealth,
         maxHealth: AntTypes.QUEEN.maxHealth,
         energy: GameConstants.QUEEN_BASE_ENERGY,
         maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
         queenTier: 'queen'
       },
-      // Starting drones for player 1 (South) - Red
+      // Starting drones for player 1 (South) - positions scaled to map size
       'ant_p1_drone1': {
         id: 'ant_p1_drone1',
         type: 'drone',
         owner: 'player1',
-        position: new HexCoord(-1, 5), // F12
+        position: new HexCoord(-1, gridRadius - 1),
         health: AntTypes.DRONE.maxHealth,
         maxHealth: AntTypes.DRONE.maxHealth
       },
@@ -69,16 +86,16 @@ export function createInitialGameState() {
         id: 'ant_p1_drone2',
         type: 'drone',
         owner: 'player1',
-        position: new HexCoord(1, 4), // H11
+        position: new HexCoord(1, gridRadius - 2),
         health: AntTypes.DRONE.maxHealth,
         maxHealth: AntTypes.DRONE.maxHealth
       },
-      // Starting drones for player 2 (North) - Black
+      // Starting drones for player 2 (North) - positions scaled to map size
       'ant_p2_drone1': {
         id: 'ant_p2_drone1',
         type: 'drone',
         owner: 'player2',
-        position: new HexCoord(-1, -4), // F3
+        position: new HexCoord(-1, -(gridRadius - 2)),
         health: AntTypes.DRONE.maxHealth,
         maxHealth: AntTypes.DRONE.maxHealth
       },
@@ -86,16 +103,16 @@ export function createInitialGameState() {
         id: 'ant_p2_drone2',
         type: 'drone',
         owner: 'player2',
-        position: new HexCoord(1, -5), // H2
+        position: new HexCoord(1, -(gridRadius - 1)),
         health: AntTypes.DRONE.maxHealth,
         maxHealth: AntTypes.DRONE.maxHealth
       },
-      // Starting scouts
+      // Starting scouts - positions scaled to map size
       'ant_p1_scout1': {
         id: 'ant_p1_scout1',
         type: 'scout',
         owner: 'player1',
-        position: new HexCoord(1, 5), // H12
+        position: new HexCoord(1, gridRadius - 1),
         health: AntTypes.SCOUT.maxHealth,
         maxHealth: AntTypes.SCOUT.maxHealth
       },
@@ -103,13 +120,13 @@ export function createInitialGameState() {
         id: 'ant_p2_scout1',
         type: 'scout',
         owner: 'player2',
-        position: new HexCoord(-1, -5), // F2
+        position: new HexCoord(-1, -(gridRadius - 1)),
         health: AntTypes.SCOUT.maxHealth,
         maxHealth: AntTypes.SCOUT.maxHealth
       }
     },
     eggs: {},
-    resources: generateResourceNodes(),
+    resources: generateResourceNodes(gridRadius),
     anthills: {}, // Anthills built on resource nodes
     selectedAnt: null,
     selectedAction: null,
@@ -119,15 +136,16 @@ export function createInitialGameState() {
 }
 
 // Generate symmetrical resource nodes on the map (randomly placed but mirrored)
-function generateResourceNodes() {
+function generateResourceNodes(gridRadius = 6) {
   const resources = {};
-  const gridRadius = 6; // Must match the gridRadius in App.js rendering
+
+  // Queen positions are at (0, gridRadius-1) for south and (0, -(gridRadius-1)) for north
+  const queenOffset = gridRadius - 1;
 
   // Define possible spawn positions for one half of the map (north side, r < 0)
   // We'll mirror these to the south side
   const northPositions = [];
 
-  // Queens are at (0, 5) for player1 (south) and (0, -5) for player2 (north)
   // Generate all valid hexes on north side (excluding center row and near queens)
   for (let q = -gridRadius; q <= gridRadius; q++) {
     for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
@@ -135,15 +153,15 @@ function generateResourceNodes() {
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
-        // Exclude positions too close to north queen at (0, -5, 5)
-        const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(r - (-5)), Math.abs(s - 5));
+        // Exclude positions too close to north queen at (0, -queenOffset)
+        const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(r - (-queenOffset)), Math.abs(s - queenOffset));
 
-        // Also check if the mirrored position would be too close to south queen at (0, 5, -5)
+        // Also check if the mirrored position would be too close to south queen at (0, queenOffset)
         // When we mirror (q, r, s) to (-q, -r, -s) (180-degree rotation)
         const mirroredQ = -q;
         const mirroredR = -r;
         const mirroredS = -s;
-        const distToSouthQueen = Math.max(Math.abs(mirroredQ - 0), Math.abs(mirroredR - 5), Math.abs(mirroredS - (-5)));
+        const distToSouthQueen = Math.max(Math.abs(mirroredQ - 0), Math.abs(mirroredR - queenOffset), Math.abs(mirroredS - (-queenOffset)));
 
         // Only include if both north and mirrored south positions are far enough from queens
         if (distToNorthQueen >= 3 && distToSouthQueen >= 3) {
