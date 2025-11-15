@@ -10,6 +10,7 @@ import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
 import { executeAITurn } from './aiController';
+import forestFloorImage from './forestfloor.png';
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
@@ -21,6 +22,7 @@ function App() {
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
   const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
   const [movementPaths, setMovementPaths] = useState(new Map()); // Map of hex -> path
+  const [pathWaypoint, setPathWaypoint] = useState(null); // Intermediate waypoint for pathfinding
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
   const [showAntTypeSelector, setShowAntTypeSelector] = useState(false); // Show ant type buttons
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
@@ -33,6 +35,7 @@ function App() {
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
   const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
   const [attackPositions, setAttackPositions] = useState([]); // Valid positions to attack from
+  const [movingAnt, setMovingAnt] = useState(null); // {antId, path, currentStep} for animating movement
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -144,7 +147,7 @@ function App() {
             if (ant && ant.type === 'drone') {
               const antType = AntTypes[ant.type.toUpperCase()];
               if (antType.canBuildAnthill) {
-                setSelectedAction('buildAnthill');
+                handleBuildAnthillAction();
                 return;
               }
             }
@@ -249,6 +252,12 @@ function App() {
     const ant = gameState.ants[selectedAnt];
     const antType = AntTypes[ant.type.toUpperCase()];
 
+    // Don't show paths if ant has already moved
+    if (ant.hasMoved) {
+      setMovementPaths(new Map());
+      return;
+    }
+
     // Queens cannot move
     if (ant.type === 'queen') {
       setMovementPaths(new Map());
@@ -289,6 +298,51 @@ function App() {
     });
     setMovementPaths(pathsMap);
   }, [selectedAnt, selectedAction, gameState, gridRadius]);
+
+  // Clear waypoint when ant or action changes
+  useEffect(() => {
+    setPathWaypoint(null);
+  }, [selectedAnt, selectedAction]);
+
+  // Handle movement animation
+  useEffect(() => {
+    if (!movingAnt) return;
+
+    const { antId, path, currentStep } = movingAnt;
+
+    // If we've reached the end of the path
+    if (currentStep >= path.length - 1) {
+      setMovingAnt(null);
+      return;
+    }
+
+    // Move to next step after a delay
+    const timer = setTimeout(() => {
+      const nextStep = currentStep + 1;
+      const nextPosition = path[nextStep];
+
+      // Update game state with new position
+      setGameState(prev => ({
+        ...prev,
+        ants: {
+          ...prev.ants,
+          [antId]: {
+            ...prev.ants[antId],
+            position: nextPosition
+          }
+        }
+      }));
+
+      // Update moving ant state
+      setMovingAnt({
+        antId,
+        path,
+        currentStep: nextStep
+      });
+    }, 300); // 300ms between each step
+
+    return () => clearTimeout(timer);
+  }, [movingAnt]);
 
   // Function to show damage number
   const showDamageNumber = (damage, position) => {
@@ -477,6 +531,51 @@ function App() {
 
         // Execute AI turn
         const aiState = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+
+        // Detect movements by comparing states
+        const movements = [];
+        Object.keys(aiState.ants || {}).forEach(antId => {
+          const oldAnt = currentState.ants?.[antId];
+          const newAnt = aiState.ants[antId];
+
+          if (oldAnt && newAnt && !hexEquals(oldAnt.position, newAnt.position)) {
+            // Ant moved - calculate path
+            const blockedHexes = Object.values(aiState.ants)
+              .filter(a => a.owner !== newAnt.owner)
+              .map(a => new HexCoord(a.position.q, a.position.r));
+
+            const antType = AntTypes[newAnt.type.toUpperCase()];
+            const pathsWithRange = getMovementRangeWithPaths(
+              oldAnt.position,
+              antType.moveRange,
+              gridRadius,
+              blockedHexes
+            );
+
+            const pathData = pathsWithRange.find(({hex}) => hexEquals(hex, newAnt.position));
+            if (pathData) {
+              movements.push({
+                antId,
+                path: pathData.path
+              });
+            }
+          }
+        });
+
+        // Animate movements sequentially
+        for (const movement of movements) {
+          await new Promise(resolve => {
+            setMovingAnt({
+              antId: movement.antId,
+              path: movement.path,
+              currentStep: 0
+            });
+
+            // Wait for animation to complete
+            const animationDuration = (movement.path.length - 1) * 300;
+            setTimeout(resolve, animationDuration + 100);
+          });
+        }
 
         // End AI turn to switch back to player
         const { gameState: finalState } = endTurn(aiState);
@@ -812,6 +911,64 @@ function App() {
     return false;
   };
 
+  // Handle build anthill for selected drone
+  const handleBuildAnthillAction = () => {
+    if (!selectedAnt) return;
+
+    const currentState = getGameStateForLogic();
+    const drone = currentState.ants[selectedAnt];
+
+    if (!drone) return;
+
+    // Only drones can build anthills
+    if (drone.type !== 'drone') {
+      alert('Only drones can build anthills!');
+      return;
+    }
+
+    // Find the resource at the drone's current position
+    const resourceAtDrone = Object.values(currentState.resources).find(
+      r => hexEquals(r.position, drone.position)
+    );
+
+    if (!resourceAtDrone) {
+      alert('You must move your drone onto a resource node to build an anthill!');
+      return;
+    }
+
+    // Check if there's already a completed anthill at the resource location
+    const existingAnthill = Object.values(currentState.anthills || {}).find(
+      a => hexEquals(a.position, resourceAtDrone.position)
+    );
+
+    // Get resource hex label for better user feedback
+    const resourceLabel = String.fromCharCode(65 + resourceAtDrone.position.q + 6) + (resourceAtDrone.position.r + 7);
+
+    if (existingAnthill && existingAnthill.isComplete && existingAnthill.owner === drone.owner) {
+      alert(`There is already a completed ${existingAnthill.resourceType} anthill at ${resourceLabel}!`);
+      return;
+    }
+
+    if (existingAnthill && existingAnthill.owner !== drone.owner) {
+      alert(`Cannot build on enemy anthill at ${resourceLabel}! Destroy it first.`);
+      return;
+    }
+
+    // Check if player can afford to start a new anthill
+    if (!existingAnthill) {
+      const player = currentState.players[drone.owner];
+      if (player.resources.food < GameConstants.ANTHILL_BUILD_COST) {
+        alert(`Not enough food to start building an anthill! Cost: ${GameConstants.ANTHILL_BUILD_COST} food`);
+        return;
+      }
+    }
+
+    // Build or continue building the anthill
+    const newState = buildAnthill(currentState, selectedAnt, resourceAtDrone.id);
+    updateGame(newState);
+    setSelectedAction(null);
+  };
+
   // Handle hex click
   const handleHexClick = (hex) => {
     if (!isMyTurn()) {
@@ -1138,74 +1295,6 @@ function App() {
       return;
     }
 
-    // If building anthill
-    if (selectedAction === 'buildAnthill' && selectedAnt) {
-      const drone = currentState.ants[selectedAnt];
-
-      // Only drones can build anthills
-      if (drone.type !== 'drone') {
-        alert('Only drones can build anthills!');
-        setSelectedAction(null);
-        return;
-      }
-
-      // Find the resource at the clicked hex
-      const resourceAtHex = Object.values(currentState.resources).find(
-        r => hexEquals(r.position, hex)
-      );
-
-      if (!resourceAtHex) {
-        alert('Click on a resource node to build an anthill!');
-        return;
-      }
-
-      // Check if drone is adjacent to or on the resource (distance <= 1)
-      const distance = Math.max(
-        Math.abs(drone.position.q - resourceAtHex.position.q),
-        Math.abs(drone.position.r - resourceAtHex.position.r),
-        Math.abs((-drone.position.q - drone.position.r) - (-resourceAtHex.position.q - resourceAtHex.position.r))
-      );
-
-      if (distance > 1) {
-        alert('Must be adjacent to or on the resource node to build an anthill!');
-        return;
-      }
-
-      // Check if there's already a completed anthill at the resource location
-      const existingAnthill = Object.values(currentState.anthills || {}).find(
-        a => hexEquals(a.position, resourceAtHex.position)
-      );
-
-      // Get resource hex label for better user feedback
-      const resourceLabel = String.fromCharCode(65 + resourceAtHex.position.q + 6) + (resourceAtHex.position.r + 7);
-
-      if (existingAnthill && existingAnthill.isComplete && existingAnthill.owner === drone.owner) {
-        alert(`There is already a completed ${existingAnthill.resourceType} anthill at ${resourceLabel}!`);
-        return;
-      }
-
-      if (existingAnthill && existingAnthill.owner !== drone.owner) {
-        alert(`Cannot build on enemy anthill at ${resourceLabel}! Destroy it first.`);
-        return;
-      }
-
-      // Check if player can afford to start a new anthill
-      if (!existingAnthill) {
-        const player = currentState.players[drone.owner];
-        if (player.resources.food < GameConstants.ANTHILL_BUILD_COST) {
-          alert(`Not enough food to start building an anthill! Cost: ${GameConstants.ANTHILL_BUILD_COST} food`);
-          return;
-        }
-      }
-
-      // Build or continue building the anthill
-      const newState = buildAnthill(currentState, selectedAnt, resourceAtHex.id);
-      updateGame(newState);
-      setSelectedAction(null);
-      setSelectedAnt(null);
-      return;
-    }
-
     // If moving ant
     if (selectedAction === 'move' && selectedAnt) {
       const ant = currentState.ants[selectedAnt];
@@ -1439,7 +1528,42 @@ function App() {
       if (validMoves.some(h => hexEquals(h, hex))) {
         // Validate the path is clear (no ants blocking the way)
         const hexKey = hex.toString();
-        const path = movementPaths.get(hexKey);
+        let path = movementPaths.get(hexKey);
+
+        // If there's a waypoint, use the combined path through the waypoint
+        if (pathWaypoint && !hexEquals(pathWaypoint, hex)) {
+          const waypointKey = pathWaypoint.toString();
+          const pathToWaypoint = movementPaths.get(waypointKey);
+
+          if (pathToWaypoint) {
+            const costToWaypoint = pathToWaypoint.length - 1;
+            const remainingRange = antType.movement - costToWaypoint;
+
+            if (remainingRange > 0) {
+              // Get blocked hexes
+              const blockedHexes = Object.values(currentState.ants)
+                .filter(a => a.id !== ant.id && (!a.burrowed || a.owner !== ant.owner))
+                .map(a => a.position.toString());
+
+              // Calculate path from waypoint to destination
+              const pathsFromWaypoint = getMovementRangeWithPaths(
+                pathWaypoint,
+                remainingRange,
+                gridRadius,
+                blockedHexes
+              );
+
+              const pathFromWaypointToHex = pathsFromWaypoint.find(
+                ({hex: destHex}) => hexEquals(destHex, hex)
+              );
+
+              if (pathFromWaypointToHex) {
+                // Combine paths: remove duplicate waypoint hex
+                path = [...pathToWaypoint, ...pathFromWaypointToHex.path.slice(1)];
+              }
+            }
+          }
+        }
 
         if (!path || path.length === 0) {
           alert('No valid path to that destination!');
@@ -1470,19 +1594,31 @@ function App() {
           }
         }
 
-        // All checks passed, move the ant
-        const newState = moveAnt(currentState, selectedAnt, hex);
-        const finalState = markAntMoved(newState, selectedAnt);
-        updateGame(finalState);
+        // All checks passed, start the movement animation
+        // Start animation from step 0 (current position)
+        setMovingAnt({
+          antId: selectedAnt,
+          path: path,
+          currentStep: 0
+        });
 
-        // Keep ant selected if it can still perform actions
-        if (canAntStillAct(selectedAnt, finalState)) {
-          setSelectedAction(null); // Clear the move action
-          // selectedAnt stays selected
-        } else {
-          setSelectedAction(null);
-          setSelectedAnt(null);
-        }
+        // After animation completes, mark ant as moved and update final state
+        // Calculate total animation time
+        const animationDuration = (path.length - 1) * 300;
+        setTimeout(() => {
+          const newState = moveAnt(currentState, selectedAnt, hex);
+          const finalState = markAntMoved(newState, selectedAnt);
+          updateGame(finalState);
+
+          // Keep ant selected if it can still perform actions
+          if (canAntStillAct(selectedAnt, finalState)) {
+            setSelectedAction(null); // Clear the move action
+            // selectedAnt stays selected
+          } else {
+            setSelectedAction(null);
+            setSelectedAnt(null);
+          }
+        }, animationDuration);
       } else {
         alert('Invalid move!');
       }
@@ -1894,6 +2030,11 @@ function App() {
     const antType = AntTypes[ant.type.toUpperCase()];
 
     if (selectedAction === 'move') {
+      // Don't show movement range if ant has already moved
+      if (ant.hasMoved) {
+        return [];
+      }
+
       // Queens cannot move
       if (ant.type === 'queen') {
         return [];
@@ -1973,7 +2114,7 @@ function App() {
       }
     }
 
-    // Define SVG patterns for birthing pools (only once)
+    // Define SVG patterns for birthing pools and spider web (only once)
     const patterns = (
       <defs>
         <pattern id="birthingPoolPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -1988,6 +2129,22 @@ function App() {
           <stop offset="70%" stopColor="#6A0DAD" stopOpacity="1" />
           <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
         </radialGradient>
+        {/* Spider web pattern for ensnared units */}
+        <g id="spiderWebPattern">
+          {/* Radial threads */}
+          <line x1="0" y1="0" x2="0" y2="-30" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="21" y2="-21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="30" y2="0" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="21" y2="21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="0" y2="30" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="-21" y2="21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="-30" y2="0" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="0" x2="-21" y2="-21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
+          {/* Circular threads */}
+          <circle cx="0" cy="0" r="10" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.6" />
+          <circle cx="0" cy="0" r="20" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.5" />
+          <circle cx="0" cy="0" r="30" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.4" />
+        </g>
       </defs>
     );
 
@@ -2059,12 +2216,10 @@ function App() {
           fillColor = 'url(#birthingPoolGradient)'; // Gradient for birthing pools
           useBirthingPoolPattern = true;
         }
-        if (resource) {
-          fillColor = resource.type === 'food' ? '#90EE90' : '#FFD700';
-          useBirthingPoolPattern = false;
-        }
+        // Don't color the entire hex for resources anymore - we'll add a colored circle instead
         if (isValidMove) {
-          fillColor = '#AED6F1'; // Light blue for valid moves
+          // Different color for fog of war moves vs visible moves
+          fillColor = isVisible ? '#AED6F1' : '#8B9DC3'; // Light blue for visible moves, darker blue for fog of war
           useBirthingPoolPattern = false;
         }
         if (isAttackable) {
@@ -2107,7 +2262,7 @@ function App() {
                 setSelectedAction(null);
                 setSelectedEgg(null);
               }}
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 if (isValidMove) {
                   setHoveredHex(hex);
                 }
@@ -2115,6 +2270,17 @@ function App() {
               onMouseLeave={() => {
                 if (isValidMove) {
                   setHoveredHex(null);
+                }
+              }}
+              onAuxClick={(e) => {
+                // Middle click (button 1) to set/clear waypoint
+                if (e.button === 1 && isValidMove && selectedAction === 'move') {
+                  e.preventDefault();
+                  if (pathWaypoint && hexEquals(pathWaypoint, hex)) {
+                    setPathWaypoint(null); // Clear waypoint if clicking same hex
+                  } else {
+                    setPathWaypoint(hex); // Set new waypoint
+                  }
                 }
               }}
             />
@@ -2136,7 +2302,108 @@ function App() {
             >
               {String.fromCharCode(65 + q + 6)}{r + 7}
             </text>
-            {ant && (() => {
+            {anthill && (
+              <g>
+                {/* Anthill icon - different for under construction */}
+                <text
+                  textAnchor="middle"
+                  dy="0.3em"
+                  fontSize="24"
+                  fontWeight="bold"
+                  style={{ pointerEvents: 'none', opacity: anthill.isComplete ? 1 : 0.6 }}
+                >
+                  {anthill.isComplete ? '⛰️' : '🚧'}
+                </text>
+                {/* Owner indicator - colored circle */}
+                <circle
+                  cx="15"
+                  cy="-15"
+                  r="8"
+                  fill={gameState.players[anthill.owner]?.color || '#999'}
+                  stroke="#333"
+                  strokeWidth="1.5"
+                  style={{ pointerEvents: 'none' }}
+                />
+                {/* Progress/Health bar */}
+                <g transform="translate(0, 20)">
+                  <rect
+                    x="-20"
+                    y="0"
+                    width="40"
+                    height="4"
+                    fill="#333"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  {anthill.isComplete ? (
+                    // Health bar for completed anthills
+                    <rect
+                      x="-20"
+                      y="0"
+                      width={40 * (anthill.health / 20)}
+                      height="4"
+                      fill={anthill.health > 10 ? '#2ecc71' : anthill.health > 5 ? '#f39c12' : '#e74c3c'}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  ) : (
+                    // Progress bar for anthills under construction
+                    <rect
+                      x="-20"
+                      y="0"
+                      width={40 * (anthill.buildProgress / 2)}
+                      height="4"
+                      fill="#FFA500"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
+                </g>
+                {/* Show progress text for under construction */}
+                {!anthill.isComplete && (
+                  <text
+                    textAnchor="middle"
+                    y="30"
+                    fontSize="10"
+                    fill="#FFA500"
+                    fontWeight="bold"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {anthill.buildProgress}/2
+                  </text>
+                )}
+              </g>
+            )}
+            {egg && (
+              <text
+                textAnchor="middle"
+                dy="0.3em"
+                fontSize="20"
+                style={{ pointerEvents: 'none' }}
+              >
+                🥚
+              </text>
+            )}
+            {resource && !anthill && isVisible && (
+              <g>
+                {/* Colored circle background for resource */}
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="20"
+                  fill={resource.type === 'food' ? '#90EE90' : '#FFD700'}
+                  opacity="0.8"
+                  style={{ pointerEvents: 'none' }}
+                />
+                <text
+                  textAnchor="middle"
+                  dy="0.3em"
+                  fontSize="16"
+                  fontWeight="bold"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {resource.type === 'food' ? '🍃' : '💎'}
+                </text>
+              </g>
+            )}
+            {ant && ant.type && (() => {
               // Check if this ant is attacking
               const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
               let transformOffset = '';
@@ -2147,7 +2414,7 @@ function App() {
               if (attackAnim) {
                 const elapsed = Date.now() - attackAnim.timestamp;
                 const antType = AntTypes[ant.type.toUpperCase()];
-                const isRanged = antType.attackRange > 1;
+                const isRanged = antType?.attackRange > 1;
 
                 if (isRanged) {
                   // Ranged: shake animation (0.2s)
@@ -2156,8 +2423,8 @@ function App() {
                   const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
                   transformOffset = `translate(${shakeX}, ${shakeY})`;
                 } else {
-                  // Melee: lunge animation (0.4s)
-                  const lungeProgress = Math.min(elapsed / 400, 1);
+                  // Melee: lunge animation (0.3s)
+                  const lungeProgress = Math.min(elapsed / 300, 1);
                   // Ease in-out
                   const eased = lungeProgress < 0.5
                     ? 2 * lungeProgress * lungeProgress
@@ -2183,7 +2450,7 @@ function App() {
                     cx="0"
                     cy="0"
                     r="18"
-                    fill={gameState.players[ant.owner].color}
+                    fill={gameState.players[ant.owner]?.color || '#999'}
                     style={{ pointerEvents: 'none' }}
                   />
                   {/* Gray overlay for ants with no actions */}
@@ -2236,6 +2503,33 @@ function App() {
                       </text>
                     );
                   })()}
+                  {/* Ensnare indicator - green spider web */}
+                  {ant.ensnared && ant.ensnared > 0 && (
+                    <g>
+                      <use href="#spiderWebPattern" style={{ pointerEvents: 'none' }}>
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0 0 0"
+                          to="360 0 0"
+                          dur="3s"
+                          repeatCount="indefinite"
+                        />
+                      </use>
+                      {/* Ensnare duration text */}
+                      <text
+                        textAnchor="middle"
+                        x="12"
+                        y="12"
+                        fontSize="12"
+                        fill="#00FF00"
+                        fontWeight="bold"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        🕸️{ant.ensnared}
+                      </text>
+                    </g>
+                  )}
                   {/* Health bar */}
                   <g transform="translate(0, 20)">
                     {/* Background */}
@@ -2320,96 +2614,6 @@ function App() {
                 </g>
               );
             })()}
-            {egg && (
-              <text
-                textAnchor="middle"
-                dy="0.3em"
-                fontSize="20"
-                style={{ pointerEvents: 'none' }}
-              >
-                🥚
-              </text>
-            )}
-            {resource && !anthill && (
-              <text
-                textAnchor="middle"
-                dy="0.3em"
-                fontSize="16"
-                fontWeight="bold"
-                style={{ pointerEvents: 'none' }}
-              >
-                {resource.type === 'food' ? '🍃' : '💎'}
-              </text>
-            )}
-            {anthill && (
-              <g>
-                {/* Anthill icon - different for under construction */}
-                <text
-                  textAnchor="middle"
-                  dy="0.3em"
-                  fontSize="24"
-                  fontWeight="bold"
-                  style={{ pointerEvents: 'none', opacity: anthill.isComplete ? 1 : 0.6 }}
-                >
-                  {anthill.isComplete ? '⛰️' : '🚧'}
-                </text>
-                {/* Owner indicator - colored circle */}
-                <circle
-                  cx="15"
-                  cy="-15"
-                  r="8"
-                  fill={gameState.players[anthill.owner].color}
-                  stroke="#333"
-                  strokeWidth="1.5"
-                  style={{ pointerEvents: 'none' }}
-                />
-                {/* Progress/Health bar */}
-                <g transform="translate(0, 20)">
-                  <rect
-                    x="-20"
-                    y="0"
-                    width="40"
-                    height="4"
-                    fill="#333"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  {anthill.isComplete ? (
-                    // Health bar for completed anthills
-                    <rect
-                      x="-20"
-                      y="0"
-                      width={40 * (anthill.health / 20)}
-                      height="4"
-                      fill={anthill.health > 10 ? '#2ecc71' : anthill.health > 5 ? '#f39c12' : '#e74c3c'}
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  ) : (
-                    // Progress bar for anthills under construction
-                    <rect
-                      x="-20"
-                      y="0"
-                      width={40 * (anthill.buildProgress / 2)}
-                      height="4"
-                      fill="#FFA500"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )}
-                </g>
-                {/* Show progress text for under construction */}
-                {!anthill.isComplete && (
-                  <text
-                    textAnchor="middle"
-                    y="30"
-                    fontSize="10"
-                    fill="#FFA500"
-                    fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {anthill.buildProgress}/2
-                  </text>
-                )}
-              </g>
-            )}
             {/* Fog of War overlay - darken non-visible hexes */}
             {!isVisible && (
               <polygon
@@ -2426,8 +2630,62 @@ function App() {
     // Render path visualization if hovering over a valid move
     const pathVisualization = [];
     if (hoveredHex && movementPaths.size > 0) {
-      const hexKey = hoveredHex.toString();
-      const path = movementPaths.get(hexKey);
+      let path = null;
+
+      // If we have a waypoint, combine paths: ant -> waypoint -> hover
+      if (pathWaypoint) {
+        const waypointKey = pathWaypoint.toString();
+        const hoverKey = hoveredHex.toString();
+        const pathToWaypoint = movementPaths.get(waypointKey);
+        const pathFromWaypoint = movementPaths.get(hoverKey);
+
+        // Try to find a path from waypoint to hover hex
+        if (pathToWaypoint && pathFromWaypoint) {
+          // Calculate remaining movement after reaching waypoint
+          const remainingMoves = (pathToWaypoint.length - 1);
+
+          // Check if we have a valid path through the waypoint
+          // We need to recalculate from the waypoint with remaining movement
+          const ant = gameState.ants[selectedAnt];
+          if (ant && ant.type && AntTypes[ant.type]) {
+            let range = AntTypes[ant.type].movement;
+            if (ant.ensnared && ant.ensnared > 0) range = 1;
+
+            const costToWaypoint = pathToWaypoint.length - 1;
+            const remainingRange = range - costToWaypoint;
+
+            if (remainingRange > 0 && !hexEquals(pathWaypoint, hoveredHex)) {
+              // Get blocked hexes
+              const blockedHexes = Object.values(gameState.ants)
+                .filter(a => a.id !== ant.id && (!a.burrowed || a.owner !== ant.owner))
+                .map(a => a.position.toString());
+
+              // Calculate path from waypoint to destination
+              const pathsFromWaypoint = getMovementRangeWithPaths(
+                pathWaypoint,
+                remainingRange,
+                gridRadius,
+                blockedHexes
+              );
+
+              const pathFromWaypointToHover = pathsFromWaypoint.find(
+                ({hex}) => hexEquals(hex, hoveredHex)
+              );
+
+              if (pathFromWaypointToHover) {
+                // Combine paths: remove duplicate waypoint hex
+                path = [...pathToWaypoint, ...pathFromWaypointToHover.path.slice(1)];
+              }
+            }
+          }
+        }
+      }
+
+      // If no waypoint or waypoint path failed, use direct path
+      if (!path) {
+        const hexKey = hoveredHex.toString();
+        path = movementPaths.get(hexKey);
+      }
 
       if (path && path.length > 0) {
         // Draw arrows along the path
@@ -2445,6 +2703,9 @@ function App() {
             const dy = nextY - y;
             const angle = Math.atan2(dy, dx);
 
+            // Highlight waypoint segment differently
+            const isWaypointSegment = pathWaypoint && i < path.findIndex(p => hexEquals(p, pathWaypoint));
+
             pathVisualization.push(
               <g key={`path-${i}`}>
                 {/* Arrow line */}
@@ -2453,14 +2714,14 @@ function App() {
                   y1={y}
                   x2={nextX}
                   y2={nextY}
-                  stroke="#FF0000"
+                  stroke={isWaypointSegment ? "#FFA500" : "#FF0000"}
                   strokeWidth="3"
                   style={{ pointerEvents: 'none' }}
                 />
                 {/* Arrow head */}
                 <polygon
                   points="0,-6 12,0 0,6"
-                  fill="#FF0000"
+                  fill={isWaypointSegment ? "#FFA500" : "#FF0000"}
                   transform={`translate(${nextX}, ${nextY}) rotate(${angle * 180 / Math.PI})`}
                   style={{ pointerEvents: 'none' }}
                 />
@@ -2481,6 +2742,23 @@ function App() {
               />
             );
           }
+        }
+
+        // Draw waypoint marker if set
+        if (pathWaypoint) {
+          const { x: wpX, y: wpY } = hexToPixel(pathWaypoint, hexSize);
+          pathVisualization.push(
+            <circle
+              key="waypoint-marker"
+              cx={wpX}
+              cy={wpY}
+              r="8"
+              fill="#FFA500"
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              style={{ pointerEvents: 'none' }}
+            />
+          );
         }
       }
     }
@@ -2528,16 +2806,41 @@ function App() {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
 
+                  // Check if unit requires a specific queen tier
+                  const queen = Object.values(gameState.ants).find(
+                    a => a.type === 'queen' && a.owner === gameState.currentPlayer
+                  );
+                  const queenTier = queen?.queenTier || 'queen';
+
+                  // Check if locked: requires a specific tier and player doesn't have it yet
+                  let isLocked = false;
+                  if (ant.requiresQueenTier) {
+                    if (ant.requiresQueenTier === 'broodQueen') {
+                      isLocked = queenTier === 'queen'; // Locked if still base queen
+                    } else if (ant.requiresQueenTier === 'swarmQueen') {
+                      isLocked = queenTier !== 'swarmQueen'; // Locked unless swarm queen
+                    }
+                  }
+
+                  // Build tooltip message
+                  let tooltipMessage = ant.description;
+                  if (isLocked && ant.requiresQueenTier) {
+                    const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
+                    tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
+                  }
+
                   return (
                     <button
                       key={ant.id}
                       onClick={() => {
                         // Check if player has a queen to lay eggs
-                        const queen = Object.values(gameState.ants).find(
-                          a => a.type === 'queen' && a.owner === gameState.currentPlayer
-                        );
                         if (!queen) {
                           alert('You need a queen to lay eggs!');
+                          return;
+                        }
+                        if (isLocked && ant.requiresQueenTier) {
+                          const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
+                          alert(`This unit requires ${requiredTierName}!`);
                           return;
                         }
                         if (!affordable) {
@@ -2551,15 +2854,16 @@ function App() {
                         // Store the ant type to lay
                         setSelectedEggHex({ antType: ant.id });
                       }}
-                      disabled={!affordable || !isMyTurn()}
+                      disabled={!affordable || !isMyTurn() || isLocked}
+                      title={tooltipMessage}
                       style={{
                         padding: '8px 10px',
                         fontSize: '14px',
-                        backgroundColor: affordable ? '#4CAF50' : '#ccc',
-                        color: affordable ? 'white' : '#666',
+                        backgroundColor: isLocked ? '#999' : (affordable ? '#4CAF50' : '#ccc'),
+                        color: (isLocked || !affordable) ? '#666' : 'white',
                         border: 'none',
                         borderRadius: '6px',
-                        cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
+                        cursor: (affordable && isMyTurn() && !isLocked) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
@@ -2587,17 +2891,27 @@ function App() {
 
         {/* Game Board */}
         <div style={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
-          <svg
-            width="900"
-            height="900"
-            viewBox="0 0 900 900"
-            style={{ border: '2px solid #333', backgroundColor: '#fff', cursor: isDragging ? 'grabbing' : 'default', maxWidth: '100%', maxHeight: 'calc(100vh - 80px)' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onWheel={handleWheel}
-          >
+          <div style={{
+            backgroundImage: `url(${forestFloorImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            border: '2px solid #333',
+            display: 'inline-block',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 80px)'
+          }}>
+            <svg
+              width="900"
+              height="900"
+              viewBox="0 0 900 900"
+              style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent' }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onWheel={handleWheel}
+            >
             <g transform={`translate(450, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
@@ -2744,10 +3058,11 @@ function App() {
             })}
             </g>
           </svg>
+          </div>
         </div>
 
         {/* Game Info Panel - Right Side */}
-        <div style={{ width: '300px', backgroundColor: '#fff', padding: '20px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', paddingBottom: '200px' }}>
+        <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', paddingBottom: '200px' }}>
           {gameMode.isMultiplayer && (
             <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#ecf0f1', borderRadius: '5px' }}>
               <p><strong>Game Mode:</strong> Online</p>
@@ -2758,7 +3073,7 @@ function App() {
           )}
 
           <h2>Turn {gameState.turn}</h2>
-          <h3 style={{ color: gameState.players[gameState.currentPlayer].color }}>
+          <h3 style={{ color: gameState.players[gameState.currentPlayer]?.color || '#000' }}>
             {gameState.players[gameState.currentPlayer].name}'s Turn
           </h3>
 
@@ -3062,18 +3377,18 @@ function App() {
                   )}
                   {gameState.ants[selectedAnt].type === 'drone' && !gameState.ants[selectedAnt].hasBuilt && (
                     <button
-                      onClick={() => setSelectedAction('buildAnthill')}
+                      onClick={handleBuildAnthillAction}
                       style={{
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'buildAnthill' ? '#f39c12' : '#ecf0f1',
-                        color: selectedAction === 'buildAnthill' ? 'white' : 'black',
+                        backgroundColor: '#f39c12',
+                        color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontWeight: selectedAction === 'buildAnthill' ? 'bold' : 'normal'
+                        fontWeight: 'normal'
                       }}
                     >
-                      Build Anthill
+                      Build Anthill (B)
                     </button>
                   )}
 
@@ -3139,19 +3454,50 @@ function App() {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
 
+                  // Check if unit requires a specific queen tier
+                  const queen = Object.values(gameState.ants).find(
+                    a => a.type === 'queen' && a.owner === gameState.currentPlayer
+                  );
+                  const queenTier = queen?.queenTier || 'queen';
+
+                  // Check if locked: requires a specific tier and player doesn't have it yet
+                  let isLocked = false;
+                  if (ant.requiresQueenTier) {
+                    if (ant.requiresQueenTier === 'broodQueen') {
+                      isLocked = queenTier === 'queen'; // Locked if still base queen
+                    } else if (ant.requiresQueenTier === 'swarmQueen') {
+                      isLocked = queenTier !== 'swarmQueen'; // Locked unless swarm queen
+                    }
+                  }
+
+                  // Build tooltip message
+                  let tooltipMessage = ant.description;
+                  if (isLocked && ant.requiresQueenTier) {
+                    const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
+                    tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
+                  }
+
                   return (
                     <button
                       key={ant.id}
-                      onClick={() => handleLayEgg(ant.id)}
-                      disabled={!affordable}
+                      onClick={() => {
+                        if (isLocked && ant.requiresQueenTier) {
+                          const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
+                          alert(`This unit requires ${requiredTierName}!`);
+                          return;
+                        }
+                        handleLayEgg(ant.id);
+                      }}
+                      disabled={!affordable || isLocked}
+                      title={tooltipMessage}
                       style={{
                         padding: '8px',
                         fontSize: '12px',
-                        backgroundColor: affordable ? '#4CAF50' : '#ccc',
-                        color: affordable ? 'white' : '#666',
+                        backgroundColor: isLocked ? '#999' : (affordable ? '#4CAF50' : '#ccc'),
+                        color: (isLocked || !affordable) ? '#666' : 'white',
                         border: 'none',
                         borderRadius: '4px',
-                        cursor: affordable ? 'pointer' : 'not-allowed',
+                        cursor: (affordable && !isLocked) ? 'pointer' : 'not-allowed',
                         textAlign: 'left'
                       }}
                     >
@@ -3238,15 +3584,15 @@ function App() {
         </div>
       </div>
 
-      {/* Camera Controls - Bottom Right */}
+      {/* Camera Controls - In gap between map and right panel */}
       <div style={{
         position: 'fixed',
         bottom: '20px',
-        right: '20px',
+        right: 'calc(250px + 60px)', // Right panel width (250px) + gap (60px) - moved more left
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 70px)',
-        gridTemplateRows: 'repeat(2, 70px) auto',
-        gap: '12px',
+        gridTemplateColumns: 'repeat(2, 60px)', // Made a bit bigger
+        gridTemplateRows: 'repeat(2, 60px) auto',
+        gap: '10px',
         zIndex: 1000
       }}>
         {/* Cycle to Next Active Ant */}
@@ -3255,16 +3601,16 @@ function App() {
           disabled={!isMyTurn()}
           style={{
             padding: '0',
-            borderRadius: '10px',
+            borderRadius: '8px',
             backgroundColor: isMyTurn() ? '#9C27B0' : '#ccc',
             color: 'white',
             border: 'none',
-            fontSize: '28px',
+            fontSize: '24px',
             fontWeight: 'bold',
             cursor: isMyTurn() ? 'pointer' : 'not-allowed',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            width: '70px',
-            height: '70px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
+            width: '60px',
+            height: '60px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3279,16 +3625,16 @@ function App() {
           onClick={centerOnQueen}
           style={{
             padding: '0',
-            borderRadius: '10px',
+            borderRadius: '8px',
             backgroundColor: '#FF9800',
             color: 'white',
             border: 'none',
-            fontSize: '32px',
+            fontSize: '26px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            width: '70px',
-            height: '70px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
+            width: '60px',
+            height: '60px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -3302,16 +3648,16 @@ function App() {
           onClick={() => setZoomLevel(prev => Math.min(MAX_ZOOM, prev + 0.2))}
           style={{
             padding: '0',
-            borderRadius: '10px',
+            borderRadius: '8px',
             backgroundColor: '#4CAF50',
             color: 'white',
             border: 'none',
-            fontSize: '36px',
+            fontSize: '30px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            width: '70px',
-            height: '70px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
+            width: '60px',
+            height: '60px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -3325,16 +3671,16 @@ function App() {
           onClick={() => setZoomLevel(prev => Math.max(MIN_ZOOM, prev - 0.2))}
           style={{
             padding: '0',
-            borderRadius: '10px',
+            borderRadius: '8px',
             backgroundColor: '#f44336',
             color: 'white',
             border: 'none',
-            fontSize: '36px',
+            fontSize: '30px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            width: '70px',
-            height: '70px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
+            width: '60px',
+            height: '60px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -3345,11 +3691,11 @@ function App() {
         </button>
         {/* Zoom Level Display */}
         <div style={{
-          padding: '12px',
-          borderRadius: '10px',
+          padding: '8px',
+          borderRadius: '8px',
           backgroundColor: 'rgba(0,0,0,0.7)',
           color: 'white',
-          fontSize: '16px',
+          fontSize: '12px',
           textAlign: 'center',
           fontWeight: 'bold',
           gridColumn: 'span 2',
@@ -3359,19 +3705,19 @@ function App() {
         </div>
       </div>
 
-      {/* Help Button - Bottom Right (left of camera controls) */}
+      {/* Help Button - Bottom left near left panel */}
       <button
         onClick={() => setShowHelpGuide(true)}
         style={{
           position: 'fixed',
           bottom: '20px',
-          right: '180px',
-          padding: '12px 20px',
-          borderRadius: '25px',
+          left: 'calc(300px + 40px)', // Left panel width (300px) + gap (40px)
+          padding: '10px 16px',
+          borderRadius: '20px',
           backgroundColor: '#2196F3',
           color: 'white',
           border: 'none',
-          fontSize: '16px',
+          fontSize: '14px',
           fontWeight: 'bold',
           cursor: 'pointer',
           boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
@@ -3386,18 +3732,18 @@ function App() {
         how to play
       </button>
 
-      {/* Camera Controls Info - Bottom Right (under help button) */}
+      {/* Camera Controls Info - Bottom left near left panel */}
       <div style={{
         position: 'fixed',
-        bottom: '70px',
-        right: '180px',
-        padding: '10px 15px',
+        bottom: '65px',
+        left: 'calc(300px + 40px)', // Left panel width (300px) + gap (40px)
+        padding: '8px 12px',
         borderRadius: '8px',
         backgroundColor: 'rgba(0,0,0,0.7)',
         color: 'white',
-        fontSize: '12px',
+        fontSize: '11px',
         zIndex: 1000,
-        maxWidth: '200px'
+        maxWidth: '180px'
       }}>
         <strong>Controls:</strong><br/>
         Tab: Next Active Ant<br/>

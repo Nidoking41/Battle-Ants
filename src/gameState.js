@@ -459,14 +459,14 @@ export function buildAnthill(gameState, droneId, resourceId) {
   const droneType = AntTypes[drone.type.toUpperCase()];
   if (!droneType.canBuildAnthill) return gameState;
 
-  // Check if drone is adjacent to or on the resource node (distance <= 1)
+  // Check if drone is ON the resource node (must be standing on it)
   const distance = Math.max(
     Math.abs(drone.position.q - resource.position.q),
     Math.abs(drone.position.r - resource.position.r),
     Math.abs((-drone.position.q - drone.position.r) - (-resource.position.q - resource.position.r))
   );
 
-  if (distance > 1) return gameState;
+  if (distance > 0) return gameState; // Must be exactly on the resource (distance = 0)
 
   const updatedAnthills = { ...gameState.anthills };
 
@@ -605,11 +605,11 @@ export function getAntAttack(ant, player) {
   let attack = antType.attack;
 
   // Apply melee attack upgrade (for attackRange <= 1)
-  // Each tier adds +20% (rounded down, minimum +1 per tier)
+  // Each tier adds +10% (rounded down, minimum +1 per tier)
   if (antType.attackRange <= 1) {
     const tier = player.upgrades.meleeAttack || 0;
     if (tier > 0) {
-      const bonus = Math.max(tier, Math.floor(antType.attack * 0.2 * tier));
+      const bonus = Math.max(tier, Math.floor(antType.attack * 0.1 * tier));
       attack += bonus;
     }
   }
@@ -617,7 +617,7 @@ export function getAntAttack(ant, player) {
   else {
     const tier = player.upgrades.rangedAttack || 0;
     if (tier > 0) {
-      const bonus = Math.max(tier, Math.floor(antType.attack * 0.2 * tier));
+      const bonus = Math.max(tier, Math.floor(antType.attack * 0.1 * tier));
       attack += bonus;
     }
   }
@@ -630,10 +630,10 @@ export function getAntDefense(ant, player, gameState) {
   const antType = AntTypes[ant.type.toUpperCase()];
   let defense = antType.defense;
 
-  // Apply defense upgrade: +20% per tier (rounded down, minimum +1 per tier)
+  // Apply defense upgrade: +10% per tier (rounded down, minimum +1 per tier)
   const tier = player.upgrades.defense || 0;
   if (tier > 0) {
-    const bonus = Math.max(tier, Math.floor(antType.defense * 0.2 * tier));
+    const bonus = Math.max(tier, Math.floor(antType.defense * 0.1 * tier));
     defense += bonus;
   }
 

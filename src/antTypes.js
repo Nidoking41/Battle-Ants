@@ -7,7 +7,7 @@ export const AntTypes = {
     cost: { food: 0, minerals: 0 }, // Queens start on the map
     hatchTime: 0,
     maxHealth: 100,
-    attack: 15,
+    attack: 8,
     defense: 5,
     moveSpeed: 1,
     moveRange: 1,
@@ -61,7 +61,8 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 0.5,
-    description: 'Slow and expensive, but incredibly durable.',
+    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
+    description: 'Slow and expensive, but incredibly durable. Requires Brood Queen.',
     icon: '🛡️🐜'
   },
 
@@ -113,7 +114,8 @@ export const AntTypes = {
     minAttackRange: 2, // Cannot attack adjacent enemies
     cannotMoveAndAttack: true, // Cannot move and attack in same turn
     resourceGatherRate: 0,
-    description: 'Long-range artillery. Cannot attack adjacent enemies or move and shoot.',
+    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
+    description: 'Long-range artillery. Cannot attack adjacent enemies or move and shoot. Requires Brood Queen.',
     icon: '🎯🐜'
   },
 
@@ -146,7 +148,7 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 0, // No attack range
     resourceGatherRate: 0,
-    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
     maxEnergy: 50,
     energyRegen: 10,
@@ -157,7 +159,7 @@ export const AntTypes = {
     ensnareRange: 3,
     ensnareDuration: 3, // turns
     ensnareEnergyCost: 20,
-    description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
+    description: 'Support unit that can heal allies and ensnare enemies. Requires Swarm Queen.',
     icon: '✨🐜'
   }
 };
@@ -178,8 +180,8 @@ export const GameConstants = {
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
   ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
   ANTHILL_PASSIVE_INCOME: {
-    food: 7,  // Per turn for food anthills
-    minerals: 7  // Per turn for mineral anthills
+    food: 6,  // Per turn for food anthills
+    minerals: 8  // Per turn for mineral anthills
   },
   // Queen Energy System
   QUEEN_BASE_ENERGY: 100,
@@ -199,7 +201,7 @@ export const Upgrades = {
   MELEE_ATTACK: {
     id: 'meleeAttack',
     name: 'Melee Attack',
-    description: '+20% Attack for melee units (min +1)',
+    description: '+10% Attack for melee units (min +1)',
     icon: '⚔️',
     maxTier: 3,
     costs: [
@@ -211,7 +213,7 @@ export const Upgrades = {
   RANGED_ATTACK: {
     id: 'rangedAttack',
     name: 'Ranged Attack',
-    description: '+20% Attack for ranged units (min +1)',
+    description: '+10% Attack for ranged units (min +1)',
     icon: '🏹',
     maxTier: 3,
     costs: [
@@ -223,7 +225,7 @@ export const Upgrades = {
   DEFENSE: {
     id: 'defense',
     name: 'Defense',
-    description: '+20% Defense for all units (min +1)',
+    description: '+10% Defense for all units (min +1)',
     icon: '🛡️',
     maxTier: 3,
     costs: [
