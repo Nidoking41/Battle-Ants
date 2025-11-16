@@ -57,7 +57,7 @@ function AIGameSetup({ onStartGame, onBack }) {
       justifyContent: 'flex-start',
       minHeight: '100vh',
       backgroundColor: '#f0f0f0',
-      padding: '10px',
+      padding: '20px',
       overflowY: 'auto'
     }}>
       <div style={{
@@ -65,9 +65,9 @@ function AIGameSetup({ onStartGame, onBack }) {
         padding: '20px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '800px',
+        maxWidth: '750px',
         width: '100%',
-        margin: '10px 0'
+        margin: '20px 0'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px' }}>🤖 VS AI Setup</h1>
         <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#7f8c8d', fontSize: '16px' }}>

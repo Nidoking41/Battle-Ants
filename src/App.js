@@ -11,6 +11,8 @@ import AIGameSetup from './AIGameSetup';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
 import { executeAITurn } from './aiController';
 import forestFloorImage from './forestfloor.png';
+import { useSprites } from './useSprites';
+import { getSpriteInfo } from './spriteConfig';
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
@@ -26,6 +28,7 @@ function App() {
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
   const [showAntTypeSelector, setShowAntTypeSelector] = useState(false); // Show ant type buttons
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
+  const [selectedAnthill, setSelectedAnthill] = useState(null); // Store selected anthill for viewing info
   const [damageNumbers, setDamageNumbers] = useState([]); // Array of {id, damage, position, timestamp}
   const [attackAnimations, setAttackAnimations] = useState([]); // Array of {id, attackerId, targetPos, timestamp, isRanged}
   const [projectiles, setProjectiles] = useState([]); // Array of {id, startPos, endPos, timestamp}
@@ -36,6 +39,17 @@ function App() {
   const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
   const [attackPositions, setAttackPositions] = useState([]); // Valid positions to attack from
   const [movingAnt, setMovingAnt] = useState(null); // {antId, path, currentStep} for animating movement
+
+  // Sprite animation system
+  const { setAntAnimation, removeAntAnimation, getAntFrame } = useSprites();
+
+  // Initialize all ants with idle animation (only once on mount)
+  useEffect(() => {
+    Object.values(gameState.ants).forEach(ant => {
+      setAntAnimation(ant.id, ant.type, 'idle');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -372,6 +386,16 @@ function App() {
       isRanged
     };
     setAttackAnimations(prev => [...prev, newAnimation]);
+
+    // Trigger attack sprite animation
+    const attacker = gameState.ants[attackerId];
+    if (attacker) {
+      setAntAnimation(attackerId, attacker.type, 'attack');
+      // Return to idle after attack animation
+      setTimeout(() => {
+        setAntAnimation(attackerId, attacker.type, 'idle');
+      }, isRanged ? 200 : 300);
+    }
 
     // If ranged, spawn projectile after shake animation (0.2s)
     if (isRanged) {
@@ -826,8 +850,8 @@ function App() {
     const ant = currentState.ants[selectedAnt];
     if (!ant) return [];
 
-    // Burrowed units cannot attack (detonate is handled separately)
-    if (ant.isBurrowed) return [];
+    // Burrowed units cannot attack except soldiers/marauders
+    if (ant.isBurrowed && ant.type !== 'soldier') return [];
 
     const antType = AntTypes[ant.type.toUpperCase()];
     const enemies = [];
@@ -1031,15 +1055,18 @@ function App() {
             });
 
             // Mark ant as having attacked and store combat action for multiplayer
+            // Only update the attacker if it still exists after combat
+            const updatedAnts = { ...newState.ants };
+            if (updatedAnts[selectedAnt]) {
+              updatedAnts[selectedAnt] = {
+                ...updatedAnts[selectedAnt],
+                hasAttacked: true
+              };
+            }
+
             const markedState = {
               ...newState,
-              ants: {
-                ...newState.ants,
-                [selectedAnt]: newState.ants[selectedAnt] ? {
-                  ...newState.ants[selectedAnt],
-                  hasAttacked: true
-                } : undefined
-              },
+              ants: updatedAnts,
               // Store combat action for multiplayer animation replay
               lastCombatAction: combatResult.attackAnimation ? {
                 ...combatResult.attackAnimation,
@@ -1047,10 +1074,6 @@ function App() {
                 timestamp: Date.now()
               } : undefined
             };
-            // Remove undefined ants (in case the attacker died in combat)
-            if (markedState.ants[selectedAnt] === undefined) {
-              delete markedState.ants[selectedAnt];
-            }
             updateGame(markedState);
             setSelectedAction(null);
             setSelectedAnt(null);
@@ -1602,6 +1625,9 @@ function App() {
           currentStep: 0
         });
 
+        // Trigger walk sprite animation
+        setAntAnimation(selectedAnt, ant.type, 'walk');
+
         // After animation completes, mark ant as moved and update final state
         // Calculate total animation time
         const animationDuration = (path.length - 1) * 300;
@@ -1609,6 +1635,9 @@ function App() {
           const newState = moveAnt(currentState, selectedAnt, hex);
           const finalState = markAntMoved(newState, selectedAnt);
           updateGame(finalState);
+
+          // Return to idle animation
+          setAntAnimation(selectedAnt, ant.type, 'idle');
 
           // Keep ant selected if it can still perform actions
           if (canAntStillAct(selectedAnt, finalState)) {
@@ -1861,6 +1890,16 @@ function App() {
         setSelectedAction('move');
       }
       setSelectedEgg(null);
+      return;
+    }
+
+    // Check if clicking on an anthill (only if no ant was clicked)
+    const clickedAnthill = Object.values(currentState.anthills).find(a => hexEquals(a.position, hex));
+    if (clickedAnthill && clickedAnthill.isComplete) {
+      setSelectedAnthill(clickedAnthill);
+      setSelectedAnt(null);
+      setSelectedAction(null);
+      return;
     }
   };
 
@@ -2303,7 +2342,7 @@ function App() {
               {String.fromCharCode(65 + q + 6)}{r + 7}
             </text>
             {anthill && (
-              <g>
+              <g transform={ant ? "translate(15, -15)" : ""}>
                 {/* Anthill icon - different for under construction */}
                 <text
                   textAnchor="middle"
@@ -2382,7 +2421,7 @@ function App() {
               </text>
             )}
             {resource && !anthill && isVisible && (
-              <g>
+              <g transform={ant ? "translate(15, -15)" : ""}>
                 {/* Colored circle background for resource */}
                 <circle
                   cx="0"
@@ -2444,12 +2483,33 @@ function App() {
                 }
               }
 
+              // Determine current animation state
+              let currentAnimation = 'idle';
+              if (attackAnim) {
+                currentAnimation = 'attack';
+              } else if (movingAnt && movingAnt.antId === ant.id) {
+                currentAnimation = 'walk';
+              }
+
+              // Get sprite frame info
+              const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation);
+
+              // Debug logging for drone
+              if (ant.type === 'drone') {
+                console.log('Drone ant:', ant.id, 'currentFrame:', spriteFrame?.currentFrame, 'animation:', spriteFrame?.animation);
+              }
+
+              // Check if ant is on a resource or anthill
+              const onResourceOrAnthill = resource || anthill;
+              const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
+              const finalTransform = transformOffset ? `${baseTransform} ${transformOffset}` : baseTransform;
+
               return (
-                <g transform={transformOffset}>
+                <g transform={finalTransform}>
                   <circle
                     cx="0"
                     cy="0"
-                    r="18"
+                    r="12"
                     fill={gameState.players[ant.owner]?.color || '#999'}
                     style={{ pointerEvents: 'none' }}
                   />
@@ -2458,20 +2518,41 @@ function App() {
                     <circle
                       cx="0"
                       cy="0"
-                      r="18"
+                      r="12"
                       fill="rgba(128, 128, 128, 0.6)"
                       style={{ pointerEvents: 'none' }}
                     />
                   )}
-                  <text
-                    textAnchor="middle"
-                    dy="0.3em"
-                    fontSize="24"
-                    fill="white"
-                    style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
-                  >
-                    {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
-                  </text>
+                  {/* Render sprite if available, otherwise fall back to emoji */}
+                  {spriteFrame && !ant.isBurrowed ? (
+                    <g opacity={hasActions ? 1 : 0.5}>
+                      <image
+                        x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
+                        y={-40}
+                        width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
+                        height={spriteFrame.frameHeight * 2.5}
+                        href={spriteFrame.fullPath}
+                        clipPath={`url(#clip-${ant.id})`}
+                        style={{ pointerEvents: 'none' }}
+                        onLoad={() => console.log('Sprite loaded:', spriteFrame.fullPath)}
+                        onError={(e) => {
+                          console.error('Failed to load sprite:', spriteFrame.fullPath);
+                        }}
+                      />
+                    </g>
+                  ) : null}
+                  {/* Emoji fallback (shown if burrowed or if sprite doesn't exist) */}
+                  {(!spriteFrame || ant.isBurrowed) && (
+                    <text
+                      textAnchor="middle"
+                      dy="0.3em"
+                      fontSize="24"
+                      fill="white"
+                      style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
+                    >
+                      {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
+                    </text>
+                  )}
                   {/* "No moves" indicator */}
                   {!hasActions && (
                     <text
@@ -2902,9 +2983,9 @@ function App() {
             maxHeight: 'calc(100vh - 80px)'
           }}>
             <svg
-              width="900"
+              width="1200"
               height="900"
-              viewBox="0 0 900 900"
+              viewBox="0 0 1200 900"
               style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -2912,7 +2993,15 @@ function App() {
               onMouseLeave={handleMouseUp}
               onWheel={handleWheel}
             >
-            <g transform={`translate(450, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
+            <defs>
+              {/* Clip paths for sprite animations - one per ant */}
+              {Object.values(gameState.ants).map(ant => (
+                <clipPath key={`clip-${ant.id}`} id={`clip-${ant.id}`}>
+                  <rect x={-40} y={-40} width={80} height={80} />
+                </clipPath>
+              ))}
+            </defs>
+            <g transform={`translate(600, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
             {/* Projectiles */}
@@ -3195,6 +3284,47 @@ function App() {
               <p><strong>Turns until hatch:</strong> {Math.max(0, selectedEgg.hatchTurn - gameState.turn)}</p>
               <button
                 onClick={() => setSelectedEgg(null)}
+                style={{
+                  marginTop: '10px',
+                  padding: '5px 10px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          )}
+
+          {/* Selected Anthill Info */}
+          {selectedAnthill && (
+            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#d4edda', borderRadius: '5px', border: '2px solid #28a745' }}>
+              <h4>Anthill Info</h4>
+              <p><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? '🍃 Food' : '💎 Minerals'}</p>
+              <p><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
+              <p><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
+              <p><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / 75</p>
+              <p><strong>Remaining:</strong> {75 - (selectedAnthill.resourcesGathered || 0)}</p>
+              <div style={{
+                width: '100%',
+                height: '20px',
+                backgroundColor: '#e0e0e0',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                marginTop: '10px'
+              }}>
+                <div style={{
+                  width: `${((selectedAnthill.resourcesGathered || 0) / 75) * 100}%`,
+                  height: '100%',
+                  backgroundColor: selectedAnthill.resourceType === 'food' ? '#4CAF50' : '#2196F3',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              <button
+                onClick={() => setSelectedAnthill(null)}
                 style={{
                   marginTop: '10px',
                   padding: '5px 10px',
@@ -3852,7 +3982,7 @@ function App() {
                     <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.4' }}>
                       {upgrade.description}
                     </div>
-                    {upgrade.requiresQueenTier && !queen?.queenTier !== 'swarmQueen' && (
+                    {upgrade.requiresQueenTier && queen?.queenTier !== 'swarmQueen' && (
                       <div style={{ fontSize: '12px', marginTop: '6px', fontStyle: 'italic', color: '#FFD700' }}>
                         Requires: Swarm Queen upgrade
                       </div>

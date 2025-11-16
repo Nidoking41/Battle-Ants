@@ -226,6 +226,70 @@ function generateResourceNodes(gridRadius = 6) {
   return resources;
 }
 
+// Respawn a resource on the same side of the board (north/south) in an empty spot
+export function respawnResource(gameState, resourceType, isNorthSide) {
+  const gridRadius = gameState.gridRadius || 6;
+  const queenOffset = gridRadius - 1;
+  const validPositions = [];
+
+  // Generate valid positions on the specified side (north or south)
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    const rStart = isNorthSide ? -gridRadius : 1; // North: negative r, South: positive r
+    const rEnd = isNorthSide ? -1 : gridRadius;
+
+    for (let r = rStart; r <= rEnd; r++) {
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
+
+        // Check distance from queen on this side
+        const queenR = isNorthSide ? -queenOffset : queenOffset;
+        const distToQueen = Math.max(
+          Math.abs(q - 0),
+          Math.abs(r - queenR),
+          Math.abs(s - (-queenR))
+        );
+
+        // Only include if far enough from queen
+        if (distToQueen >= 3) {
+          // Check if position is empty (no ant, egg, resource, or anthill)
+          const hasAnt = Object.values(gameState.ants).some(
+            ant => ant.position.q === hex.q && ant.position.r === hex.r
+          );
+          const hasEgg = Object.values(gameState.eggs).some(
+            egg => egg.position.q === hex.q && egg.position.r === hex.r
+          );
+          const hasResource = Object.values(gameState.resources).some(
+            res => res.position.q === hex.q && res.position.r === hex.r
+          );
+          const hasAnthill = Object.values(gameState.anthills).some(
+            anthill => anthill.position.q === hex.q && anthill.position.r === hex.r
+          );
+
+          if (!hasAnt && !hasEgg && !hasResource && !hasAnthill) {
+            validPositions.push(hex);
+          }
+        }
+      }
+    }
+  }
+
+  // If we found valid positions, pick one randomly
+  if (validPositions.length > 0) {
+    const randomPos = validPositions[Math.floor(Math.random() * validPositions.length)];
+    const newResourceId = `resource_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+
+    return {
+      id: newResourceId,
+      type: resourceType,
+      position: randomPos
+    };
+  }
+
+  // No valid positions found
+  return null;
+}
+
 // Create a new ant instance
 export function createAnt(type, owner, position) {
   const antType = AntTypes[type.toUpperCase()];
@@ -281,7 +345,8 @@ export function createAnthillInProgress(resourceId, owner, position, resourceTyp
     buildProgress: initialProgress, // 0-2, needs 2 to complete
     isComplete: false,
     health: 5, // Under construction anthills have 5 health and can be targeted
-    maxHealth: 20 // Full health once completed
+    maxHealth: 20, // Full health once completed
+    resourcesGathered: 0 // Track total resources gathered (depletes at 75)
   };
 }
 
@@ -338,14 +403,24 @@ export function endTurn(gameState) {
   const updatedPlayers = { ...gameState.players };
   const updatedAnts = {};
   const resourceGains = []; // Track what resources were gathered for animations
+  let updatedAnthills = { ...gameState.anthills };
+  let updatedResources = { ...gameState.resources };
+  const depletedAnthills = []; // Track anthills that got depleted this turn
 
   // Grant passive income from completed anthills at the start of each new round
   if (isNewRound) {
-    Object.values(gameState.anthills).forEach(anthill => {
+    Object.values(updatedAnthills).forEach(anthill => {
       // Only grant income from completed anthills
       if (anthill.isComplete) {
         const income = GameConstants.ANTHILL_PASSIVE_INCOME[anthill.resourceType];
         updatedPlayers[anthill.owner].resources[anthill.resourceType] += income;
+
+        // Track resources gathered
+        const newResourcesGathered = (anthill.resourcesGathered || 0) + income;
+        updatedAnthills[anthill.id] = {
+          ...anthill,
+          resourcesGathered: newResourcesGathered
+        };
 
         // Track this resource gain for animation
         resourceGains.push({
@@ -355,6 +430,42 @@ export function endTurn(gameState) {
           anthillId: anthill.id,
           owner: anthill.owner
         });
+
+        // Check if anthill is depleted (75+ resources gathered)
+        if (newResourcesGathered >= 75) {
+          depletedAnthills.push(anthill);
+        }
+      }
+    });
+
+    // Handle depleted anthills - remove them and respawn resources on same side
+    depletedAnthills.forEach(anthill => {
+      // Remove the anthill
+      delete updatedAnthills[anthill.id];
+
+      // Remove the resource at the anthill's position
+      const resourceAtPosition = Object.values(updatedResources).find(
+        res => res.position.q === anthill.position.q && res.position.r === anthill.position.r
+      );
+      if (resourceAtPosition) {
+        delete updatedResources[resourceAtPosition.id];
+      }
+
+      // Determine which side of the board (north = r < 0, south = r >= 0)
+      const isNorthSide = anthill.position.r < 0;
+
+      // Respawn resource on same side
+      const newResource = respawnResource(
+        { ...gameState, resources: updatedResources, anthills: updatedAnthills },
+        anthill.resourceType,
+        isNorthSide
+      );
+
+      if (newResource) {
+        updatedResources[newResource.id] = newResource;
+        console.log(`Resource depleted at (${anthill.position.q},${anthill.position.r}), respawned at (${newResource.position.q},${newResource.position.r})`);
+      } else {
+        console.warn(`Could not find empty spot to respawn ${anthill.resourceType} on ${isNorthSide ? 'north' : 'south'} side`);
       }
     });
 
@@ -427,6 +538,8 @@ export function endTurn(gameState) {
         ...newAnts
       },
       eggs: remainingEggs,
+      resources: updatedResources,
+      anthills: updatedAnthills,
       selectedAnt: null,
       selectedAction: null
     },
@@ -573,10 +686,11 @@ export function purchaseUpgrade(gameState, upgradeId) {
   if (!upgrade) return gameState;
 
   const currentPlayer = gameState.players[gameState.currentPlayer];
+  const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
   const currentTier = currentPlayer.upgrades[upgradeId] || 0;
 
   if (currentTier >= upgrade.maxTier) return gameState; // Already at max tier
-  if (!canAffordUpgrade(currentPlayer, upgradeId)) return gameState; // Can't afford
+  if (!canAffordUpgrade(currentPlayer, upgradeId, queen)) return gameState; // Can't afford
 
   const cost = upgrade.costs[currentTier];
 
@@ -831,7 +945,8 @@ export function canBurrow(gameState, ant) {
   const player = gameState.players[ant.owner];
   if (!player.upgrades.burrow) return false;
 
-  if (ant.type === 'tank' || ant.type === 'bombardier') return false;
+  // Queens, tanks, and bombardiers cannot burrow
+  if (ant.type === 'queen' || ant.type === 'tank' || ant.type === 'bombardier') return false;
   if (ant.isBurrowed) return false;
   if (ant.hasMoved) return false;
   return true;

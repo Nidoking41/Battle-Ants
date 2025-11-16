@@ -365,6 +365,9 @@ export function canAttack(attacker, defender, gameState) {
   if (!attacker || !defender) return false;
   if (attacker.owner === defender.owner) return false;
 
+  // Burrowed units cannot attack except soldiers/marauders
+  if (attacker.isBurrowed && attacker.type !== 'soldier') return false;
+
   const attackerType = AntTypes[attacker.type.toUpperCase()];
   const distance = hexDistance(attacker.position, defender.position);
 
