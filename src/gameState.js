@@ -491,6 +491,7 @@ export function endTurn(gameState) {
   // Reset hasMoved, hasAttacked, and hasBuilt flags for the next player's ants
   // Also regenerate energy for queens at the start of each player's turn
   Object.values(gameState.ants).forEach(ant => {
+    // ALWAYS reset flags for the next player to ensure clean state
     if (ant.owner === nextPlayer) {
       const updates = {
         ...ant,
@@ -523,7 +524,21 @@ export function endTurn(gameState) {
 
       updatedAnts[ant.id] = updates;
     } else {
+      // Keep other player's ants as-is
       updatedAnts[ant.id] = ant;
+    }
+  });
+
+  // Double-check: Force reset flags for ALL ants of the next player (safety measure)
+  Object.keys(updatedAnts).forEach(antId => {
+    const ant = updatedAnts[antId];
+    if (ant.owner === nextPlayer) {
+      updatedAnts[antId] = {
+        ...ant,
+        hasMoved: false,
+        hasAttacked: false,
+        hasBuilt: false
+      };
     }
   });
 
