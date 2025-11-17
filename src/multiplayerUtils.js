@@ -5,6 +5,11 @@ import { AntTypes } from './antTypes';
 
 // Serialize game state for Firebase (convert HexCoord objects to plain objects)
 export function serializeGameState(gameState) {
+  // Handle null/undefined game state (e.g., when creating room from lobby)
+  if (!gameState) {
+    return null;
+  }
+
   const serialized = {
     ...gameState,
     ants: {},
