@@ -1812,6 +1812,7 @@ function App() {
       setSelectedEgg(clickedEgg);
       setSelectedAnt(null);
       setSelectedAction(null);
+      setSelectedAnthill(null);
       return;
     }
 
@@ -1979,6 +1980,7 @@ function App() {
         setSelectedAction('move');
       }
       setSelectedEgg(null);
+      setSelectedAnthill(null);
       return;
     }
 
@@ -2433,6 +2435,7 @@ function App() {
                 setSelectedAnt(null);
                 setSelectedAction(null);
                 setSelectedEgg(null);
+                setSelectedAnthill(null);
               }}
               onMouseEnter={(e) => {
                 if (isValidMove) {
