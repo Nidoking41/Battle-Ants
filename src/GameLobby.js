@@ -67,6 +67,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
               ready: false
             },
             mapSize: 'large',
+            fogOfWar: true,
             gameStarted: false
           });
         } else {
@@ -112,6 +113,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             playerRole,
             isMultiplayer: true,
             mapSize: data.mapSize,
+            fogOfWar: data.fogOfWar !== undefined ? data.fogOfWar : true,
             player1Color: data.player1.color,
             player2Color: data.player2.color
           });
@@ -134,6 +136,14 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
       mapSize: newSize
+    });
+  };
+
+  const handleFogOfWarToggle = () => {
+    if (!isHost) return; // Only host can change fog of war
+    const lobbyRef = ref(database, `lobbies/${roomCode}`);
+    update(lobbyRef, {
+      fogOfWar: !lobbyState.fogOfWar
     });
   };
 
@@ -280,7 +290,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
           padding: '20px',
           backgroundColor: '#ecf0f1',
           borderRadius: '8px',
-          marginBottom: '30px'
+          marginBottom: '15px'
         }}>
           <h3 style={{ marginBottom: '15px' }}>
             🗺️ Map Size {!isHost && '(Host decides)'}
@@ -307,6 +317,45 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                 {size.name}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Fog of War Toggle (Host Only) */}
+        <div style={{
+          padding: '20px',
+          backgroundColor: '#ecf0f1',
+          borderRadius: '8px',
+          marginBottom: '30px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h3 style={{ marginBottom: '5px', fontSize: '18px' }}>
+                🌫️ Fog of War {!isHost && '(Host decides)'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#7f8c8d' }}>
+                {lobbyState.fogOfWar
+                  ? 'You can only see areas near your units'
+                  : 'Full map visibility (easier)'}
+              </p>
+            </div>
+            <button
+              onClick={handleFogOfWarToggle}
+              disabled={!isHost}
+              style={{
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                backgroundColor: lobbyState.fogOfWar ? '#27ae60' : '#95a5a6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: isHost ? 'pointer' : 'not-allowed',
+                minWidth: '90px',
+                opacity: !isHost ? 0.6 : 1
+              }}
+            >
+              {lobbyState.fogOfWar ? 'ON' : 'OFF'}
+            </button>
           </div>
         </div>
 
