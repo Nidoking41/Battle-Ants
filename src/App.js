@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack } from './combatSystem';
@@ -43,6 +43,9 @@ function App() {
 
   // Sprite animation system
   const { setAntAnimation, removeAntAnimation, getAntFrame } = useSprites();
+
+  // Track the last combat action timestamp to prevent replaying the same animation
+  const lastCombatActionTimestamp = useRef(null);
 
   // Initialize all ants with idle animation (only once on mount)
   useEffect(() => {
@@ -502,33 +505,38 @@ function App() {
 
         // Check if there was a recent combat action and show animations
         if (newState.lastCombatAction) {
-          const { attackerId, targetPosition, isRanged, damageDealt } = newState.lastCombatAction;
+          const { attackerId, targetPosition, isRanged, damageDealt, timestamp } = newState.lastCombatAction;
 
-          // Check if attacker is visible to current player
-          const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
-          const attacker = newState.ants[attackerId];
-          const attackerVisible = attacker && visibleHexes.has(`${attacker.position.q},${attacker.position.r}`);
-          const targetVisible = visibleHexes.has(`${targetPosition.q},${targetPosition.r}`);
+          // Only show animation if this is a new combat action (timestamp changed)
+          if (timestamp && timestamp !== lastCombatActionTimestamp.current) {
+            lastCombatActionTimestamp.current = timestamp;
 
-          // Show animation based on visibility
-          if (targetVisible) {
-            // If target is visible, show appropriate animation
-            if (isRanged && !attackerVisible) {
-              // Ranged attack from fog of war - only show projectile impact
-              if (damageDealt && damageDealt.length > 0) {
-                damageDealt.forEach(({ damage, position }) => {
-                  showDamageNumber(damage, position);
-                });
-              }
-            } else if (attackerVisible) {
-              // Attacker is visible, show full animation
-              showAttackAnimation(attackerId, targetPosition, isRanged);
-              if (damageDealt && damageDealt.length > 0) {
-                setTimeout(() => {
+            // Check if attacker is visible to current player
+            const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
+            const attacker = newState.ants[attackerId];
+            const attackerVisible = attacker && visibleHexes.has(`${attacker.position.q},${attacker.position.r}`);
+            const targetVisible = visibleHexes.has(`${targetPosition.q},${targetPosition.r}`);
+
+            // Show animation based on visibility
+            if (targetVisible) {
+              // If target is visible, show appropriate animation
+              if (isRanged && !attackerVisible) {
+                // Ranged attack from fog of war - only show projectile impact
+                if (damageDealt && damageDealt.length > 0) {
                   damageDealt.forEach(({ damage, position }) => {
                     showDamageNumber(damage, position);
                   });
-                }, isRanged ? 300 : 200);
+                }
+              } else if (attackerVisible) {
+                // Attacker is visible, show full animation
+                showAttackAnimation(attackerId, targetPosition, isRanged);
+                if (damageDealt && damageDealt.length > 0) {
+                  setTimeout(() => {
+                    damageDealt.forEach(({ damage, position }) => {
+                      showDamageNumber(damage, position);
+                    });
+                  }, isRanged ? 300 : 200);
+                }
               }
             }
           }
