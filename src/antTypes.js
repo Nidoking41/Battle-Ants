@@ -6,7 +6,7 @@ export const AntTypes = {
     name: 'Queen',
     cost: { food: 0, minerals: 0 }, // Queens start on the map
     hatchTime: 0,
-    maxHealth: 100,
+    maxHealth: 60,
     attack: 8,
     defense: 5,
     moveSpeed: 1,
@@ -39,7 +39,7 @@ export const AntTypes = {
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
     maxHealth: 45,
-    attack: 10,
+    attack: 12,
     defense: 1,
     moveSpeed: 2,
     moveRange: 2,
@@ -52,9 +52,9 @@ export const AntTypes = {
   TANK: {
     id: 'tank',
     name: 'Bullet Ant',
-    cost: { food: 30, minerals: 25 },
+    cost: { food: 35, minerals: 25 },
     hatchTime: 2,
-    maxHealth: 80,
+    maxHealth: 65,
     attack: 15,
     defense: 2,
     moveSpeed: 2,
@@ -72,7 +72,7 @@ export const AntTypes = {
     cost: { food: 15, minerals: 10 },
     hatchTime: 1,
     maxHealth: 25,
-    attack: 12,
+    attack: 10,
     defense: 0,
     attackRange: 2,
     moveSpeed: 2,
@@ -87,7 +87,7 @@ export const AntTypes = {
     name: 'Exploding Ant',
     cost: { food: 10, minerals: 10 },
     hatchTime: 1,
-    maxHealth: 20,
+    maxHealth: 15,
     attack: 20,
     defense: 0,
     moveSpeed: 2,
@@ -106,16 +106,19 @@ export const AntTypes = {
     cost: { food: 25, minerals: 20 },
     hatchTime: 2,
     maxHealth: 30,
-    attack: 15,
+    attack: 15, // Focus fire damage
+    splashAttack: 8, // Splash damage
     defense: 0,
     moveSpeed: 1,
     moveRange: 1,
     attackRange: 3,
     minAttackRange: 2, // Cannot attack adjacent enemies
     cannotMoveAndAttack: true, // Cannot move and attack in same turn
+    hasDualAttackModes: true, // New property to indicate dual attack modes
+    splashRadius: 1, // 3-hex area (center + adjacent hexes)
     resourceGatherRate: 0,
     requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
-    description: 'Long-range artillery. Cannot attack adjacent enemies or move and shoot. Requires Brood Queen.',
+    description: 'Long-range artillery with Focus Fire (15 dmg) or Splash (8 dmg, 3-hex area). Cannot attack adjacent enemies or move and shoot. Requires Brood Queen.',
     icon: '🎯🐜'
   },
 
@@ -141,7 +144,7 @@ export const AntTypes = {
     name: 'Weaver Ant',
     cost: { food: 20, minerals: 15 },
     hatchTime: 1,
-    maxHealth: 30,
+    maxHealth: 20,
     attack: 0, // Cannot attack
     defense: 1,
     moveSpeed: 2,
@@ -159,7 +162,9 @@ export const AntTypes = {
     ensnareRange: 3,
     ensnareDuration: 3, // turns
     ensnareEnergyCost: 20,
-    description: 'Support unit that can heal allies and ensnare enemies. Requires Swarm Queen.',
+    cordycepsRange: 2, // Range for mind control
+    cordycepsEnergyCost: 35, // Expensive ability
+    description: 'Support unit that can heal allies, ensnare enemies, and mind control with Cordyceps Purge. Requires Swarm Queen.',
     icon: '✨🐜'
   }
 };
@@ -263,6 +268,17 @@ export const Upgrades = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
       { food: 15, minerals: 15 }  // Tier 1
+    ]
+  },
+  CORDYCEPS_PURGE: {
+    id: 'cordycepsPurge',
+    name: 'Cordyceps Purge',
+    description: 'Unlocks mind control ability for Weaver Ants (35⚡, Range 2)',
+    icon: '🧠',
+    maxTier: 1,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    costs: [
+      { food: 20, minerals: 20 } // Single expensive unlock
     ]
   }
 };

@@ -763,13 +763,23 @@ function moveUnitToward(gameState, unit, targetPos) {
 
   console.log(`moveUnitToward: ${unit.id} from (${unit.position.q}, ${unit.position.r}) toward (${targetPos.q}, ${targetPos.r})`);
 
-  // Get valid movement range with paths (only enemy units block movement)
+  // Get valid movement range with paths (all ants and eggs block movement)
   const antType = AntTypes[unit.type.toUpperCase()];
   const gridRadius = state.gridRadius || 6;
-  const enemyHexes = Object.values(state.ants)
-    .filter(ant => ant.owner !== unit.owner) // Only block enemies, not friendly units
+
+  // Block hexes with other ants (both enemy and friendly)
+  const antHexes = Object.values(state.ants)
+    .filter(ant => ant.id !== unit.id) // Don't block own position
     .map(ant => new HexCoord(ant.position.q, ant.position.r));
-  const movesWithPaths = getMovementRangeWithPaths(unit.position, antType.moveRange, gridRadius, enemyHexes);
+
+  // Block hexes with eggs
+  const eggHexes = Object.values(state.eggs || {})
+    .map(egg => new HexCoord(egg.position.q, egg.position.r));
+
+  // Combine all blocked hexes
+  const blockedHexes = [...antHexes, ...eggHexes];
+
+  const movesWithPaths = getMovementRangeWithPaths(unit.position, antType.moveRange, gridRadius, blockedHexes);
   console.log(`Move range has ${movesWithPaths.length} hexes with valid paths`);
 
   if (movesWithPaths.length === 0) {

@@ -420,3 +420,90 @@ export function moveAnt(gameState, antId, targetPosition) {
     }
   };
 }
+
+// Bombardier splash attack at target hex (affects 3-hex area)
+export function bombardierSplashAttack(gameState, attackerId, targetHex) {
+  const attacker = gameState.ants[attackerId];
+  if (!attacker || attacker.type !== 'bombardier') {
+    return { gameState, damageDealt: [], attackAnimation: null };
+  }
+
+  const attackerType = AntTypes.BOMBARDIER;
+  const attackerPlayer = gameState.players[attacker.owner];
+
+  // Check range to target hex
+  const distance = hexDistance(attacker.position, targetHex);
+  if (distance < attackerType.minAttackRange || distance > attackerType.attackRange) {
+    return { gameState, damageDealt: [], attackAnimation: null };
+  }
+
+  // Get all hexes in splash radius (center + adjacent)
+  const splashHexes = [targetHex, ...getNeighbors(targetHex)];
+
+  // Find all ants in splash area (including friendly fire)
+  const affectedAnts = Object.values(gameState.ants).filter(ant => {
+    return splashHexes.some(hex => hex.equals(ant.position));
+  });
+
+  const updatedAnts = { ...gameState.ants };
+  const damageDealt = [];
+  let updatedGameState = { ...gameState };
+
+  // Apply splash damage to all affected ants
+  affectedAnts.forEach(target => {
+    const targetType = AntTypes[target.type.toUpperCase()];
+    const targetPlayer = gameState.players[target.owner];
+    const defense = targetType.defense;
+
+    // Splash damage uses splashAttack value
+    const damage = Math.max(1, attackerType.splashAttack - Math.floor(defense / 2));
+    const newHealth = target.health - damage;
+
+    damageDealt.push({ damage, position: target.position });
+
+    if (newHealth <= 0) {
+      // Target dies
+      delete updatedAnts[target.id];
+
+      // Grant cannibalism if applicable (bombardier is ranged, so no cannibalism)
+
+      // Check if killed a queen
+      if (target.type === 'queen') {
+        updatedGameState.gameOver = true;
+        updatedGameState.winner = attacker.owner;
+      }
+
+      // If killed a bomber, trigger detonation
+      if (target.type === 'bomber') {
+        updatedGameState.ants = updatedAnts;
+        const detonationResult = detonateBomber(updatedGameState, target.id);
+        updatedGameState = detonationResult.gameState;
+        if (detonationResult.damageDealt) {
+          damageDealt.push(...detonationResult.damageDealt);
+        }
+      }
+    } else {
+      updatedAnts[target.id] = {
+        ...target,
+        health: newHealth
+      };
+    }
+  });
+
+  // Include attack animation data
+  const attackAnimation = {
+    attackerId: attackerId,
+    targetPosition: targetHex,
+    isRanged: true,
+    isSplash: true
+  };
+
+  return {
+    gameState: {
+      ...updatedGameState,
+      ants: updatedAnts
+    },
+    damageDealt,
+    attackAnimation
+  };
+}

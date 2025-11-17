@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets } from './gameState';
-import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage } from './combatSystem';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets } from './gameState';
+import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
@@ -20,6 +20,7 @@ function App() {
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null); // Store unfiltered state for multiplayer
   const [isAIThinking, setIsAIThinking] = useState(false); // Track if AI is currently taking its turn
+  const [pendingCombat, setPendingCombat] = useState(false); // Track if combat animation is in progress
   const [selectedAnt, setSelectedAnt] = useState(null);
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
   const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
@@ -278,10 +279,15 @@ function App() {
       return;
     }
 
-    // Get blocked hexes (only enemy units block movement)
-    const blockedHexes = Object.values(gameState.ants)
-      .filter(a => a.owner !== ant.owner) // Only block enemies, not friendly units
+    // Get blocked hexes (all ants and eggs block movement)
+    const blockedAntHexes = Object.values(gameState.ants)
+      .filter(a => a.id !== ant.id) // Don't block own position
       .map(a => new HexCoord(a.position.q, a.position.r));
+
+    const blockedEggHexes = Object.values(gameState.eggs || {})
+      .map(e => new HexCoord(e.position.q, e.position.r));
+
+    const blockedHexes = [...blockedAntHexes, ...blockedEggHexes];
 
     let range = antType.moveRange;
 
@@ -541,7 +547,7 @@ function App() {
   // Automatically execute AI turn when it's the AI's turn
   useEffect(() => {
     const executeAITurnAutomatically = async () => {
-      if (!gameMode?.isAI || isAIThinking) return;
+      if (!gameMode?.isAI || isAIThinking || pendingCombat) return;
 
       const currentState = getGameStateForLogic();
       if (!currentState || currentState.currentPlayer !== 'player2') return;
@@ -610,7 +616,7 @@ function App() {
     };
 
     executeAITurnAutomatically();
-  }, [gameState.currentPlayer, gameState.turn, gameMode?.isAI, isAIThinking]);
+  }, [gameState.currentPlayer, gameState.turn, gameMode?.isAI, isAIThinking, pendingCombat]);
 
   // Get the game state to use for game logic (full state for multiplayer/AI with fog, filtered for display)
   const getGameStateForLogic = () => {
@@ -1044,6 +1050,9 @@ function App() {
           // Show attack animation
           showAttackAnimation(selectedAnt, enemyAtHex.position, isRanged);
 
+          // Mark combat as pending to prevent turn ending during animation
+          setPendingCombat(true);
+
           // Delay damage and state update to match animation timing
           setTimeout(() => {
             const combatResult = resolveCombat(currentState, selectedAnt, enemyAtHex.id);
@@ -1077,6 +1086,9 @@ function App() {
             updateGame(markedState);
             setSelectedAction(null);
             setSelectedAnt(null);
+
+            // Clear pending combat flag
+            setPendingCombat(false);
           }, isRanged ? 500 : 400); // Ranged: wait for projectile, Melee: wait for lunge
           return;
         } else {
@@ -1717,6 +1729,83 @@ function App() {
       return;
     }
 
+    // Cordyceps Purge (Mind Control)
+    if (selectedAction === 'cordyceps' && selectedAnt) {
+      const healer = currentState.ants[selectedAnt];
+      if (!healer || healer.type !== 'healer') return;
+
+      // Find if there's an enemy at the clicked hex
+      const enemyAtHex = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner !== healer.owner
+      );
+
+      if (enemyAtHex) {
+        if (enemyAtHex.type === 'queen') {
+          alert('Cannot mind control queens!');
+          return;
+        }
+        const newState = cordycepsPurge(currentState, selectedAnt, enemyAtHex.id);
+        updateGame(newState);
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      } else {
+        alert('Invalid Cordyceps target! Must click on an enemy unit (not queen).');
+      }
+      return;
+    }
+
+    // Bombardier Splash Attack
+    if (selectedAction === 'bombardier_splash' && selectedAnt) {
+      const bombardier = currentState.ants[selectedAnt];
+      if (!bombardier || bombardier.type !== 'bombardier') return;
+
+      const bombardierType = AntTypes.BOMBARDIER;
+      const distance = Math.max(
+        Math.abs(bombardier.position.q - hex.q),
+        Math.abs(bombardier.position.r - hex.r),
+        Math.abs((-bombardier.position.q - bombardier.position.r) - (-hex.q - hex.r))
+      );
+
+      // Check range
+      if (distance < bombardierType.minAttackRange || distance > bombardierType.attackRange) {
+        alert('Target is out of range! Must be 2-3 hexes away.');
+        return;
+      }
+
+      // Execute splash attack
+      const result = bombardierSplashAttack(currentState, selectedAnt, hex);
+
+      // Mark combat as pending to prevent turn ending during animation
+      setPendingCombat(true);
+
+      // Delay damage and state update to match animation timing
+      setTimeout(() => {
+        updateGame({
+          ...result.gameState,
+          ants: {
+            ...result.gameState.ants,
+            [selectedAnt]: {
+              ...result.gameState.ants[selectedAnt],
+              hasAttacked: true
+            }
+          }
+        });
+
+        if (result.damageDealt && result.damageDealt.length > 0) {
+          setDamageNumbers(result.damageDealt);
+          setTimeout(() => setDamageNumbers([]), 1000);
+        }
+
+        // Clear pending combat flag
+        setPendingCombat(false);
+
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      }, 500);
+
+      return;
+    }
+
     // Check if clicking on an egg
     const clickedEgg = Object.values(currentState.eggs).find(e => hexEquals(e.position, hex));
     if (clickedEgg) {
@@ -2139,6 +2228,40 @@ function App() {
       getValidHealTargets(getGameStateForLogic(), selectedAnt) : [];
     const ensnareTargets = selectedAction === 'ensnare' && selectedAnt ?
       getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
+    const cordycepsTargets = selectedAction === 'cordyceps' && selectedAnt ?
+      getValidCordycepsTargets(getGameStateForLogic(), selectedAnt) : [];
+
+    // Get valid bombardier splash hexes
+    const bombardierSplashHexes = (() => {
+      if (selectedAction !== 'bombardier_splash' || !selectedAnt) return [];
+      const bombardier = getGameStateForLogic().ants[selectedAnt];
+      if (!bombardier || bombardier.type !== 'bombardier') return [];
+
+      const bombardierType = AntTypes.BOMBARDIER;
+      const validHexes = [];
+
+      // Generate all hexes within attack range
+      for (let q = -gridRadius; q <= gridRadius; q++) {
+        for (let r = -gridRadius; r <= gridRadius; r++) {
+          const s = -q - r;
+          if (Math.abs(q) > gridRadius || Math.abs(r) > gridRadius || Math.abs(s) > gridRadius) continue;
+
+          const hex = new HexCoord(q, r);
+          const distance = Math.max(
+            Math.abs(bombardier.position.q - hex.q),
+            Math.abs(bombardier.position.r - hex.r),
+            Math.abs((-bombardier.position.q - bombardier.position.r) - (-hex.q - hex.r))
+          );
+
+          // Check if within valid range (2-3 hexes)
+          if (distance >= bombardierType.minAttackRange && distance <= bombardierType.attackRange) {
+            validHexes.push(hex);
+          }
+        }
+      }
+
+      return validHexes;
+    })();
 
     // Calculate visible hexes for fog of war in multiplayer or AI games
     let visibleHexes = null;
@@ -2220,6 +2343,8 @@ function App() {
         const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
         const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
         const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
+        const isCordycepsTarget = cordycepsTargets.some(enemy => hexEquals(enemy.position, hex));
+        const isBombardierSplashHex = bombardierSplashHexes.some(validHex => hexEquals(validHex, hex));
         const isAttackPosition = attackPositions.some(pos => hexEquals(pos, hex));
 
         // Check if this hex is visible (for fog of war)
@@ -2275,6 +2400,14 @@ function App() {
         }
         if (isEnsnareTarget) {
           fillColor = '#F0E68C'; // Khaki/yellow for ensnare targets
+          useBirthingPoolPattern = false;
+        }
+        if (isCordycepsTarget) {
+          fillColor = '#8e44ad'; // Purple for mind control targets
+          useBirthingPoolPattern = false;
+        }
+        if (isBombardierSplashHex) {
+          fillColor = '#ff6b35'; // Orange for bombardier splash zones
           useBirthingPoolPattern = false;
         }
         if (isAttackPosition) {
@@ -2343,7 +2476,7 @@ function App() {
             </text>
             {anthill && (
               <g transform={ant ? "translate(15, -15)" : ""}>
-                {/* Anthill icon - different for under construction */}
+                {/* Anthill icon - mountain for complete, construction for building */}
                 <text
                   textAnchor="middle"
                   dy="0.3em"
@@ -2353,7 +2486,19 @@ function App() {
                 >
                   {anthill.isComplete ? '⛰️' : '🚧'}
                 </text>
-                {/* Owner indicator - colored circle */}
+                {/* Resource type indicator - small icon at lower right */}
+                {anthill.isComplete && (
+                  <text
+                    x="12"
+                    y="10"
+                    fontSize="14"
+                    fontWeight="bold"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {anthill.resourceType === 'food' ? '🍃' : '💎'}
+                  </text>
+                )}
+                {/* Owner indicator - colored circle at upper right */}
                 <circle
                   cx="15"
                   cy="-15"
@@ -2883,7 +3028,10 @@ function App() {
 
               <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {Object.values(AntTypes).filter(t => t.id !== 'queen').map(ant => {
+                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer']
+                  .map(id => AntTypes[id.toUpperCase()])
+                  .filter(ant => ant) // Remove any undefined
+                  .map(ant => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
 
@@ -2949,12 +3097,35 @@ function App() {
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.icon} {ant.name}</div>
-                      <div style={{ fontSize: '12px', marginTop: '3px' }}>
-                        Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
-                      </div>
-                      <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2' }}>
-                        {ant.description}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '64px',
+                          height: '64px',
+                          overflow: 'hidden',
+                          flexShrink: 0
+                        }}>
+                          <img
+                            src={`${process.env.PUBLIC_URL}/sprites/ants/${ant.id}_idle.png`}
+                            alt={ant.name}
+                            style={{
+                              height: '32px',
+                              imageRendering: 'pixelated',
+                              objectFit: 'none',
+                              objectPosition: '0 0',
+                              transform: 'scale(2)',
+                              transformOrigin: 'top left'
+                            }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.name}</div>
+                          <div style={{ fontSize: '12px', marginTop: '3px' }}>
+                            Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
+                          </div>
+                          <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2' }}>
+                            {ant.description}
+                          </div>
+                        </div>
                       </div>
                     </button>
                   );
@@ -3454,6 +3625,63 @@ function App() {
                     >
                       🕸️ Ensnare
                     </button>
+                    {gameState.players[gameState.currentPlayer].upgrades.cordycepsPurge > 0 && (
+                      <button
+                        onClick={() => setSelectedAction('cordyceps')}
+                        disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                        style={{
+                          marginRight: '5px',
+                          padding: '8px 12px',
+                          backgroundColor: selectedAction === 'cordyceps' ? '#8e44ad' : '#ecf0f1',
+                          color: selectedAction === 'cordyceps' ? 'white' : 'black',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                          fontWeight: selectedAction === 'cordyceps' ? 'bold' : 'normal',
+                          opacity: isMyTurn() ? 1 : 0.6
+                        }}
+                      >
+                        🧠 Cordyceps (35⚡)
+                      </button>
+                    )}
+                  </>
+                ) : gameState.ants[selectedAnt].type === 'bombardier' ? (
+                  <>
+                    {/* Bombardier-specific: Focus Fire and Splash attack modes */}
+                    <button
+                      onClick={() => setSelectedAction('attack')}
+                      disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
+                        color: selectedAction === 'attack' ? 'white' : 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                        fontWeight: selectedAction === 'attack' ? 'bold' : 'normal',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      🎯 Focus Fire (15)
+                    </button>
+                    <button
+                      onClick={() => setSelectedAction('bombardier_splash')}
+                      disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        backgroundColor: selectedAction === 'bombardier_splash' ? '#ff6b35' : '#ecf0f1',
+                        color: selectedAction === 'bombardier_splash' ? 'white' : 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                        fontWeight: selectedAction === 'bombardier_splash' ? 'bold' : 'normal',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      💥 Splash (8, 3-hex)
+                    </button>
                   </>
                 ) : (
                   <button
@@ -3492,6 +3720,7 @@ function App() {
                       <button
                         onClick={() => setSelectedAction('heal')}
                         style={{
+                          marginRight: '5px',
                           padding: '8px 12px',
                           backgroundColor: selectedAction === 'heal' ? '#27ae60' : '#ecf0f1',
                           color: selectedAction === 'heal' ? 'white' : 'black',
@@ -3502,6 +3731,20 @@ function App() {
                         }}
                       >
                         Heal (25⚡)
+                      </button>
+                      <button
+                        onClick={() => setShowUpgradesModal(true)}
+                        style={{
+                          padding: '8px 12px',
+                          backgroundColor: '#9C27B0',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'normal'
+                        }}
+                      >
+                        ⚡ Upgrades
                       </button>
                     </>
                   )}
@@ -3580,7 +3823,10 @@ function App() {
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
               <h4>Select Ant Type to Lay</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.values(AntTypes).filter(t => t.id !== 'queen').map(ant => {
+                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer']
+                  .map(id => AntTypes[id.toUpperCase()])
+                  .filter(ant => ant) // Remove any undefined
+                  .map(ant => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
 
@@ -4075,9 +4321,31 @@ function App() {
                     padding: '12px',
                     backgroundColor: '#f9f9f9'
                   }}>
-                    <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#333' }}>
-                      {ant.icon} {ant.name}
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        overflow: 'hidden',
+                        marginRight: '10px',
+                        position: 'relative'
+                      }}>
+                        <img
+                          src={`${process.env.PUBLIC_URL}/sprites/ants/${ant.id}_idle.png`}
+                          alt={ant.name}
+                          style={{
+                            height: '32px',
+                            imageRendering: 'pixelated',
+                            objectFit: 'none',
+                            objectPosition: '0 0',
+                            transform: 'scale(2)',
+                            transformOrigin: 'top left'
+                          }}
+                        />
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+                        {ant.name}
+                      </h3>
+                    </div>
                     <p style={{ fontSize: '12px', margin: '0 0 8px 0', color: '#666' }}>{ant.description}</p>
                     <div style={{ fontSize: '12px', lineHeight: '1.6' }}>
                       <strong>Cost:</strong> {ant.cost.food}🍃 {ant.cost.minerals}💎<br/>

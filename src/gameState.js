@@ -1124,6 +1124,80 @@ export function ensnareEnemy(gameState, healerId, targetId) {
   };
 }
 
+// Mind control an enemy unit (Cordyceps Purge)
+export function cordycepsPurge(gameState, healerId, targetId) {
+  const healer = gameState.ants[healerId];
+  const target = gameState.ants[targetId];
+
+  if (!healer || !target) return gameState;
+  if (healer.type !== 'healer') return gameState;
+  if (healer.owner === target.owner) return gameState; // Can only mind control enemies
+  if (target.type === 'queen') return gameState; // Cannot mind control queens
+
+  const healerType = AntTypes.HEALER;
+  const player = gameState.players[healer.owner];
+
+  // Check if upgrade is researched
+  if (!player.upgrades.cordycepsPurge || player.upgrades.cordycepsPurge === 0) return gameState;
+
+  // Check energy cost
+  if ((healer.energy || 0) < healerType.cordycepsEnergyCost) return gameState;
+
+  // Check range
+  const distance = Math.max(
+    Math.abs(healer.position.q - target.position.q),
+    Math.abs(healer.position.r - target.position.r),
+    Math.abs((-healer.position.q - healer.position.r) - (-target.position.q - target.position.r))
+  );
+  if (distance > healerType.cordycepsRange) return gameState;
+
+  // Transfer ownership
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [healerId]: {
+        ...healer,
+        energy: healer.energy - healerType.cordycepsEnergyCost,
+        hasAttacked: true // Using mind control counts as an action
+      },
+      [targetId]: {
+        ...target,
+        owner: healer.owner, // Change ownership
+        hasMoved: true, // Mark as moved so it can't act this turn
+        hasAttacked: true
+      }
+    }
+  };
+}
+
+// Get valid cordyceps targets for a healer
+export function getValidCordycepsTargets(gameState, healerId) {
+  const healer = gameState.ants[healerId];
+  if (!healer || healer.type !== 'healer') return [];
+
+  const healerType = AntTypes.HEALER;
+  const player = gameState.players[healer.owner];
+
+  // Check if upgrade is researched
+  if (!player.upgrades.cordycepsPurge || player.upgrades.cordycepsPurge === 0) return [];
+
+  // Check energy
+  if ((healer.energy || 0) < healerType.cordycepsEnergyCost) return [];
+
+  return Object.values(gameState.ants).filter(enemy => {
+    if (enemy.owner === healer.owner) return false;
+    if (enemy.type === 'queen') return false; // Cannot mind control queens
+
+    const distance = Math.max(
+      Math.abs(healer.position.q - enemy.position.q),
+      Math.abs(healer.position.r - enemy.position.r),
+      Math.abs((-healer.position.q - healer.position.r) - (-enemy.position.q - enemy.position.r))
+    );
+    return distance <= healerType.cordycepsRange;
+  });
+}
+
 // Get valid heal targets for a healer
 export function getValidHealTargets(gameState, healerId) {
   const healer = gameState.ants[healerId];
