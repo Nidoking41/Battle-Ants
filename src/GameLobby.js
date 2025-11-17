@@ -80,9 +80,20 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
         }
       } else {
         // Join as player 2
-        update(lobbyRef, {
-          [`player2/id`]: playerId
-        });
+        const { get } = await import('firebase/database');
+        const snapshot = await get(lobbyRef);
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          // Only update if we're not already player 2
+          if (!data.player2 || data.player2.id !== playerId) {
+            update(lobbyRef, {
+              [`player2/id`]: playerId,
+              [`player2/color`]: data.player2?.color || '#0000FF',
+              [`player2/ready`]: data.player2?.ready || false
+            });
+          }
+        }
       }
     };
 
