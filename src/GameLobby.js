@@ -47,28 +47,46 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
   useEffect(() => {
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
 
-    // Initialize lobby if host
-    if (isHost) {
-      update(lobbyRef, {
-        player1: {
-          id: playerId,
-          color: '#FF0000',
-          ready: false
-        },
-        player2: {
-          id: null,
-          color: '#0000FF',
-          ready: false
-        },
-        mapSize: 'large',
-        gameStarted: false
-      });
-    } else {
-      // Join as player 2
-      update(lobbyRef, {
-        [`player2/id`]: playerId
-      });
-    }
+    // Initialize lobby if host (only once)
+    const initializeLobby = async () => {
+      if (isHost) {
+        const { get } = await import('firebase/database');
+        const snapshot = await get(lobbyRef);
+
+        // Only initialize if lobby doesn't exist yet
+        if (!snapshot.exists()) {
+          update(lobbyRef, {
+            player1: {
+              id: playerId,
+              color: '#FF0000',
+              ready: false
+            },
+            player2: {
+              id: null,
+              color: '#0000FF',
+              ready: false
+            },
+            mapSize: 'large',
+            gameStarted: false
+          });
+        } else {
+          // Lobby exists, just update player1 id if needed
+          const data = snapshot.val();
+          if (!data.player1 || data.player1.id !== playerId) {
+            update(lobbyRef, {
+              [`player1/id`]: playerId
+            });
+          }
+        }
+      } else {
+        // Join as player 2
+        update(lobbyRef, {
+          [`player2/id`]: playerId
+        });
+      }
+    };
+
+    initializeLobby();
 
     const unsubscribe = onValue(lobbyRef, (snapshot) => {
       if (snapshot.exists()) {
