@@ -7,7 +7,7 @@ export const AntTypes = {
     cost: { food: 0, minerals: 0 }, // Queens start on the map
     hatchTime: 0,
     maxHealth: 60,
-    attack: 8,
+    attack: 6,
     defense: 5,
     moveSpeed: 1,
     moveRange: 1,
@@ -22,7 +22,7 @@ export const AntTypes = {
     name: 'Scout Ant',
     cost: { food: 15, minerals: 0 },
     hatchTime: 1, // turns
-    maxHealth: 25,
+    maxHealth: 20,
     attack: 8,
     defense: 0,
     moveSpeed: 3,
@@ -38,7 +38,7 @@ export const AntTypes = {
     name: 'Marauder Ant',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
-    maxHealth: 45,
+    maxHealth: 35,
     attack: 12,
     defense: 1,
     moveSpeed: 2,
