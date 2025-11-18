@@ -94,7 +94,9 @@ export function isValidHex(hex, gridSize) {
 
 // Get all valid hexes in movement range (with paths)
 // Returns: { hex: HexCoord, path: HexCoord[] }[]
-export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes = []) {
+// blockedHexes: hexes you cannot path through (enemy units)
+// cannotEndHexes: hexes you can path through but cannot end movement on (friendly units, eggs)
+export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes = [], cannotEndHexes = []) {
   const visited = new Set();
   const frontier = [[startHex, 0, []]]; // [hex, distance, path]
   visited.add(startHex.toString());
@@ -104,7 +106,8 @@ export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexe
   while (frontier.length > 0) {
     const [current, distance, path] = frontier.shift();
 
-    if (distance > 0) {
+    // Only add to reachable if it's not a hex we cannot end on
+    if (distance > 0 && !cannotEndHexes.some(blocked => blocked.equals(current))) {
       reachable.push({ hex: current, path: [...path, current] });
     }
 
@@ -112,6 +115,7 @@ export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexe
       const neighbors = getNeighbors(current);
       for (const neighbor of neighbors) {
         const key = neighbor.toString();
+        // Can path through cannotEndHexes, just can't pathfind through blockedHexes
         if (!visited.has(key) &&
             isValidHex(neighbor, gridSize) &&
             !blockedHexes.some(blocked => blocked.equals(neighbor))) {

@@ -282,15 +282,20 @@ function App() {
       return;
     }
 
-    // Get blocked hexes (all ants and eggs block movement)
-    const blockedAntHexes = Object.values(gameState.ants)
-      .filter(a => a.id !== ant.id) // Don't block own position
+    // Get blocked hexes (enemy ants block pathfinding, friendly ants and eggs can be pathed through but not ended on)
+    const enemyAntHexes = Object.values(gameState.ants)
+      .filter(a => a.id !== ant.id && a.owner !== ant.owner) // Enemy ants only
       .map(a => new HexCoord(a.position.q, a.position.r));
 
-    const blockedEggHexes = Object.values(gameState.eggs || {})
+    const friendlyAntHexes = Object.values(gameState.ants)
+      .filter(a => a.id !== ant.id && a.owner === ant.owner) // Friendly ants (not self)
+      .map(a => new HexCoord(a.position.q, a.position.r));
+
+    const eggHexes = Object.values(gameState.eggs || {})
       .map(e => new HexCoord(e.position.q, e.position.r));
 
-    const blockedHexes = [...blockedAntHexes, ...blockedEggHexes];
+    const blockedHexes = enemyAntHexes; // Cannot path through enemies
+    const cannotEndHexes = [...friendlyAntHexes, ...eggHexes]; // Can path through but cannot end on
 
     let range = antType.moveRange;
 
@@ -312,7 +317,7 @@ function App() {
     }
 
     // Get movement range with paths
-    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes);
+    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes);
 
     // Store paths in map
     const pathsMap = new Map();
@@ -578,16 +583,24 @@ function App() {
 
           if (oldAnt && newAnt && !hexEquals(oldAnt.position, newAnt.position)) {
             // Ant moved - calculate path
-            const blockedHexes = Object.values(aiState.ants)
-              .filter(a => a.owner !== newAnt.owner)
+            const enemyHexes = Object.values(aiState.ants)
+              .filter(a => a.id !== newAnt.id && a.owner !== newAnt.owner)
               .map(a => new HexCoord(a.position.q, a.position.r));
+
+            const friendlyHexes = Object.values(aiState.ants)
+              .filter(a => a.id !== newAnt.id && a.owner === newAnt.owner)
+              .map(a => new HexCoord(a.position.q, a.position.r));
+
+            const eggHexes = Object.values(aiState.eggs || {})
+              .map(e => new HexCoord(e.position.q, e.position.r));
 
             const antType = AntTypes[newAnt.type.toUpperCase()];
             const pathsWithRange = getMovementRangeWithPaths(
               oldAnt.position,
               antType.moveRange,
               gridRadius,
-              blockedHexes
+              enemyHexes,
+              [...friendlyHexes, ...eggHexes]
             );
 
             const pathData = pathsWithRange.find(({hex}) => hexEquals(hex, newAnt.position));
@@ -1583,17 +1596,26 @@ function App() {
             const remainingRange = antType.movement - costToWaypoint;
 
             if (remainingRange > 0) {
-              // Get blocked hexes
-              const blockedHexes = Object.values(currentState.ants)
-                .filter(a => a.id !== ant.id && (!a.burrowed || a.owner !== ant.owner))
-                .map(a => a.position.toString());
+              // Get blocked hexes (enemies)
+              const enemyHexes = Object.values(currentState.ants)
+                .filter(a => a.id !== ant.id && a.owner !== ant.owner)
+                .map(a => new HexCoord(a.position.q, a.position.r));
+
+              // Get friendly hexes and eggs (can path through but not end on)
+              const friendlyHexes = Object.values(currentState.ants)
+                .filter(a => a.id !== ant.id && a.owner === ant.owner)
+                .map(a => new HexCoord(a.position.q, a.position.r));
+
+              const eggHexes = Object.values(currentState.eggs || {})
+                .map(e => new HexCoord(e.position.q, e.position.r));
 
               // Calculate path from waypoint to destination
               const pathsFromWaypoint = getMovementRangeWithPaths(
                 pathWaypoint,
                 remainingRange,
                 gridRadius,
-                blockedHexes
+                enemyHexes,
+                [...friendlyHexes, ...eggHexes]
               );
 
               const pathFromWaypointToHex = pathsFromWaypoint.find(
