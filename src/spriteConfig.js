@@ -73,7 +73,18 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'scout', 'drone'];
+const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer'];
+
+// Map ant type IDs to their sprite file prefixes
+const ANT_TYPE_TO_SPRITE_PREFIX = {
+  'queen': 'queen',
+  'scout': 'scout',
+  'drone': 'drone',
+  'soldier': 'marauder',
+  'tank': 'bullet',
+  'spitter': 'acid',
+  'healer': 'weaver'
+};
 
 // Helper function to get sprite info for an ant
 // playerColor: optional hex color code (e.g., '#FF0000')
@@ -89,9 +100,12 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
   if (playerColor && COLORED_ANT_TYPES.includes(antType) && animation === 'idle') {
     const colorSuffix = COLOR_MAP[playerColor];
     if (colorSuffix) {
+      // Get the sprite prefix (some ant types have different sprite filenames)
+      const spritePrefix = ANT_TYPE_TO_SPRITE_PREFIX[antType] || antType;
       // Replace the sprite path with the colored version
       // e.g., queen_idle.png -> queen_idle_red.png
-      spritePath = `${antType}_idle_${colorSuffix}.png`;
+      // or soldier -> marauder_idle_red.png
+      spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
     }
   }
 
