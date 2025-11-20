@@ -137,7 +137,7 @@ export function detonateBomber(gameState, bomberId) {
   adjacentAnts.forEach(target => {
     const targetType = AntTypes[target.type.toUpperCase()];
     const defense = targetType.defense;
-    const damage = Math.max(1, bomberType.attack - Math.floor(defense / 2));
+    const damage = Math.max(1, bomberType.attack - Math.floor(defense));
     const newHealth = target.health - damage;
 
     // Track damage for animation
@@ -192,8 +192,8 @@ export function calculateDamage(attacker, defender, gameState) {
   // Apply health scaling to attack
   const scaledAttack = baseAttack * damageMultiplier;
 
-  // Damage formula: attack - (defense / 2), minimum 1
-  const damage = Math.max(1, Math.floor(scaledAttack - defense / 2));
+  // Damage formula: attack - defense, minimum 1
+  const damage = Math.max(1, Math.floor(scaledAttack - defense));
 
   return damage;
 }
@@ -421,8 +421,8 @@ export function moveAnt(gameState, antId, targetPosition) {
   };
 }
 
-// Bombardier splash attack at target hex (affects 3-hex area)
-export function bombardierSplashAttack(gameState, attackerId, targetHex) {
+// Bombardier splash attack at target hex (affects 3-hex area in a line based on rotation)
+export function bombardierSplashAttack(gameState, attackerId, targetHex, rotation = 0) {
   const attacker = gameState.ants[attackerId];
   if (!attacker || attacker.type !== 'bombardier') {
     return { gameState, damageDealt: [], attackAnimation: null };
@@ -437,12 +437,32 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  // Get all hexes in splash radius (center + adjacent)
-  const splashHexes = [targetHex, ...getNeighbors(targetHex)];
+  // Get 3 hexes in a triangle based on rotation (0-5)
+  // Triangle has center hex + one hex pointing in rotation direction + one adjacent to the point
+  const directions = [
+    { q: 1, r: 0 },   // 0: East
+    { q: 1, r: -1 },  // 1: Northeast
+    { q: 0, r: -1 },  // 2: Northwest
+    { q: -1, r: 0 },  // 3: West
+    { q: -1, r: 1 },  // 4: Southwest
+    { q: 0, r: 1 }    // 5: Southeast
+  ];
+
+  const dir = directions[rotation % 6];
+  const leftDir = directions[(rotation + 5) % 6]; // One direction counter-clockwise from rotation
+
+  // Get center + point in rotation direction + left adjacent to the point
+  const splashHexes = [
+    targetHex, // Center
+    { q: targetHex.q + dir.q, r: targetHex.r + dir.r }, // Point
+    { q: targetHex.q + leftDir.q, r: targetHex.r + leftDir.r } // Left adjacent
+  ];
 
   // Find all ants in splash area (including friendly fire)
   const affectedAnts = Object.values(gameState.ants).filter(ant => {
-    return splashHexes.some(hex => hex.equals(ant.position));
+    return splashHexes.some(hex =>
+      hex.q === ant.position.q && hex.r === ant.position.r
+    );
   });
 
   const updatedAnts = { ...gameState.ants };
@@ -456,7 +476,7 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex) {
     const defense = targetType.defense;
 
     // Splash damage uses splashAttack value
-    const damage = Math.max(1, attackerType.splashAttack - Math.floor(defense / 2));
+    const damage = Math.max(1, attackerType.splashAttack - Math.floor(defense));
     const newHealth = target.health - damage;
 
     damageDealt.push({ damage, position: target.position });

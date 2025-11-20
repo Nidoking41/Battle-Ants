@@ -19,7 +19,7 @@ export function useSprites() {
           const anim = updated[antId];
           if (!anim) return;
 
-          const spriteInfo = getSpriteInfo(anim.antType, anim.animation);
+          const spriteInfo = getSpriteInfo(anim.antType, anim.animation, anim.playerColor);
           if (!spriteInfo) return;
 
           const timeSinceLastFrame = now - (anim.timestamp || now);
@@ -51,12 +51,13 @@ export function useSprites() {
   }, []);
 
   // Set animation for an ant
-  const setAntAnimation = (antId, antType, animation) => {
+  const setAntAnimation = (antId, antType, animation, playerColor = null) => {
     setAntAnimations(prev => ({
       ...prev,
       [antId]: {
         antType,
         animation,
+        playerColor,
         frame: 0,
         timestamp: Date.now()
       }
@@ -73,12 +74,13 @@ export function useSprites() {
   };
 
   // Get current frame info for an ant
-  const getAntFrame = (antId, antType, defaultAnimation = 'idle') => {
+  const getAntFrame = (antId, antType, defaultAnimation = 'idle', playerColor = null) => {
     const anim = antAnimations[antId];
     const animation = anim?.animation || defaultAnimation;
     const frame = anim?.frame || 0;
+    const animPlayerColor = anim?.playerColor || playerColor;
 
-    const spriteInfo = getSpriteInfo(antType, animation);
+    const spriteInfo = getSpriteInfo(antType, animation, animPlayerColor);
     if (!spriteInfo) {
       return null;
     }

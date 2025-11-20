@@ -5,16 +5,12 @@ function LocalGameSetup({ onStartGame, onBack }) {
   const [player2Color, setPlayer2Color] = useState('#0000FF');
   const [mapSize, setMapSize] = useState('large');
 
-  // Color options
+  // Color options (only colors with sprite variants)
   const colorOptions = [
     { name: 'Red', value: '#FF0000' },
     { name: 'Blue', value: '#0000FF' },
     { name: 'Green', value: '#00FF00' },
-    { name: 'Yellow', value: '#FFFF00' },
-    { name: 'Purple', value: '#9B59B6' },
-    { name: 'Orange', value: '#FF8C00' },
-    { name: 'Pink', value: '#FF69B4' },
-    { name: 'Cyan', value: '#00FFFF' }
+    { name: 'Yellow', value: '#FFFF00' }
   ];
 
   // Map size options

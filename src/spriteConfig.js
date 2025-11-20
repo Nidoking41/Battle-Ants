@@ -22,7 +22,7 @@ export const SpriteConfig = {
       attack: { path: 'queen_attack.png', frames: 8 }
     },
     scout: {
-      idle: { path: 'scout_idle.png', frames: 8 },
+      idle: { path: 'scout_idle_green.png', frames: 8 },
       walk: { path: 'scout_walk.png', frames: 8 },
       attack: { path: 'scout_attack.png', frames: 8 }
     },
@@ -64,15 +64,41 @@ export const SpriteConfig = {
   }
 };
 
+// Map hex color codes to sprite color suffixes
+const COLOR_MAP = {
+  '#FF0000': 'red',
+  '#0000FF': 'blue',
+  '#00FF00': 'green',
+  '#FFFF00': 'yellow'
+};
+
+// Ant types that have colored sprite variants
+const COLORED_ANT_TYPES = ['queen', 'scout', 'drone'];
+
 // Helper function to get sprite info for an ant
-export function getSpriteInfo(antType, animation) {
+// playerColor: optional hex color code (e.g., '#FF0000')
+export function getSpriteInfo(antType, animation, playerColor = null) {
   const sprites = SpriteConfig.SPRITES[antType];
   if (!sprites || !sprites[animation]) {
     return null;
   }
+
+  let spritePath = sprites[animation].path;
+
+  // If playerColor is provided and this ant type has colored variants
+  if (playerColor && COLORED_ANT_TYPES.includes(antType) && animation === 'idle') {
+    const colorSuffix = COLOR_MAP[playerColor];
+    if (colorSuffix) {
+      // Replace the sprite path with the colored version
+      // e.g., queen_idle.png -> queen_idle_red.png
+      spritePath = `${antType}_idle_${colorSuffix}.png`;
+    }
+  }
+
   return {
     ...sprites[animation],
-    fullPath: `${process.env.PUBLIC_URL}/sprites/ants/${sprites[animation].path}`,
+    path: spritePath,
+    fullPath: `${process.env.PUBLIC_URL}/sprites/ants/${spritePath}`,
     frameWidth: SpriteConfig.SPRITE_SIZE,
     frameHeight: SpriteConfig.SPRITE_SIZE,
     animationSpeed: SpriteConfig.ANIMATION_SPEEDS[animation] || 100

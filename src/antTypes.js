@@ -13,6 +13,8 @@ export const AntTypes = {
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
     resourceGatherRate: 0,
+    // Reveal ability
+    revealEnergyCost: 30,
     description: 'The heart of your colony. If she dies, you lose!',
     icon: '👑🐜'
   },
@@ -279,6 +281,16 @@ export const Upgrades = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
       { food: 20, minerals: 20 } // Single expensive unlock
+    ]
+  },
+  REVEAL: {
+    id: 'reveal',
+    name: 'Reveal',
+    description: 'Unlocks Reveal ability for Queens (30⚡). Reveals any hex and its 6 adjacent hexes. Detects burrowed units for 1 turn.',
+    icon: '👁️',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 15 }
     ]
   }
 };

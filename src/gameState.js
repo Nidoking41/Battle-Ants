@@ -401,6 +401,13 @@ export function endTurn(gameState) {
 
   // Generate passive income from anthills and reset ant action flags
   const updatedPlayers = { ...gameState.players };
+  // Clear revealed hexes at end of current player's turn
+  if (updatedPlayers[gameState.currentPlayer]) {
+    updatedPlayers[gameState.currentPlayer] = {
+      ...updatedPlayers[gameState.currentPlayer],
+      revealedHexes: []
+    };
+  }
   const updatedAnts = {};
   const resourceGains = []; // Track what resources were gathered for animations
   let updatedAnthills = { ...gameState.anthills };
@@ -826,6 +833,44 @@ export function healAnt(gameState, queenId, targetId) {
       [targetId]: {
         ...target,
         health: newHealth
+      }
+    }
+  };
+}
+
+// Reveal fog of war with queen's reveal ability
+export function revealArea(gameState, queenId, targetHex) {
+  const queen = gameState.ants[queenId];
+  if (!queen || queen.type !== 'queen') return gameState;
+
+  const queenType = AntTypes.QUEEN;
+  if (!hasEnoughEnergy(queen, queenType.revealEnergyCost)) return gameState;
+
+  // Check if Reveal upgrade has been purchased
+  const playerUpgrades = gameState.players[queen.owner]?.upgrades || {};
+  if (!playerUpgrades.reveal || playerUpgrades.reveal < 1) return gameState;
+
+  // Get all hexes in the reveal area (center + 6 adjacent = 7 hexes)
+  const { getNeighbors } = require('./hexUtils');
+  const revealedHexes = [targetHex, ...getNeighbors(targetHex)];
+
+  // Store the revealed hexes with the player's state (lasts until end of turn)
+  const currentRevealed = gameState.players[queen.owner]?.revealedHexes || [];
+
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [queenId]: {
+        ...deductEnergy(queen, queenType.revealEnergyCost),
+        hasAttacked: true // Reveal is a terminal action
+      }
+    },
+    players: {
+      ...gameState.players,
+      [queen.owner]: {
+        ...gameState.players[queen.owner],
+        revealedHexes: [...currentRevealed, ...revealedHexes.map(h => h.toString())]
       }
     }
   };

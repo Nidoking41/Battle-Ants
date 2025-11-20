@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets } from './gameState';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
-import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors } from './hexUtils';
+import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
 import GameLobby from './GameLobby';
 import LocalGameSetup from './LocalGameSetup';
@@ -40,6 +40,8 @@ function App() {
   const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
   const [attackPositions, setAttackPositions] = useState([]); // Valid positions to attack from
   const [movingAnt, setMovingAnt] = useState(null); // {antId, path, currentStep} for animating movement
+  const [bombardierRotation, setBombardierRotation] = useState(0); // 0-5 for the 6 hex directions
+  const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
 
   // Sprite animation system
   const { setAntAnimation, removeAntAnimation, getAntFrame } = useSprites();
@@ -50,10 +52,24 @@ function App() {
   // Initialize all ants with idle animation (only once on mount)
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
-      setAntAnimation(ant.id, ant.type, 'idle');
+      const playerColor = gameState.players[ant.owner]?.color;
+      setAntAnimation(ant.id, ant.type, 'idle', playerColor);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
+
+  // Keyboard event listener for Shift key to rotate bombardier splash
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Shift' && selectedAction === 'bombardier_splash' && bombardierTargetHex) {
+        event.preventDefault();
+        setBombardierRotation(prev => (prev + 1) % 6);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAction, bombardierTargetHex]);
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -71,6 +87,30 @@ function App() {
   const hexEquals = (pos1, pos2) => {
     if (!pos1 || !pos2) return false;
     return pos1.q === pos2.q && pos1.r === pos2.r;
+  };
+
+  // Get 3 hexes in a triangle for bombardier splash attack based on rotation (0-5)
+  // Triangle has center hex + one hex pointing in rotation direction + one adjacent to the point
+  const getBombardierSplashHexes = (centerHex, rotation) => {
+    // Hex direction vectors (same as in hexUtils getNeighbors)
+    const directions = [
+      { q: 1, r: 0 },   // 0: East
+      { q: 1, r: -1 },  // 1: Northeast
+      { q: 0, r: -1 },  // 2: Northwest
+      { q: -1, r: 0 },  // 3: West
+      { q: -1, r: 1 },  // 4: Southwest
+      { q: 0, r: 1 }    // 5: Southeast
+    ];
+
+    const dir = directions[rotation % 6];
+    const leftDir = directions[(rotation + 5) % 6]; // One direction counter-clockwise from rotation
+
+    // Return center + point in rotation direction + left adjacent to the point
+    return [
+      centerHex, // Center
+      new HexCoord(centerHex.q + dir.q, centerHex.r + dir.r), // Point
+      new HexCoord(centerHex.q + leftDir.q, centerHex.r + leftDir.r) // Left adjacent
+    ];
   };
 
   // Center camera on queen
@@ -404,10 +444,11 @@ function App() {
     // Trigger attack sprite animation
     const attacker = gameState.ants[attackerId];
     if (attacker) {
-      setAntAnimation(attackerId, attacker.type, 'attack');
+      const playerColor = gameState.players[attacker.owner]?.color;
+      setAntAnimation(attackerId, attacker.type, 'attack', playerColor);
       // Return to idle after attack animation
       setTimeout(() => {
-        setAntAnimation(attackerId, attacker.type, 'idle');
+        setAntAnimation(attackerId, attacker.type, 'idle', playerColor);
       }, isRanged ? 200 : 300);
     }
 
@@ -1668,7 +1709,8 @@ function App() {
         });
 
         // Trigger walk sprite animation
-        setAntAnimation(selectedAnt, ant.type, 'walk');
+        const playerColor = gameState.players[ant.owner]?.color;
+        setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
         // After animation completes, mark ant as moved and update final state
         // Calculate total animation time
@@ -1679,7 +1721,7 @@ function App() {
           updateGame(finalState);
 
           // Return to idle animation
-          setAntAnimation(selectedAnt, ant.type, 'idle');
+          setAntAnimation(selectedAnt, ant.type, 'idle', playerColor);
 
           // Keep ant selected if it can still perform actions
           if (canAntStillAct(selectedAnt, finalState)) {
@@ -1784,7 +1826,24 @@ function App() {
       return;
     }
 
-    // Bombardier Splash Attack
+    // Reveal ability (Queen only)
+    if (selectedAction === 'reveal' && selectedAnt) {
+      const queen = currentState.ants[selectedAnt];
+      if (!queen || queen.type !== 'queen') return;
+
+      // Reveal the area
+      const newState = revealArea(currentState, selectedAnt, hex);
+      if (newState === currentState) {
+        alert('Cannot use Reveal! Check energy and upgrade requirements.');
+        return;
+      }
+      updateGame(newState);
+      setSelectedAction(null);
+      setSelectedAnt(null);
+      return;
+    }
+
+    // Bombardier Splash Attack - Two-step process
     if (selectedAction === 'bombardier_splash' && selectedAnt) {
       const bombardier = currentState.ants[selectedAnt];
       if (!bombardier || bombardier.type !== 'bombardier') return;
@@ -1802,38 +1861,53 @@ function App() {
         return;
       }
 
-      // Execute splash attack
-      const result = bombardierSplashAttack(currentState, selectedAnt, hex);
+      // First click: select target hex and show rotation preview
+      if (!bombardierTargetHex || !hexEquals(bombardierTargetHex, hex)) {
+        setBombardierTargetHex(hex);
+        setBombardierRotation(0); // Reset rotation
+        return;
+      }
 
-      // Mark combat as pending to prevent turn ending during animation
-      setPendingCombat(true);
+      // Second click on same hex: confirm and execute attack
+      if (hexEquals(bombardierTargetHex, hex)) {
+        // Get the 3 hexes to hit based on rotation
+        const splashHexes = getBombardierSplashHexes(hex, bombardierRotation);
 
-      // Delay damage and state update to match animation timing
-      setTimeout(() => {
-        updateGame({
-          ...result.gameState,
-          ants: {
-            ...result.gameState.ants,
-            [selectedAnt]: {
-              ...result.gameState.ants[selectedAnt],
-              hasAttacked: true
+        // Execute splash attack with rotation parameter
+        const result = bombardierSplashAttack(currentState, selectedAnt, hex, bombardierRotation);
+
+        // Mark combat as pending to prevent turn ending during animation
+        setPendingCombat(true);
+
+        // Delay damage and state update to match animation timing
+        setTimeout(() => {
+          updateGame({
+            ...result.gameState,
+            ants: {
+              ...result.gameState.ants,
+              [selectedAnt]: {
+                ...result.gameState.ants[selectedAnt],
+                hasAttacked: true
+              }
             }
+          });
+
+          if (result.damageDealt && result.damageDealt.length > 0) {
+            setDamageNumbers(result.damageDealt);
+            setTimeout(() => setDamageNumbers([]), 1000);
           }
-        });
 
-        if (result.damageDealt && result.damageDealt.length > 0) {
-          setDamageNumbers(result.damageDealt);
-          setTimeout(() => setDamageNumbers([]), 1000);
-        }
+          // Clear pending combat flag
+          setPendingCombat(false);
 
-        // Clear pending combat flag
-        setPendingCombat(false);
+          setSelectedAction(null);
+          setSelectedAnt(null);
+          setBombardierTargetHex(null);
+          setBombardierRotation(0);
+        }, 500);
 
-        setSelectedAction(null);
-        setSelectedAnt(null);
-      }, 500);
-
-      return;
+        return;
+      }
     }
 
     // Check if clicking on an egg
@@ -2263,11 +2337,34 @@ function App() {
     const cordycepsTargets = selectedAction === 'cordyceps' && selectedAnt ?
       getValidCordycepsTargets(getGameStateForLogic(), selectedAnt) : [];
 
+    // Get valid reveal target hexes (any hex on the board)
+    const revealTargetHexes = (() => {
+      if (selectedAction !== 'reveal' || !selectedAnt) return [];
+      const queen = getGameStateForLogic().ants[selectedAnt];
+      if (!queen || queen.type !== 'queen') return [];
+
+      // Return all valid hexes on the board
+      const allHexes = [];
+      for (let q = -gridRadius; q <= gridRadius; q++) {
+        for (let r = -gridRadius; r <= gridRadius; r++) {
+          const s = -q - r;
+          if (Math.abs(q) > gridRadius || Math.abs(r) > gridRadius || Math.abs(s) > gridRadius) continue;
+
+          const hex = new HexCoord(q, r);
+          allHexes.push(hex);
+        }
+      }
+      return allHexes;
+    })();
+
     // Get valid bombardier splash hexes
     const bombardierSplashHexes = (() => {
       if (selectedAction !== 'bombardier_splash' || !selectedAnt) return [];
       const bombardier = getGameStateForLogic().ants[selectedAnt];
       if (!bombardier || bombardier.type !== 'bombardier') return [];
+
+      // If a target hex is selected, don't highlight valid hexes anymore
+      if (bombardierTargetHex) return [];
 
       const bombardierType = AntTypes.BOMBARDIER;
       const validHexes = [];
@@ -2293,6 +2390,12 @@ function App() {
       }
 
       return validHexes;
+    })();
+
+    // Get the 3 rotated hexes for bombardier splash when target is selected
+    const bombardierRotatedHexes = (() => {
+      if (selectedAction !== 'bombardier_splash' || !bombardierTargetHex) return [];
+      return getBombardierSplashHexes(bombardierTargetHex, bombardierRotation);
     })();
 
     // Calculate visible hexes for fog of war in multiplayer or AI games
@@ -2376,7 +2479,9 @@ function App() {
         const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
         const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
         const isCordycepsTarget = cordycepsTargets.some(enemy => hexEquals(enemy.position, hex));
+        const isRevealTarget = revealTargetHexes.some(validHex => hexEquals(validHex, hex));
         const isBombardierSplashHex = bombardierSplashHexes.some(validHex => hexEquals(validHex, hex));
+        const isBombardierRotatedHex = bombardierRotatedHexes.some(validHex => hexEquals(validHex, hex));
         const isAttackPosition = attackPositions.some(pos => hexEquals(pos, hex));
 
         // Check if this hex is visible (for fog of war)
@@ -2438,8 +2543,16 @@ function App() {
           fillColor = '#8e44ad'; // Purple for mind control targets
           useBirthingPoolPattern = false;
         }
+        if (isRevealTarget) {
+          fillColor = '#5DADE2'; // Light blue for reveal targets
+          useBirthingPoolPattern = false;
+        }
         if (isBombardierSplashHex) {
           fillColor = '#ff6b35'; // Orange for bombardier splash zones
+          useBirthingPoolPattern = false;
+        }
+        if (isBombardierRotatedHex) {
+          fillColor = '#FF1744'; // Bright red for the 3 hexes that will be hit
           useBirthingPoolPattern = false;
         }
         if (isAttackPosition) {
@@ -2670,7 +2783,8 @@ function App() {
               }
 
               // Get sprite frame info
-              const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation);
+              const playerColor = gameState.players[ant.owner]?.color;
+              const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
 
               // Debug logging for drone
               if (ant.type === 'drone') {
@@ -2684,23 +2798,6 @@ function App() {
 
               return (
                 <g transform={finalTransform}>
-                  <circle
-                    cx="0"
-                    cy="0"
-                    r="12"
-                    fill={gameState.players[ant.owner]?.color || '#999'}
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  {/* Gray overlay for ants with no actions */}
-                  {!hasActions && (
-                    <circle
-                      cx="0"
-                      cy="0"
-                      r="12"
-                      fill="rgba(128, 128, 128, 0.6)"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )}
                   {/* Render sprite if available, otherwise fall back to emoji */}
                   {spriteFrame && !ant.isBurrowed ? (
                     <g opacity={hasActions ? 1 : 0.5}>
@@ -3765,6 +3862,25 @@ function App() {
                       >
                         Heal (25⚡)
                       </button>
+                      {gameState.players[gameState.currentPlayer].upgrades.reveal > 0 && (
+                        <button
+                          onClick={() => setSelectedAction('reveal')}
+                          disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                          style={{
+                            marginRight: '5px',
+                            padding: '8px 12px',
+                            backgroundColor: selectedAction === 'reveal' ? '#3498db' : '#ecf0f1',
+                            color: selectedAction === 'reveal' ? 'white' : 'black',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                            fontWeight: selectedAction === 'reveal' ? 'bold' : 'normal',
+                            opacity: isMyTurn() ? 1 : 0.6
+                          }}
+                        >
+                          👁️ Reveal (30⚡)
+                        </button>
+                      )}
                       <button
                         onClick={() => setShowUpgradesModal(true)}
                         style={{
@@ -3848,6 +3964,24 @@ function App() {
                     </button>
                   )}
                 </>
+
+                {/* Bombardier Splash Instructions */}
+                {selectedAction === 'bombardier_splash' && bombardierTargetHex && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    backgroundColor: '#fff3cd',
+                    borderRadius: '5px',
+                    border: '2px solid #ffc107',
+                    fontSize: '13px',
+                    textAlign: 'center'
+                  }}>
+                    <strong>⌨️ Press SHIFT to rotate</strong><br />
+                    <span style={{ fontSize: '11px', color: '#856404' }}>
+                      Click the same hex again to confirm attack
+                    </span>
+                  </div>
+                )}
             </div>
           )}
 
