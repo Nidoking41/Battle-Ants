@@ -73,7 +73,7 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber'];
+const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
@@ -84,7 +84,8 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
   'tank': 'bullet',
   'spitter': 'acid',
   'healer': 'weaver',
-  'bomber': 'exploding'
+  'bomber': 'exploding',
+  'bombardier': 'bombardier'
 };
 
 // Helper function to get sprite info for an ant
