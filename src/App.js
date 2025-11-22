@@ -3634,13 +3634,12 @@ function App() {
         </div>
 
         {/* Game Info Panel - Right Side */}
-        <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', paddingBottom: '200px' }}>
+        <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', overflowX: 'hidden', paddingBottom: '200px' }}>
           {gameMode.isMultiplayer && (
             <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#ecf0f1', borderRadius: '5px' }}>
               <p><strong>Game Mode:</strong> Online</p>
               <p><strong>You are:</strong> {gameMode.playerRole === 'player1' ? 'Player 1 (Red)' : 'Player 2 (Cyan)'}</p>
               {!isMyTurn() && <p style={{ color: '#e74c3c' }}><strong>Waiting for opponent...</strong></p>}
-              {isMyTurn() && <p style={{ color: '#2ecc71' }}><strong>Your turn!</strong></p>}
             </div>
           )}
 
