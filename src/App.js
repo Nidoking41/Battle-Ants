@@ -3053,7 +3053,7 @@ function App() {
                         </clipPath>
                       </defs>
                       <image
-                        href="/sprites/ensnare_effect.png"
+                        href={`${process.env.PUBLIC_URL}/sprites/ants/ensnare_effect.png`}
                         x={-16 - (effectAnimationFrame * 32)}
                         y="-16"
                         width="256"
@@ -3086,7 +3086,7 @@ function App() {
                         </clipPath>
                       </defs>
                       <image
-                        href="/sprites/plague_effect.png"
+                        href={`${process.env.PUBLIC_URL}/sprites/ants/plague_effect.png`}
                         x={-16 - (effectAnimationFrame * 32)}
                         y="-16"
                         width="256"
