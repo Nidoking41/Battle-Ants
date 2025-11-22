@@ -82,17 +82,18 @@ function AIGameSetup({ onStartGame, onBack }) {
       overflowY: 'auto'
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         padding: '15px',
         borderRadius: '10px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
         maxWidth: '1400px',
         width: '100%',
         margin: '10px 0',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        border: '2px solid rgba(192, 192, 192, 0.3)'
       }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px' }}>🤖 VS AI Setup</h1>
-        <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#7f8c8d', fontSize: '16px' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px', color: '#e0e0e0' }}>VS AI Setup</h1>
+        <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#b0b0b0', fontSize: '16px' }}>
           Single Player
         </h3>
 
@@ -102,12 +103,12 @@ function AIGameSetup({ onStartGame, onBack }) {
             {/* Player Card */}
             <div style={{
               padding: '10px',
-              backgroundColor: '#ecf0f1',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
               border: '3px solid #3498db'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                👤 You (South)
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#e0e0e0' }}>
+                You (South)
                 <div style={{
                   width: '24px',
                   height: '24px',
@@ -117,7 +118,7 @@ function AIGameSetup({ onStartGame, onBack }) {
                 }} title={`Color: ${heroColors[playerHero]}`} />
               </h3>
               <div style={{ marginTop: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#e0e0e0' }}>Choose Your Hero:</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
@@ -153,11 +154,11 @@ function AIGameSetup({ onStartGame, onBack }) {
             {/* Map Size Selection */}
             <div style={{
               padding: '10px',
-              backgroundColor: '#ecf0f1',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-                🗺️ Map Size
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', color: '#e0e0e0' }}>
+                Map Size
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {mapSizeOptions.map(size => (
@@ -168,11 +169,13 @@ function AIGameSetup({ onStartGame, onBack }) {
                       padding: '10px',
                       fontSize: '14px',
                       fontWeight: 'bold',
-                      backgroundColor: mapSize === size.value ? '#3498db' : 'white',
-                      color: mapSize === size.value ? 'white' : '#2c3e50',
-                      border: '2px solid #3498db',
+                      background: mapSize === size.value ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      color: '#e0e0e0',
+                      border: '2px solid #666',
                       borderRadius: '5px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                      transition: 'all 0.2s'
                     }}
                   >
                     {size.name}
@@ -184,15 +187,15 @@ function AIGameSetup({ onStartGame, onBack }) {
             {/* Fog of War Toggle */}
             <div style={{
               padding: '10px',
-              backgroundColor: '#ecf0f1',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ marginBottom: '3px', fontSize: '16px' }}>
-                    🌫️ Fog of War
+                  <h3 style={{ marginBottom: '3px', fontSize: '16px', color: '#e0e0e0' }}>
+                    Fog of War
                   </h3>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#7f8c8d' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#b0b0b0' }}>
                     {fogOfWar
                       ? 'Limited visibility'
                       : 'Full map visibility'}
@@ -204,12 +207,14 @@ function AIGameSetup({ onStartGame, onBack }) {
                     padding: '10px 20px',
                     fontSize: '15px',
                     fontWeight: 'bold',
-                    backgroundColor: fogOfWar ? '#27ae60' : '#95a5a6',
-                    color: 'white',
-                    border: 'none',
+                    background: fogOfWar ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                    color: '#e0e0e0',
+                    border: '2px solid #666',
                     borderRadius: '5px',
                     cursor: 'pointer',
-                    minWidth: '90px'
+                    minWidth: '90px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                    transition: 'all 0.2s'
                   }}
                 >
                   {fogOfWar ? 'ON' : 'OFF'}
@@ -220,11 +225,11 @@ function AIGameSetup({ onStartGame, onBack }) {
             {/* AI Difficulty Selection */}
             <div style={{
               padding: '10px',
-              backgroundColor: '#ecf0f1',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-                🎯 AI Difficulty
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', color: '#e0e0e0' }}>
+                AI Difficulty
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {difficultyOptions.map(diff => (
@@ -235,21 +240,23 @@ function AIGameSetup({ onStartGame, onBack }) {
                       padding: '10px',
                       fontSize: '15px',
                       fontWeight: 'bold',
-                      backgroundColor: difficulty === diff.value ? '#e74c3c' : 'white',
-                      color: difficulty === diff.value ? 'white' : '#2c3e50',
-                      border: '2px solid #e74c3c',
+                      background: difficulty === diff.value ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      color: '#e0e0e0',
+                      border: '2px solid #666',
                       borderRadius: '5px',
                       cursor: 'pointer',
                       textAlign: 'left',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '3px'
+                      gap: '3px',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                      transition: 'all 0.2s'
                     }}
                   >
                     <span style={{ fontSize: '16px' }}>{diff.name}</span>
                     <span style={{
                       fontSize: '12px',
-                      opacity: difficulty === diff.value ? 1 : 0.7,
+                      opacity: 0.8,
                       fontWeight: 'normal'
                     }}>
                       {diff.description}
@@ -265,12 +272,12 @@ function AIGameSetup({ onStartGame, onBack }) {
             {/* AI Card */}
             <div style={{
               padding: '10px',
-              backgroundColor: '#ecf0f1',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
               border: '3px solid #e74c3c'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🤖 AI (North)
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#e0e0e0' }}>
+                AI (North)
                 <div style={{
                   width: '24px',
                   height: '24px',
@@ -280,7 +287,7 @@ function AIGameSetup({ onStartGame, onBack }) {
                 }} title={`Color: ${getPlayer2Color()}`} />
               </h3>
               <div style={{ marginTop: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose AI Hero:</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#e0e0e0' }}>Choose AI Hero:</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
@@ -321,14 +328,16 @@ function AIGameSetup({ onStartGame, onBack }) {
               padding: '12px',
               fontSize: '16px',
               fontWeight: 'bold',
-              backgroundColor: '#95a5a6',
-              color: 'white',
-              border: 'none',
+              background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+              color: '#e0e0e0',
+              border: '2px solid #666',
               borderRadius: '5px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+              transition: 'all 0.2s'
             }}
           >
-            ← Back
+            Back
           </button>
 
           <button
@@ -338,26 +347,30 @@ function AIGameSetup({ onStartGame, onBack }) {
               padding: '12px',
               fontSize: '16px',
               fontWeight: 'bold',
-              backgroundColor: '#27ae60',
-              color: 'white',
-              border: 'none',
+              background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+              color: '#e0e0e0',
+              border: '2px solid #666',
               borderRadius: '5px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+              transition: 'all 0.2s'
             }}
           >
-            🚀 Start Game!
+            Start Game
           </button>
         </div>
 
         <div style={{
           marginTop: '8px',
           padding: '8px',
-          backgroundColor: '#d5f4e6',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
           borderRadius: '5px',
           fontSize: '11px',
-          color: '#0c5460'
+          color: '#ccc',
+          border: '1px solid rgba(192, 192, 192, 0.2)',
+          textAlign: 'center'
         }}>
-          <strong>🤖 AI Mode:</strong> Test your skills against a computer opponent. Choose your difficulty and dominate the battlefield!
+          <strong>AI Mode:</strong> Test your skills against a computer opponent. Choose your difficulty and dominate the battlefield!
         </div>
       </div>
     </div>
