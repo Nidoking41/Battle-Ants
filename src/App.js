@@ -3628,6 +3628,20 @@ function App() {
                     tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
                   }
 
+                  // Hotkey mapping for each ant type
+                  const hotkeyMap = {
+                    'drone': 'D',
+                    'scout': 'S',
+                    'soldier': 'O',
+                    'tank': 'T',
+                    'spitter': 'I',
+                    'bomber': 'X',
+                    'bombardier': 'R',
+                    'healer': 'W',
+                    'cordyphage': 'C'
+                  };
+                  const hotkey = hotkeyMap[ant.id];
+
                   return (
                     <button
                       key={ant.id}
@@ -3688,7 +3702,7 @@ function App() {
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.name}</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.name} {hotkey && `(${hotkey})`}</div>
                           <div style={{ fontSize: '12px', marginTop: '3px' }}>
                             Cost: {displayCost.food}🍃 {displayCost.minerals}💎
                           </div>
