@@ -288,6 +288,15 @@ function App() {
               return;
             }
             return;
+          case 'p':
+            console.log('Plague hotkey triggered');
+            e.preventDefault();
+            // Plague action (for cordyphage only)
+            if (ant && ant.type === 'cordyphage') {
+              setSelectedAction('plague');
+              return;
+            }
+            return;
           case 'escape':
             console.log('Escape hotkey triggered');
             e.preventDefault();
@@ -4036,7 +4045,7 @@ function App() {
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      ☠️ Plague (25⚡)
+                      ☠️ Plague (25⚡) (P)
                     </button>
                     {gameState.players[gameState.currentPlayer].upgrades.cordycepsPurge > 0 && (
                       <button
