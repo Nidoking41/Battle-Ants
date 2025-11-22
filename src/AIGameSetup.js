@@ -69,9 +69,10 @@ function AIGameSetup({ onStartGame, onBack }) {
         padding: '15px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '750px',
+        maxWidth: '1100px',
         width: '100%',
-        margin: '10px 0'
+        margin: '10px 0',
+        marginBottom: '20px'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px' }}>🤖 VS AI Setup</h1>
         <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#7f8c8d', fontSize: '16px' }}>
@@ -139,7 +140,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                 ))}
               </div>
             </div>
+          </div>
 
+          {/* Middle Column - Game Settings */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Map Size Selection */}
             <div style={{
               padding: '10px',
