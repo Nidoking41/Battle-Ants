@@ -98,14 +98,12 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       backgroundRepeat: 'no-repeat',
       padding: '20px'
     }}>
-      <h1 style={{ marginBottom: '40px' }}>🐜 Ant Wars</h1>
-
       <div style={{
-        backgroundColor: 'white',
-        padding: '40px',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        padding: '25px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '500px',
+        maxWidth: '400px',
         width: '100%'
       }}>
         <h2 style={{ marginBottom: '30px', textAlign: 'center' }}>Choose Game Mode</h2>
