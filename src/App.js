@@ -317,7 +317,14 @@ function App() {
             }
             return;
           case 'd':
-            // If in layEgg mode, select drone
+            // If ant type selector is showing, directly hatch drone
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Drone hotkey - hatching drone');
+              e.preventDefault();
+              handleLayEgg('drone');
+              return;
+            }
+            // If in layEgg mode but no hex selected, select drone
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Drone egg type selected');
               e.preventDefault();
@@ -333,7 +340,14 @@ function App() {
             }
             return;
           case 's':
-            // If in layEgg mode, select scout
+            // Don't allow camera panning when ant type selector is showing
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Scout hotkey - hatching scout');
+              e.preventDefault();
+              handleLayEgg('scout');
+              return;
+            }
+            // If in layEgg mode but no hex selected, select scout
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Scout egg type selected');
               e.preventDefault();
@@ -341,8 +355,14 @@ function App() {
               return;
             }
             return;
-          case 'm':
-            // If in layEgg mode, select soldier (marauder)
+          case 'o':
+            // Soldier (marauder) - changed from 'm' to avoid conflict with move
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Soldier hotkey - hatching soldier');
+              e.preventDefault();
+              handleLayEgg('soldier');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Soldier egg type selected');
               e.preventDefault();
@@ -350,8 +370,14 @@ function App() {
               return;
             }
             return;
-          case 'b':
-            // If in layEgg mode, select tank (bullet ant)
+          case 't':
+            // Tank (bullet ant) - changed from 'b' to avoid conflict with build
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Tank hotkey - hatching tank');
+              e.preventDefault();
+              handleLayEgg('tank');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Tank egg type selected');
               e.preventDefault();
@@ -359,9 +385,14 @@ function App() {
               return;
             }
             return;
-          case 'a':
-            // If in layEgg mode, select spitter (acid ant)
-            // Note: This conflicts with attack hotkey, but layEgg mode takes priority
+          case 'i':
+            // Spitter (acid ant) - changed from 'a' to avoid conflict with attack
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Spitter hotkey - hatching spitter');
+              e.preventDefault();
+              handleLayEgg('spitter');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Spitter egg type selected');
               e.preventDefault();
@@ -370,7 +401,13 @@ function App() {
             }
             return;
           case 'x':
-            // If in layEgg mode, select bomber (exploding ant)
+            // Bomber (exploding ant)
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Bomber hotkey - hatching bomber');
+              e.preventDefault();
+              handleLayEgg('bomber');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Bomber egg type selected');
               e.preventDefault();
@@ -379,7 +416,13 @@ function App() {
             }
             return;
           case 'r':
-            // If in layEgg mode, select bombardier
+            // Bombardier
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Bombardier hotkey - hatching bombardier');
+              e.preventDefault();
+              handleLayEgg('bombardier');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Bombardier egg type selected');
               e.preventDefault();
@@ -388,7 +431,13 @@ function App() {
             }
             return;
           case 'w':
-            // If in layEgg mode, select healer (weaver ant)
+            // Healer (weaver ant) - conflicts with camera up, but ant selector takes priority
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Healer hotkey - hatching healer');
+              e.preventDefault();
+              handleLayEgg('healer');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Healer egg type selected');
               e.preventDefault();
@@ -397,7 +446,13 @@ function App() {
             }
             return;
           case 'c':
-            // If in layEgg mode, select cordyphage
+            // Cordyphage
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Cordyphage hotkey - hatching cordyphage');
+              e.preventDefault();
+              handleLayEgg('cordyphage');
+              return;
+            }
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Cordyphage egg type selected');
               e.preventDefault();
@@ -4440,6 +4495,20 @@ function App() {
                     tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
                   }
 
+                  // Hotkey mapping for each ant type
+                  const hotkeyMap = {
+                    'drone': 'D',
+                    'scout': 'S',
+                    'soldier': 'O',
+                    'tank': 'T',
+                    'spitter': 'I',
+                    'bomber': 'X',
+                    'bombardier': 'R',
+                    'healer': 'W',
+                    'cordyphage': 'C'
+                  };
+                  const hotkey = hotkeyMap[ant.id];
+
                   return (
                     <button
                       key={ant.id}
@@ -4464,7 +4533,7 @@ function App() {
                         textAlign: 'left'
                       }}
                     >
-                      <div>{ant.icon} {ant.name}</div>
+                      <div>{ant.icon} {ant.name} {hotkey && <span style={{float: 'right', fontWeight: 'bold'}}>[{hotkey}]</span>}</div>
                       <div style={{ fontSize: '10px' }}>
                         Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
                       </div>
