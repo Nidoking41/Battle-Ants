@@ -22,7 +22,7 @@ export const SpriteConfig = {
       attack: { path: 'queen_attack.png', frames: 8 }
     },
     scout: {
-      idle: { path: 'scout_idle_green.png', frames: 8 },
+      idle: { path: 'scout_idle_green.png', frames: 10 },
       walk: { path: 'scout_walk.png', frames: 8 },
       attack: { path: 'scout_attack.png', frames: 8 }
     },
@@ -60,6 +60,16 @@ export const SpriteConfig = {
       idle: { path: 'healer_idle.png', frames: 8 },
       walk: { path: 'healer_walk.png', frames: 8 },
       attack: { path: 'healer_attack.png', frames: 8 }
+    },
+    cordyphage: {
+      idle: { path: 'cordyphage_idle.png', frames: 8 },
+      walk: { path: 'cordyphage_walk.png', frames: 8 },
+      attack: { path: 'cordyphage_attack.png', frames: 8 }
+    },
+    dead: {
+      idle: { path: 'dead_ant.png', frames: 1 },
+      walk: { path: 'dead_ant.png', frames: 1 },
+      attack: { path: 'dead_ant.png', frames: 1 }
     }
   }
 };
@@ -73,7 +83,7 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier'];
+const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
@@ -85,7 +95,8 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
   'spitter': 'acid',
   'healer': 'weaver',
   'bomber': 'exploding',
-  'bombardier': 'bombardier'
+  'bombardier': 'bombardier',
+  'cordyphage': 'cordyphage'
 };
 
 // Helper function to get sprite info for an ant
@@ -99,14 +110,13 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
   let spritePath = sprites[animation].path;
 
   // If playerColor is provided and this ant type has colored variants
-  if (playerColor && COLORED_ANT_TYPES.includes(antType) && animation === 'idle') {
+  // Always use colored idle sprite (even for walk/attack) until colored variants exist for those animations
+  if (playerColor && COLORED_ANT_TYPES.includes(antType)) {
     const colorSuffix = COLOR_MAP[playerColor];
     if (colorSuffix) {
       // Get the sprite prefix (some ant types have different sprite filenames)
       const spritePrefix = ANT_TYPE_TO_SPRITE_PREFIX[antType] || antType;
-      // Replace the sprite path with the colored version
-      // e.g., queen_idle.png -> queen_idle_red.png
-      // or soldier -> marauder_idle_red.png
+      // Use colored idle sprite for all animations (colored walk/attack sprites don't exist yet)
       spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
     }
   }

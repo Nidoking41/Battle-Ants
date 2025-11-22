@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, revealArea } from './gameState';
+import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance } from './hexUtils';
@@ -43,20 +43,60 @@ function App() {
   const [bombardierRotation, setBombardierRotation] = useState(0); // 0-5 for the 6 hex directions
   const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
 
+  // Store random hex colors for earthy terrain
+  const [hexColors] = useState(() => {
+    // Earthy tone colors: light browns and greens
+    const earthyTones = [
+      '#8B7355', // Light brown
+      '#A0826D', // Tan
+      '#9C8B6B', // Khaki brown
+      '#6B8E23', // Olive green
+      '#8FBC8F', // Dark sea green
+      '#90A955', // Moss green
+      '#7D8471', // Sage green
+      '#8E8268', // Warm gray-brown
+      '#9B9B7A', // Light olive
+      '#87986A', // Green-brown
+    ];
+
+    // Simple pseudo-random number generator with seed
+    const seededRandom = (seed) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    // Generate random color for each hex using a seeded random based on position
+    const colors = new Map();
+    const gridRadius = 6; // Match the default grid size
+    for (let q = -gridRadius; q <= gridRadius; q++) {
+      for (let r = -gridRadius; r <= gridRadius; r++) {
+        const s = -q - r;
+        if (Math.abs(s) <= gridRadius) {
+          // Use position as seed for consistent but varied colors
+          const seed = q * 7919 + r * 7907 + s * 7901; // Large primes for better distribution
+          const randomValue = seededRandom(seed);
+          const colorIndex = Math.floor(randomValue * earthyTones.length);
+          colors.set(`${q},${r}`, earthyTones[colorIndex]);
+        }
+      }
+    }
+    return colors;
+  });
+
   // Sprite animation system
   const { setAntAnimation, removeAntAnimation, getAntFrame } = useSprites();
 
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
 
-  // Initialize all ants with idle animation (only once on mount)
+  // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
       const playerColor = gameState.players[ant.owner]?.color;
       setAntAnimation(ant.id, ant.type, 'idle', playerColor);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
 
   // Keyboard event listener for Shift key to rotate bombardier splash
   useEffect(() => {
@@ -219,6 +259,15 @@ function App() {
               return;
             }
             return;
+          case 'h':
+            console.log('Heal hotkey triggered');
+            e.preventDefault();
+            // Heal action (for queens and healers)
+            if (ant && (ant.type === 'queen' || ant.type === 'healer')) {
+              setSelectedAction('heal');
+              return;
+            }
+            return;
           case 'escape':
             console.log('Escape hotkey triggered');
             e.preventDefault();
@@ -378,7 +427,7 @@ function App() {
 
     const { antId, path, currentStep } = movingAnt;
 
-    // If we've reached the end of the path
+    // If we've reached the end of the path, stop
     if (currentStep >= path.length - 1) {
       setMovingAnt(null);
       return;
@@ -389,25 +438,54 @@ function App() {
       const nextStep = currentStep + 1;
       const nextPosition = path[nextStep];
 
-      // Update game state with new position
-      setGameState(prev => ({
-        ...prev,
-        ants: {
-          ...prev.ants,
-          [antId]: {
-            ...prev.ants[antId],
-            position: nextPosition
-          }
-        }
-      }));
+      // Track if ant exists in either state
+      let foundInGameState = false;
+      let foundInFullState = false;
 
-      // Update moving ant state
-      setMovingAnt({
-        antId,
-        path,
-        currentStep: nextStep
+      // Update game state with new position
+      setGameState(prev => {
+        if (!prev.ants?.[antId]) return prev;
+        foundInGameState = true;
+        return {
+          ...prev,
+          ants: {
+            ...prev.ants,
+            [antId]: {
+              ...prev.ants[antId],
+              position: nextPosition
+            }
+          }
+        };
       });
-    }, 300); // 300ms between each step
+
+      // Also update fullGameState for AI/multiplayer games
+      setFullGameState(prev => {
+        if (!prev?.ants?.[antId]) return prev;
+        foundInFullState = true;
+        return {
+          ...prev,
+          ants: {
+            ...prev.ants,
+            [antId]: {
+              ...prev.ants[antId],
+              position: nextPosition
+            }
+          }
+        };
+      });
+
+      // Continue animation - the setState callbacks set foundIn* synchronously during the updater call
+      // Even if async, we should continue as the next iteration will check again
+      setMovingAnt(prev => {
+        // Double-check we're still animating the same ant
+        if (!prev || prev.antId !== antId) return null;
+        return {
+          antId,
+          path,
+          currentStep: nextStep
+        };
+      });
+    }, 150); // 150ms between each step (faster, smoother animation)
 
     return () => clearTimeout(timer);
   }, [movingAnt]);
@@ -430,7 +508,8 @@ function App() {
   };
 
   // Function to trigger attack animation
-  const showAttackAnimation = (attackerId, targetPosition, isRanged) => {
+  // attackerInfo can be passed for multiplayer where gameState may be stale
+  const showAttackAnimation = (attackerId, targetPosition, isRanged, attackerInfo = null) => {
     const id = `attack_${Date.now()}_${Math.random()}`;
     const newAnimation = {
       id,
@@ -442,9 +521,10 @@ function App() {
     setAttackAnimations(prev => [...prev, newAnimation]);
 
     // Trigger attack sprite animation
-    const attacker = gameState.ants[attackerId];
+    // Use passed attackerInfo for multiplayer, or look up from current state
+    const attacker = attackerInfo || gameState.ants[attackerId] || fullGameState?.ants?.[attackerId];
     if (attacker) {
-      const playerColor = gameState.players[attacker.owner]?.color;
+      const playerColor = gameState.players?.[attacker.owner]?.color || fullGameState?.players?.[attacker.owner]?.color;
       setAntAnimation(attackerId, attacker.type, 'attack', playerColor);
       // Return to idle after attack animation
       setTimeout(() => {
@@ -453,22 +533,19 @@ function App() {
     }
 
     // If ranged, spawn projectile after shake animation (0.2s)
-    if (isRanged) {
+    if (isRanged && attacker) {
+      const projectileId = `projectile_${Date.now()}_${Math.random()}`;
       setTimeout(() => {
-        const attacker = gameState.ants[attackerId];
-        if (attacker) {
-          const projectileId = `projectile_${Date.now()}_${Math.random()}`;
-          setProjectiles(prev => [...prev, {
-            id: projectileId,
-            startPos: attacker.position,
-            endPos: targetPosition,
-            timestamp: Date.now()
-          }]);
-          // Remove projectile after it reaches target (0.3s)
-          setTimeout(() => {
-            setProjectiles(prev => prev.filter(p => p.id !== projectileId));
-          }, 300);
-        }
+        setProjectiles(prev => [...prev, {
+          id: projectileId,
+          startPos: attacker.position,
+          endPos: targetPosition,
+          timestamp: Date.now()
+        }]);
+        // Remove projectile after it reaches target (0.3s)
+        setTimeout(() => {
+          setProjectiles(prev => prev.filter(p => p.id !== projectileId));
+        }, 300);
       }, 200);
     }
 
@@ -575,7 +652,8 @@ function App() {
                 }
               } else if (attackerVisible) {
                 // Attacker is visible, show full animation
-                showAttackAnimation(attackerId, targetPosition, isRanged);
+                // Pass attacker info from new state since our local state may be stale
+                showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
                 if (damageDealt && damageDealt.length > 0) {
                   setTimeout(() => {
                     damageDealt.forEach(({ damage, position }) => {
@@ -656,15 +734,19 @@ function App() {
 
         // Animate movements sequentially
         for (const movement of movements) {
+          // Add starting position to path if not already there
+          const oldAnt = currentState.ants?.[movement.antId];
+          const fullPath = oldAnt ? [oldAnt.position, ...movement.path] : movement.path;
+
           await new Promise(resolve => {
             setMovingAnt({
               antId: movement.antId,
-              path: movement.path,
+              path: fullPath,
               currentStep: 0
             });
 
-            // Wait for animation to complete
-            const animationDuration = (movement.path.length - 1) * 300;
+            // Wait for animation to complete (150ms per step)
+            const animationDuration = (fullPath.length - 1) * 150;
             setTimeout(resolve, animationDuration + 100);
           });
         }
@@ -679,6 +761,34 @@ function App() {
 
     executeAITurnAutomatically();
   }, [gameState.currentPlayer, gameState.turn, gameMode?.isAI, isAIThinking, pendingCombat]);
+
+  // Clean up dead ants after 2 seconds
+  useEffect(() => {
+    const now = Date.now();
+    const deadAntsToRemove = [];
+
+    Object.values(gameState.deadAnts || {}).forEach(deadAnt => {
+      if (now - deadAnt.createdAt >= 2000) {
+        deadAntsToRemove.push(deadAnt.id);
+      }
+    });
+
+    if (deadAntsToRemove.length > 0) {
+      const timer = setTimeout(() => {
+        const currentState = getGameStateForLogic();
+        const updatedDeadAnts = { ...currentState.deadAnts };
+        deadAntsToRemove.forEach(id => {
+          delete updatedDeadAnts[id];
+        });
+        updateGame({
+          ...currentState,
+          deadAnts: updatedDeadAnts
+        });
+      }, 100); // Small delay to ensure we don't update too frequently
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.deadAnts]);
 
   // Get the game state to use for game logic (full state for multiplayer/AI with fog, filtered for display)
   const getGameStateForLogic = () => {
@@ -755,6 +865,12 @@ function App() {
     }
     if (mode.player2Color) {
       gameOptions.player2Color = mode.player2Color;
+    }
+    if (mode.player1Hero) {
+      gameOptions.player1Hero = mode.player1Hero;
+    }
+    if (mode.player2Hero) {
+      gameOptions.player2Hero = mode.player2Hero;
     }
 
     const newGameState = createInitialGameState(gameOptions);
@@ -1713,8 +1829,8 @@ function App() {
         setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
         // After animation completes, mark ant as moved and update final state
-        // Calculate total animation time
-        const animationDuration = (path.length - 1) * 300;
+        // Calculate total animation time (150ms per step)
+        const animationDuration = (path.length - 1) * 150;
         setTimeout(() => {
           const newState = moveAnt(currentState, selectedAnt, hex);
           const finalState = markAntMoved(newState, selectedAnt);
@@ -1801,14 +1917,14 @@ function App() {
       return;
     }
 
-    // Cordyceps Purge (Mind Control)
+    // Cordyceps Purge (Mind Control) - Cordyphage ability
     if (selectedAction === 'cordyceps' && selectedAnt) {
-      const healer = currentState.ants[selectedAnt];
-      if (!healer || healer.type !== 'healer') return;
+      const cordyphage = currentState.ants[selectedAnt];
+      if (!cordyphage || cordyphage.type !== 'cordyphage') return;
 
       // Find if there's an enemy at the clicked hex
       const enemyAtHex = Object.values(currentState.ants).find(
-        a => hexEquals(a.position, hex) && a.owner !== healer.owner
+        a => hexEquals(a.position, hex) && a.owner !== cordyphage.owner
       );
 
       if (enemyAtHex) {
@@ -1822,6 +1938,31 @@ function App() {
         setSelectedAnt(null);
       } else {
         alert('Invalid Cordyceps target! Must click on an enemy unit (not queen).');
+      }
+      return;
+    }
+
+    // Plague - Cordyphage ability
+    if (selectedAction === 'plague' && selectedAnt) {
+      const cordyphage = currentState.ants[selectedAnt];
+      if (!cordyphage || cordyphage.type !== 'cordyphage') return;
+
+      // Find if there's an enemy at the clicked hex
+      const enemyAtHex = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner !== cordyphage.owner
+      );
+
+      if (enemyAtHex) {
+        const newState = plagueEnemy(currentState, selectedAnt, enemyAtHex.id);
+        if (newState === currentState) {
+          alert('Cannot plague this target! Already plagued or out of energy.');
+          return;
+        }
+        updateGame(newState);
+        setSelectedAction(null);
+        setSelectedAnt(null);
+      } else {
+        alert('Invalid plague target! Must click on an enemy unit.');
       }
       return;
     }
@@ -2317,14 +2458,6 @@ function App() {
 
   // Render hexagons in a symmetrical hexagon shape
   const renderHexGrid = () => {
-    // Debug: Check what resources are in gameState when rendering
-    if (gameState.resources) {
-      const resourceCount = Object.keys(gameState.resources).length;
-      if (resourceCount > 0) {
-        console.log('Rendering with resources:', resourceCount, Object.values(gameState.resources).map(r => `${r.type} at (${r.position.q},${r.position.r})`));
-      }
-    }
-
     const hexagons = [];
     const validMoves = getValidMovesForSelectedAnt();
     const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
@@ -2400,14 +2533,15 @@ function App() {
 
     // Calculate visible hexes for fog of war in multiplayer or AI games
     let visibleHexes = null;
-    if (fullGameState && gameMode) {
+    const stateForFog = fullGameState || gameState;
+    if (stateForFog && gameMode) {
       // For multiplayer, use player role
       if (gameMode.isMultiplayer && gameMode.playerRole) {
-        visibleHexes = getVisibleHexes(fullGameState, gameMode.playerRole);
+        visibleHexes = getVisibleHexes(stateForFog, gameMode.playerRole);
       }
       // For AI games with fog of war enabled, show player1's vision
       else if (gameMode.isAI && gameMode.fogOfWar !== false) {
-        visibleHexes = getVisibleHexes(fullGameState, 'player1');
+        visibleHexes = getVisibleHexes(stateForFog, 'player1');
       }
     }
 
@@ -2460,17 +2594,6 @@ function App() {
         const egg = Object.values(gameState.eggs).find(e => hexEquals(e.position, hex));
         const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, hex));
 
-        // Debug: Log when we find any resource
-        if (resource) {
-          console.log(`Found ${resource.type} resource at`, q, r, 'resource:', resource);
-        }
-        // Debug: Check specific positions for minerals
-        if (q === -2 && r === -1) {
-          console.log('Checking (-2,-1): resource found?', !!resource, 'resource:', resource);
-        }
-        if (q === -2 && r === 1) {
-          console.log('Checking (-2,1): resource found?', !!resource, 'resource:', resource);
-        }
         const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, hex));
         const isValidMove = validMoves.some(v => hexEquals(v, hex));
         const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
@@ -2510,7 +2633,9 @@ function App() {
           }
         });
 
-        let fillColor = '#ddd';
+        // Get random earthy tone color for this hex
+        const hexColorKey = `${q},${r}`;
+        let fillColor = hexColors.get(hexColorKey) || '#8B7355'; // Default to light brown if not found
         let useBirthingPoolPattern = false;
 
         if (isBirthingPool) {
@@ -2786,11 +2911,6 @@ function App() {
               const playerColor = gameState.players[ant.owner]?.color;
               const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
 
-              // Debug logging for drone
-              if (ant.type === 'drone') {
-                console.log('Drone ant:', ant.id, 'currentFrame:', spriteFrame?.currentFrame, 'animation:', spriteFrame?.animation);
-              }
-
               // Check if ant is on a resource or anthill
               const onResourceOrAnthill = resource || anthill;
               const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
@@ -2978,6 +3098,28 @@ function App() {
                 style={{ pointerEvents: 'none' }}
               />
             )}
+            {/* Dead ant rendering */}
+            {(() => {
+              const deadAnt = Object.values(gameState.deadAnts || {}).find(
+                da => da.position.q === q && da.position.r === r
+              );
+              if (deadAnt) {
+                return (
+                  <image
+                    x={-40}
+                    y={-40}
+                    width={80}
+                    height={80}
+                    href={`${process.env.PUBLIC_URL}/sprites/ants/dead_ant.png`}
+                    style={{ pointerEvents: 'none', opacity: 0.8 }}
+                    onError={(e) => {
+                      console.error('Failed to load dead ant sprite');
+                    }}
+                  />
+                );
+              }
+              return null;
+            })()}
           </g>
         );
       }
@@ -3158,12 +3300,18 @@ function App() {
 
               <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer']
+                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
                   .map(id => AntTypes[id.toUpperCase()])
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
                   const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
+
+                  // Get hero-modified cost for display
+                  const { applyHeroCostModifier } = require('./heroQueens');
+                  const displayCost = currentPlayer.heroId
+                    ? applyHeroCostModifier(ant.cost, currentPlayer.heroId)
+                    : ant.cost;
 
                   // Check if unit requires a specific queen tier
                   const queen = Object.values(gameState.ants).find(
@@ -3250,7 +3398,7 @@ function App() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.name}</div>
                           <div style={{ fontSize: '12px', marginTop: '3px' }}>
-                            Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
+                            Cost: {displayCost.food}🍃 {displayCost.minerals}💎
                           </div>
                           <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2' }}>
                             {ant.description}
@@ -3720,7 +3868,7 @@ function App() {
                   </button>
                 ) : gameState.ants[selectedAnt].type === 'healer' ? (
                   <>
-                    {/* Healer-specific: Heal and Ensnare buttons instead of Attack */}
+                    {/* Healer-specific: Heal and Ensnare buttons */}
                     <button
                       onClick={() => setSelectedAction('heal')}
                       disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
@@ -3754,6 +3902,27 @@ function App() {
                       }}
                     >
                       🕸️ Ensnare
+                    </button>
+                  </>
+                ) : gameState.ants[selectedAnt].type === 'cordyphage' ? (
+                  <>
+                    {/* Cordyphage-specific: Plague and Cordyceps Purge buttons */}
+                    <button
+                      onClick={() => setSelectedAction('plague')}
+                      disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        backgroundColor: selectedAction === 'plague' ? '#16a085' : '#ecf0f1',
+                        color: selectedAction === 'plague' ? 'white' : 'black',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
+                        fontWeight: selectedAction === 'plague' ? 'bold' : 'normal',
+                        opacity: isMyTurn() ? 1 : 0.6
+                      }}
+                    >
+                      ☠️ Plague (25⚡)
                     </button>
                     {gameState.players[gameState.currentPlayer].upgrades.cordycepsPurge > 0 && (
                       <button
@@ -3990,7 +4159,7 @@ function App() {
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
               <h4>Select Ant Type to Lay</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer']
+                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
                   .map(id => AntTypes[id.toUpperCase()])
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
