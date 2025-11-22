@@ -70,7 +70,8 @@ export function createInitialGameState(options = {}) {
         maxHealth: AntTypes.QUEEN.maxHealth,
         energy: GameConstants.QUEEN_BASE_ENERGY,
         maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
-        queenTier: 'queen'
+        queenTier: 'queen',
+        heroId: player1Hero
       },
       'ant_p2_queen': {
         id: 'ant_p2_queen',
@@ -81,7 +82,8 @@ export function createInitialGameState(options = {}) {
         maxHealth: AntTypes.QUEEN.maxHealth,
         energy: GameConstants.QUEEN_BASE_ENERGY,
         maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
-        queenTier: 'queen'
+        queenTier: 'queen',
+        heroId: player2Hero
       },
       // Starting drones for player 1 (South) - positions scaled to map size
       'ant_p1_drone1': {
@@ -375,15 +377,25 @@ export function createAnt(type, owner, position, heroId = null) {
     hasMoved: false
   };
 
+  // Store heroId if provided (needed for queen spawning spot calculations)
+  if (heroId) {
+    ant.heroId = heroId;
+  }
+
   // Store bonus attack if different from base
   if (attack !== antType.attack) {
     ant.bonusAttack = attack - antType.attack;
   }
 
-  // Add energy system for units that have it (like healers)
+  // Add energy system for units that have it (like healers and queens)
   if (antType.maxEnergy) {
     ant.energy = antType.maxEnergy;
     ant.maxEnergy = antType.maxEnergy;
+  }
+
+  // Add queenTier for queen ants
+  if (type.toLowerCase() === 'queen') {
+    ant.queenTier = 'queen'; // Start at base tier
   }
 
   return ant;
