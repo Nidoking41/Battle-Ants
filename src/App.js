@@ -4333,7 +4333,7 @@ function App() {
                           fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal'
                         }}
                       >
-                        Lay Egg
+                        Lay Egg (Q)
                       </button>
                       <button
                         onClick={() => setSelectedAction('heal')}
@@ -4546,7 +4546,7 @@ function App() {
                         textAlign: 'left'
                       }}
                     >
-                      <div>{ant.icon} {ant.name} {hotkey && <span style={{float: 'right', fontWeight: 'bold'}}>[{hotkey}]</span>}</div>
+                      <div>{ant.icon} {ant.name} {hotkey && `(${hotkey})`}</div>
                       <div style={{ fontSize: '10px' }}>
                         Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
                       </div>
