@@ -3022,16 +3022,19 @@ function App() {
                   {/* Ensnare indicator - animated sprite */}
                   {ant.ensnared && ant.ensnared > 0 && (
                     <g>
+                      <defs>
+                        <clipPath id={`ensnare-clip-${ant.id}`}>
+                          <rect x="-16" y="-16" width="32" height="32" />
+                        </clipPath>
+                      </defs>
                       <image
                         href="/sprites/ensnare_effect.png"
-                        x="-16"
+                        x={-16 - (effectAnimationFrame * 32)}
                         y="-16"
-                        width="32"
+                        width="256"
                         height="32"
-                        style={{
-                          pointerEvents: 'none',
-                          clipPath: `inset(0 ${100 - (effectAnimationFrame + 1) * 12.5}% 0 ${effectAnimationFrame * 12.5}%)`
-                        }}
+                        clipPath={`url(#ensnare-clip-${ant.id})`}
+                        style={{ pointerEvents: 'none' }}
                       />
                       {/* Ensnare duration text */}
                       <text
@@ -3052,16 +3055,19 @@ function App() {
                   {/* Plague indicator - animated sprite */}
                   {ant.plagued && ant.plagued > 0 && (
                     <g>
+                      <defs>
+                        <clipPath id={`plague-clip-${ant.id}`}>
+                          <rect x="-16" y="-16" width="32" height="32" />
+                        </clipPath>
+                      </defs>
                       <image
                         href="/sprites/plague_effect.png"
-                        x="-16"
+                        x={-16 - (effectAnimationFrame * 32)}
                         y="-16"
-                        width="32"
+                        width="256"
                         height="32"
-                        style={{
-                          pointerEvents: 'none',
-                          clipPath: `inset(0 ${100 - (effectAnimationFrame + 1) * 12.5}% 0 ${effectAnimationFrame * 12.5}%)`
-                        }}
+                        clipPath={`url(#plague-clip-${ant.id})`}
+                        style={{ pointerEvents: 'none' }}
                       />
                       {/* Plague duration text */}
                       <text
@@ -3220,7 +3226,7 @@ function App() {
           const ant = gameState.ants[selectedAnt];
           if (ant && ant.type && AntTypes[ant.type]) {
             let range = AntTypes[ant.type].movement;
-            if (ant.ensnared && ant.ensnared > 0) range = 1;
+            if (ant.ensnared && ant.ensnared > 0) range = 0;
 
             const costToWaypoint = pathToWaypoint.length - 1;
             const remainingRange = range - costToWaypoint;
@@ -4001,7 +4007,7 @@ function App() {
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      🕸️ Ensnare
+                      🕸️ Ensnare (20⚡) (E)
                     </button>
                   </>
                 ) : gameState.ants[selectedAnt].type === 'cordyphage' ? (
