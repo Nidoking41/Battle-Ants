@@ -240,17 +240,20 @@ function App() {
           case 'a':
             console.log('Attack hotkey triggered');
             e.preventDefault();
-            // Attack action
-            if (ant && ant.type !== 'drone') {
-              const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
-              const enemiesInRange = Object.values(gameState.ants).filter(enemy => {
-                if (enemy.owner === currentPlayerId) return false;
-                return canAttack(ant, enemy, gameState);
-              });
+            // Attack action (only for units with attack > 0)
+            if (ant) {
+              const antType = AntTypes[ant.type.toUpperCase()];
+              if (antType.attack > 0) {
+                const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+                const enemiesInRange = Object.values(gameState.ants).filter(enemy => {
+                  if (enemy.owner === currentPlayerId) return false;
+                  return canAttack(ant, enemy, gameState);
+                });
 
-              if (enemiesInRange.length > 0) {
-                setSelectedAction('attack');
-                return;
+                if (enemiesInRange.length > 0) {
+                  setSelectedAction('attack');
+                  return;
+                }
               }
             }
             return;
