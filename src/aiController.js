@@ -582,10 +582,16 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
                    enemy.health < weakest.health ? enemy : weakest
                  );
 
-    const attackResult = canAttack(state, unit.id, target.id);
-    if (attackResult.canAttack) {
+    // Import resolveCombat from combatSystem
+    const { canAttack, resolveCombat } = require('./combatSystem');
+
+    // Check if we can attack (pass actual ant objects, not IDs)
+    if (canAttack(unit, target, state)) {
       // Perform attack
+      const attackResult = resolveCombat(state, unit.id, target.id);
       state = attackResult.gameState;
+      // Mark unit as having attacked
+      state.ants[unit.id] = { ...state.ants[unit.id], hasAttacked: true };
       return state;
     }
   }
@@ -642,9 +648,15 @@ function handleScoutUnit(gameState, scout, aiPlayer, strategy) {
   const enemiesInRange = findEnemiesInRange(state, scout, aiPlayer);
   if (enemiesInRange.length > 0) {
     const target = enemiesInRange[0];
-    const attackResult = canAttack(state, scout.id, target.id);
-    if (attackResult.canAttack) {
+    const { canAttack, resolveCombat } = require('./combatSystem');
+
+    // Check if we can attack (pass actual ant objects, not IDs)
+    if (canAttack(scout, target, state)) {
+      // Perform attack
+      const attackResult = resolveCombat(state, scout.id, target.id);
       state = attackResult.gameState;
+      // Mark scout as having attacked
+      state.ants[scout.id] = { ...state.ants[scout.id], hasAttacked: true };
       return state;
     }
   }
