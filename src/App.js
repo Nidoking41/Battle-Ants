@@ -3293,7 +3293,7 @@ function App() {
 
   return (
     <div className="App" style={{ padding: '10px', backgroundColor: '#f0f0f0', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <h1 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Ant Colony Battler</h1>
+      <h1 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Ant Wars</h1>
 
       <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'flex-start', width: '100%' }}>
         {/* Ant Types Panel - Left Side */}
@@ -4925,7 +4925,7 @@ function App() {
             </button>
 
             <h1 style={{ marginTop: 0, color: '#333', borderBottom: '3px solid #2196F3', paddingBottom: '10px' }}>
-              Ant Colony Battler - Game Guide
+              Ant Wars - Game Guide
             </h1>
 
             {/* Objective */}

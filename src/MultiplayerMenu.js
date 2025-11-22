@@ -95,7 +95,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       backgroundColor: '#f0f0f0',
       padding: '20px'
     }}>
-      <h1 style={{ marginBottom: '40px' }}>🐜 Ant Colony Battler</h1>
+      <h1 style={{ marginBottom: '40px' }}>🐜 Ant Wars</h1>
 
       <div style={{
         backgroundColor: 'white',
