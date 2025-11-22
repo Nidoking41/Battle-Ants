@@ -269,6 +269,15 @@ function App() {
               return;
             }
             return;
+          case 'e':
+            console.log('Ensnare hotkey triggered');
+            e.preventDefault();
+            // Ensnare action (for healers only)
+            if (ant && ant.type === 'healer') {
+              setSelectedAction('ensnare');
+              return;
+            }
+            return;
           case 'escape':
             console.log('Escape hotkey triggered');
             e.preventDefault();
@@ -407,9 +416,9 @@ function App() {
       }
     }
 
-    // Ensnared units can only move 1 hex
+    // Ensnared units cannot move at all
     if (ant.ensnared && ant.ensnared > 0) {
-      range = 1;
+      range = 0;
     }
 
     // Get movement range with paths
@@ -2454,9 +2463,9 @@ function App() {
         }
       }
 
-      // Ensnared units can only move 1 hex
+      // Ensnared units cannot move at all
       if (ant.ensnared && ant.ensnared > 0) {
-        range = 1;
+        range = 0;
       }
 
       // Get movement range (paths are calculated in useEffect)
