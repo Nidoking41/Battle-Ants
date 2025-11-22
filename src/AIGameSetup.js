@@ -79,237 +79,237 @@ function AIGameSetup({ onStartGame, onBack }) {
         </h3>
 
         <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-          {/* Player Card */}
-          <div style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: '#ecf0f1',
-            borderRadius: '8px',
-            border: '3px solid #3498db'
-          }}>
-            <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-              👤 You (South)
-            </h3>
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {colorOptions.map(color => (
-                  <button
-                    key={color.value}
-                    onClick={() => setPlayerColor(color.value)}
-                    disabled={aiColor === color.value}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: color.value,
-                      border: playerColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                      borderRadius: '50%',
-                      cursor: aiColor !== color.value ? 'pointer' : 'not-allowed',
-                      opacity: aiColor === color.value ? 0.3 : 1
-                    }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            <div style={{ marginTop: '10px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
-              {heroOptions.map(hero => (
-                <button
-                  key={hero.id}
-                  onClick={() => setPlayerHero(hero.id)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    marginBottom: '5px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    backgroundColor: playerHero === hero.id ? '#3498db' : 'white',
-                    color: playerHero === hero.id ? 'white' : '#2c3e50',
-                    border: '2px solid #3498db',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{hero.icon} {hero.name}</span>
-                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Card */}
-          <div style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: '#ecf0f1',
-            borderRadius: '8px',
-            border: '3px solid #e74c3c'
-          }}>
-            <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-              🤖 AI (North)
-            </h3>
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {colorOptions.map(color => (
-                  <button
-                    key={color.value}
-                    onClick={() => setAIColor(color.value)}
-                    disabled={playerColor === color.value}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: color.value,
-                      border: aiColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                      borderRadius: '50%',
-                      cursor: playerColor !== color.value ? 'pointer' : 'not-allowed',
-                      opacity: playerColor === color.value ? 0.3 : 1
-                    }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            <div style={{ marginTop: '10px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
-              {heroOptions.map(hero => (
-                <button
-                  key={hero.id}
-                  onClick={() => setAiHero(hero.id)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    marginBottom: '5px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    backgroundColor: aiHero === hero.id ? '#e74c3c' : 'white',
-                    color: aiHero === hero.id ? 'white' : '#2c3e50',
-                    border: '2px solid #e74c3c',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{hero.icon} {hero.name}</span>
-                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* AI Difficulty Selection */}
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#ecf0f1',
-          borderRadius: '8px',
-          marginBottom: '12px'
-        }}>
-          <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-            🎯 AI Difficulty
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {difficultyOptions.map(diff => (
-              <button
-                key={diff.value}
-                onClick={() => setDifficulty(diff.value)}
-                style={{
-                  padding: '10px',
-                  fontSize: '15px',
-                  fontWeight: 'bold',
-                  backgroundColor: difficulty === diff.value ? '#3498db' : 'white',
-                  color: difficulty === diff.value ? 'white' : '#2c3e50',
-                  border: '2px solid #3498db',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '3px'
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>{diff.name}</span>
-                <span style={{
-                  fontSize: '12px',
-                  opacity: difficulty === diff.value ? 1 : 0.7,
-                  fontWeight: 'normal'
-                }}>
-                  {diff.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Map Size Selection */}
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#ecf0f1',
-          borderRadius: '8px',
-          marginBottom: '12px'
-        }}>
-          <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
-            🗺️ Map Size
-          </h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {mapSizeOptions.map(size => (
-              <button
-                key={size.value}
-                onClick={() => setMapSize(size.value)}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  backgroundColor: mapSize === size.value ? '#3498db' : 'white',
-                  color: mapSize === size.value ? 'white' : '#2c3e50',
-                  border: '2px solid #3498db',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                {size.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Fog of War Toggle */}
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#ecf0f1',
-          borderRadius: '8px',
-          marginBottom: '15px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ marginBottom: '3px', fontSize: '16px' }}>
-                🌫️ Fog of War
+          {/* Left Column - You */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Player Card */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#ecf0f1',
+              borderRadius: '8px',
+              border: '3px solid #3498db'
+            }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+                👤 You (South)
               </h3>
-              <p style={{ margin: 0, fontSize: '12px', color: '#7f8c8d' }}>
-                {fogOfWar
-                  ? 'You can only see areas near your units'
-                  : 'Full map visibility (easier)'}
-              </p>
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {colorOptions.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => setPlayerColor(color.value)}
+                      disabled={aiColor === color.value}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        backgroundColor: color.value,
+                        border: playerColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
+                        borderRadius: '50%',
+                        cursor: aiColor !== color.value ? 'pointer' : 'not-allowed',
+                        opacity: aiColor === color.value ? 0.3 : 1
+                      }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                {heroOptions.map(hero => (
+                  <button
+                    key={hero.id}
+                    onClick={() => setPlayerHero(hero.id)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      marginBottom: '5px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      backgroundColor: playerHero === hero.id ? '#3498db' : 'white',
+                      color: playerHero === hero.id ? 'white' : '#2c3e50',
+                      border: '2px solid #3498db',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span>{hero.icon} {hero.name}</span>
+                    <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                  </button>
+                ))}
+              </div>
             </div>
-            <button
-              onClick={() => setFogOfWar(!fogOfWar)}
-              style={{
-                padding: '10px 20px',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                backgroundColor: fogOfWar ? '#27ae60' : '#95a5a6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                minWidth: '90px'
-              }}
-            >
-              {fogOfWar ? 'ON' : 'OFF'}
-            </button>
+
+            {/* Map Size Selection */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#ecf0f1',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+                🗺️ Map Size
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {mapSizeOptions.map(size => (
+                  <button
+                    key={size.value}
+                    onClick={() => setMapSize(size.value)}
+                    style={{
+                      padding: '10px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      backgroundColor: mapSize === size.value ? '#3498db' : 'white',
+                      color: mapSize === size.value ? 'white' : '#2c3e50',
+                      border: '2px solid #3498db',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {size.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fog of War Toggle */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#ecf0f1',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ marginBottom: '3px', fontSize: '16px' }}>
+                    🌫️ Fog of War
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#7f8c8d' }}>
+                    {fogOfWar
+                      ? 'Limited visibility'
+                      : 'Full map visibility'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFogOfWar(!fogOfWar)}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    backgroundColor: fogOfWar ? '#27ae60' : '#95a5a6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    minWidth: '90px'
+                  }}
+                >
+                  {fogOfWar ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - AI */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* AI Card */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#ecf0f1',
+              borderRadius: '8px',
+              border: '3px solid #e74c3c'
+            }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+                🤖 AI (North)
+              </h3>
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {colorOptions.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => setAIColor(color.value)}
+                      disabled={playerColor === color.value}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        backgroundColor: color.value,
+                        border: aiColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
+                        borderRadius: '50%',
+                        cursor: playerColor !== color.value ? 'pointer' : 'not-allowed',
+                        opacity: playerColor === color.value ? 0.3 : 1
+                      }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                {heroOptions.map(hero => (
+                  <button
+                    key={hero.id}
+                    onClick={() => setAiHero(hero.id)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      marginBottom: '5px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      backgroundColor: aiHero === hero.id ? '#e74c3c' : 'white',
+                      color: aiHero === hero.id ? 'white' : '#2c3e50',
+                      border: '2px solid #e74c3c',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span>{hero.icon} {hero.name}</span>
+                    <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AI Difficulty Selection */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#ecf0f1',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+                🎯 AI Difficulty
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {difficultyOptions.map(diff => (
+                  <button
+                    key={diff.value}
+                    onClick={() => setDifficulty(diff.value)}
+                    style={{
+                      padding: '10px',
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      backgroundColor: difficulty === diff.value ? '#e74c3c' : 'white',
+                      color: difficulty === diff.value ? 'white' : '#2c3e50',
+                      border: '2px solid #e74c3c',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '3px'
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>{diff.name}</span>
+                    <span style={{
+                      fontSize: '12px',
+                      opacity: difficulty === diff.value ? 1 : 0.7,
+                      fontWeight: 'normal'
+                    }}>
+                      {diff.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
