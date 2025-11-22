@@ -3984,7 +3984,7 @@ function App() {
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      ✨ Heal
+                      ✨ Heal (25⚡) (H)
                     </button>
                     <button
                       onClick={() => setSelectedAction('ensnare')}
