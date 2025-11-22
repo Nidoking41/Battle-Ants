@@ -117,7 +117,7 @@ function AIGameSetup({ onStartGame, onBack }) {
                       }}
                     >
                       <img
-                        src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                        src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
                         style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
                       />
@@ -238,7 +238,7 @@ function AIGameSetup({ onStartGame, onBack }) {
                       }}
                     >
                       <img
-                        src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                        src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
                         style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
                       />

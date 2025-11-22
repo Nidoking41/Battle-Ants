@@ -240,7 +240,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         }}
                       >
                         <img
-                          src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                          src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
                           style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
@@ -301,7 +301,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         }}
                       >
                         <img
-                          src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                          src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
                           style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
