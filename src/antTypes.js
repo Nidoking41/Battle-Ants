@@ -126,7 +126,7 @@ export const AntTypes = {
 
   DRONE: {
     id: 'drone',
-    name: 'Worker Drone',
+    name: 'Drone',
     cost: { food: 10, minerals: 0 },
     hatchTime: 1,
     maxHealth: 15,
