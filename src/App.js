@@ -310,10 +310,23 @@ function App() {
           case 'q':
             console.log('Lay egg hotkey triggered');
             e.preventDefault();
-            // Lay egg action (for queens only)
+            // Lay egg action - auto-select queen if not selected
             if (ant && ant.type === 'queen') {
               setSelectedAction('layEgg');
               return;
+            }
+            // If no ant selected or wrong ant type, find and select the queen
+            if (!ant || ant.type !== 'queen') {
+              const currentState = getGameStateForLogic();
+              const queen = Object.values(currentState.ants).find(
+                a => a.type === 'queen' && a.owner === currentState.currentPlayer && !a.isDead
+              );
+              if (queen) {
+                setSelectedAnt(queen.id);
+                setSelectedAction('layEgg');
+                centerOnQueen();
+                return;
+              }
             }
             return;
           case 'd':
@@ -324,8 +337,8 @@ function App() {
               handleLayEgg('drone');
               return;
             }
-            // If in layEgg mode but no hex selected, select drone
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            // If in layEgg mode, select drone as pending egg type
+            if (selectedAction === 'layEgg') {
               console.log('Drone egg type selected');
               e.preventDefault();
               setPendingEggType('drone');
@@ -347,8 +360,8 @@ function App() {
               handleLayEgg('scout');
               return;
             }
-            // If in layEgg mode but no hex selected, select scout
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            // If in layEgg mode, select scout as pending egg type
+            if (selectedAction === 'layEgg') {
               console.log('Scout egg type selected');
               e.preventDefault();
               setPendingEggType('scout');
@@ -363,7 +376,7 @@ function App() {
               handleLayEgg('soldier');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Soldier egg type selected');
               e.preventDefault();
               setPendingEggType('soldier');
@@ -378,7 +391,7 @@ function App() {
               handleLayEgg('tank');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Tank egg type selected');
               e.preventDefault();
               setPendingEggType('tank');
@@ -393,7 +406,7 @@ function App() {
               handleLayEgg('spitter');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Spitter egg type selected');
               e.preventDefault();
               setPendingEggType('spitter');
@@ -408,7 +421,7 @@ function App() {
               handleLayEgg('bomber');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Bomber egg type selected');
               e.preventDefault();
               setPendingEggType('bomber');
@@ -423,7 +436,7 @@ function App() {
               handleLayEgg('bombardier');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Bombardier egg type selected');
               e.preventDefault();
               setPendingEggType('bombardier');
@@ -438,7 +451,7 @@ function App() {
               handleLayEgg('healer');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Healer egg type selected');
               e.preventDefault();
               setPendingEggType('healer');
@@ -453,7 +466,7 @@ function App() {
               handleLayEgg('cordyphage');
               return;
             }
-            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+            if (selectedAction === 'layEgg') {
               console.log('Cordyphage egg type selected');
               e.preventDefault();
               setPendingEggType('cordyphage');
