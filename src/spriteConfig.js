@@ -120,8 +120,8 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       const spritePrefix = ANT_TYPE_TO_SPRITE_PREFIX[antType] || antType;
       // Use colored idle sprite for all animations (colored walk/attack sprites don't exist yet)
       spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
-      // All colored idle sprites have 8 frames
-      frameCount = 8;
+      // Scout colored idle sprites have 10 frames, all others have 8 frames
+      frameCount = antType === 'scout' ? 10 : 8;
     }
   }
 
