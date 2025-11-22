@@ -3064,7 +3064,7 @@ function App() {
                       {/* Ensnare duration text */}
                       <text
                         textAnchor="middle"
-                        x="0"
+                        x="-8"
                         y="20"
                         fontSize="10"
                         fill="#00FF00"
@@ -3073,7 +3073,7 @@ function App() {
                         strokeWidth="0.5"
                         style={{ pointerEvents: 'none' }}
                       >
-                        🕸️{ant.ensnared}
+                        {ant.ensnared}
                       </text>
                     </g>
                   )}
@@ -3097,7 +3097,7 @@ function App() {
                       {/* Plague duration text */}
                       <text
                         textAnchor="middle"
-                        x="0"
+                        x="8"
                         y="20"
                         fontSize="10"
                         fill="#8e44ad"
@@ -3106,7 +3106,7 @@ function App() {
                         strokeWidth="0.5"
                         style={{ pointerEvents: 'none' }}
                       >
-                        ☠️{ant.plagued}
+                        {ant.plagued}
                       </text>
                     </g>
                   )}
