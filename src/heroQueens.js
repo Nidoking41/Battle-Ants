@@ -7,6 +7,7 @@ export const HeroQueens = {
     name: 'Gorlak the Crusher',
     description: 'Melee units gain +20% attack',
     icon: '🗡️',
+    portraitImage: 'hero_red.png',
     bonuses: {
       meleeAttackBonus: 0.20  // +20% attack for melee (rounded up)
     },
@@ -22,6 +23,7 @@ export const HeroQueens = {
     name: 'Sorlorg the Precise',
     description: 'Ranged units gain +10% attack',
     icon: '🎯',
+    portraitImage: 'hero_green.png',
     bonuses: {
       rangedAttackBonus: 0.10  // +10% attack for ranged
     },
@@ -37,6 +39,7 @@ export const HeroQueens = {
     name: 'Skrazzit the Swarm',
     description: 'Units are 25% cheaper but 30% weaker. Start with 3 spawning spots',
     icon: '🐜',
+    portraitImage: 'hero_blue.png',
     bonuses: {
       costMultiplier: 0.75,     // 25% cheaper (0.75x cost)
       attackMultiplier: 0.70,   // 30% weaker attack (0.70x attack)
@@ -54,6 +57,7 @@ export const HeroQueens = {
     name: 'Thorgrim the Mighty',
     description: 'Units are 25% more expensive but 20% stronger in attack and health',
     icon: '⚔️',
+    portraitImage: 'hero_yellow.png',
     bonuses: {
       costMultiplier: 1.25,     // 25% more expensive (1.25x cost)
       attackMultiplier: 1.20,   // 20% stronger attack (1.20x attack)
@@ -72,6 +76,7 @@ export const HeroQueens = {
     name: 'Vexxara the Lifebinder',
     description: 'Healing is 50% cheaper and queens can heal twice per turn',
     icon: '💚',
+    portraitImage: 'hero_black.png',
     bonuses: {
       healCostMultiplier: 0.50,  // 50% cheaper healing (0.50x energy cost)
       queenDoubleHeal: true      // Queens can heal twice per turn

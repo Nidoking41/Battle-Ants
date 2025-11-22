@@ -100,28 +100,32 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
-                {heroOptions.map(hero => (
-                  <button
-                    key={hero.id}
-                    onClick={() => setPlayerHero(hero.id)}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      marginBottom: '5px',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      backgroundColor: playerHero === hero.id ? '#3498db' : 'white',
-                      color: playerHero === hero.id ? 'white' : '#2c3e50',
-                      border: '2px solid #3498db',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <span>{hero.icon} {hero.name}</span>
-                    <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                  </button>
-                ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  {heroOptions.map(hero => (
+                    <div
+                      key={hero.id}
+                      onClick={() => setPlayerHero(hero.id)}
+                      style={{
+                        width: '80px',
+                        padding: '6px',
+                        border: playerHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        backgroundColor: playerHero === hero.id ? '#e3f2fd' : 'white',
+                        textAlign: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <img
+                        src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                        alt={hero.name}
+                        style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                      />
+                      <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
+                      <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -217,28 +221,32 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose AI Hero:</label>
-                {heroOptions.map(hero => (
-                  <button
-                    key={hero.id}
-                    onClick={() => setAiHero(hero.id)}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      marginBottom: '5px',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      backgroundColor: aiHero === hero.id ? '#e74c3c' : 'white',
-                      color: aiHero === hero.id ? 'white' : '#2c3e50',
-                      border: '2px solid #e74c3c',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <span>{hero.icon} {hero.name}</span>
-                    <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                  </button>
-                ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  {heroOptions.map(hero => (
+                    <div
+                      key={hero.id}
+                      onClick={() => setAiHero(hero.id)}
+                      style={{
+                        width: '80px',
+                        padding: '6px',
+                        border: aiHero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        backgroundColor: aiHero === hero.id ? '#ffebee' : 'white',
+                        textAlign: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <img
+                        src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                        alt={hero.name}
+                        style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                      />
+                      <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
+                      <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 

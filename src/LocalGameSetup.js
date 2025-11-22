@@ -83,28 +83,32 @@ function LocalGameSetup({ onStartGame, onBack }) {
             </h3>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Hero:</label>
-              {heroOptions.map(hero => (
-                <button
-                  key={hero.id}
-                  onClick={() => setPlayer1Hero(hero.id)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    marginBottom: '5px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    backgroundColor: player1Hero === hero.id ? '#e74c3c' : 'white',
-                    color: player1Hero === hero.id ? 'white' : '#2c3e50',
-                    border: '2px solid #e74c3c',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{hero.icon} {hero.name}</span>
-                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                </button>
-              ))}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                {heroOptions.map(hero => (
+                  <div
+                    key={hero.id}
+                    onClick={() => setPlayer1Hero(hero.id)}
+                    style={{
+                      width: '80px',
+                      padding: '6px',
+                      border: player1Hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: player1Hero === hero.id ? '#ffebee' : 'white',
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <img
+                      src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                      alt={hero.name}
+                      style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                    />
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
+                    <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -128,28 +132,32 @@ function LocalGameSetup({ onStartGame, onBack }) {
             </h3>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Hero:</label>
-              {heroOptions.map(hero => (
-                <button
-                  key={hero.id}
-                  onClick={() => setPlayer2Hero(hero.id)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    marginBottom: '5px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    backgroundColor: player2Hero === hero.id ? '#3498db' : 'white',
-                    color: player2Hero === hero.id ? 'white' : '#2c3e50',
-                    border: '2px solid #3498db',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{hero.icon} {hero.name}</span>
-                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
-                </button>
-              ))}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                {heroOptions.map(hero => (
+                  <div
+                    key={hero.id}
+                    onClick={() => setPlayer2Hero(hero.id)}
+                    style={{
+                      width: '80px',
+                      padding: '6px',
+                      border: player2Hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: player2Hero === hero.id ? '#e3f2fd' : 'white',
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <img
+                      src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                      alt={hero.name}
+                      style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                    />
+                    <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
+                    <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

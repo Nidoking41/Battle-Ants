@@ -239,7 +239,11 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                           transition: 'all 0.2s'
                         }}
                       >
-                        <div style={{ fontSize: '32px', marginBottom: '4px' }}>{hero.icon}</div>
+                        <img
+                          src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                          alt={hero.name}
+                          style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        />
                         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
                         <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                       </div>
@@ -296,7 +300,11 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                           transition: 'all 0.2s'
                         }}
                       >
-                        <div style={{ fontSize: '32px', marginBottom: '4px' }}>{hero.icon}</div>
+                        <img
+                          src={`${process.env.PUBLIC_URL}/sprites/ants/${hero.portraitImage}`}
+                          alt={hero.name}
+                          style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        />
                         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
                         <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                       </div>
