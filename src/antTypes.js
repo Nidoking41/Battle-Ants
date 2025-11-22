@@ -162,7 +162,7 @@ export const AntTypes = {
     healAmount: 20,
     healEnergyCost: 15,
     ensnareRange: 3,
-    ensnareDuration: 2, // turns (changed from 3 to 2)
+    ensnareDuration: 3, // turns
     ensnareEnergyCost: 20,
     description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
     icon: '✨🐜'
