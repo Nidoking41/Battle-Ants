@@ -43,6 +43,7 @@ function App() {
   const [bombardierRotation, setBombardierRotation] = useState(0); // 0-5 for the 6 hex directions
   const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
   const [showHeroInfo, setShowHeroInfo] = useState(false); // Show hero info modal
+  const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
 
   // Store random hex colors for earthy terrain
   const [hexColors] = useState(() => {
@@ -111,6 +112,15 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedAction, bombardierTargetHex]);
+
+  // Cycle effect animation frames (ensnare, plague)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEffectAnimationFrame(prev => (prev + 1) % 8); // Cycle through 8 frames
+    }, 100); // 100ms per frame = ~10 FPS
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
@@ -3009,30 +3019,63 @@ function App() {
                       </text>
                     );
                   })()}
-                  {/* Ensnare indicator - green spider web */}
+                  {/* Ensnare indicator - animated sprite */}
                   {ant.ensnared && ant.ensnared > 0 && (
                     <g>
-                      <use href="#spiderWebPattern" style={{ pointerEvents: 'none' }}>
-                        <animateTransform
-                          attributeName="transform"
-                          type="rotate"
-                          from="0 0 0"
-                          to="360 0 0"
-                          dur="3s"
-                          repeatCount="indefinite"
-                        />
-                      </use>
+                      <image
+                        href="/sprites/ensnare_effect.png"
+                        x="-16"
+                        y="-16"
+                        width="32"
+                        height="32"
+                        style={{
+                          pointerEvents: 'none',
+                          clipPath: `inset(0 ${100 - (effectAnimationFrame + 1) * 12.5}% 0 ${effectAnimationFrame * 12.5}%)`
+                        }}
+                      />
                       {/* Ensnare duration text */}
                       <text
                         textAnchor="middle"
-                        x="12"
-                        y="12"
-                        fontSize="12"
+                        x="0"
+                        y="20"
+                        fontSize="10"
                         fill="#00FF00"
                         fontWeight="bold"
+                        stroke="#000"
+                        strokeWidth="0.5"
                         style={{ pointerEvents: 'none' }}
                       >
                         🕸️{ant.ensnared}
+                      </text>
+                    </g>
+                  )}
+                  {/* Plague indicator - animated sprite */}
+                  {ant.plagued && ant.plagued > 0 && (
+                    <g>
+                      <image
+                        href="/sprites/plague_effect.png"
+                        x="-16"
+                        y="-16"
+                        width="32"
+                        height="32"
+                        style={{
+                          pointerEvents: 'none',
+                          clipPath: `inset(0 ${100 - (effectAnimationFrame + 1) * 12.5}% 0 ${effectAnimationFrame * 12.5}%)`
+                        }}
+                      />
+                      {/* Plague duration text */}
+                      <text
+                        textAnchor="middle"
+                        x="0"
+                        y="20"
+                        fontSize="10"
+                        fill="#8e44ad"
+                        fontWeight="bold"
+                        stroke="#000"
+                        strokeWidth="0.5"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        ☠️{ant.plagued}
                       </text>
                     </g>
                   )}
