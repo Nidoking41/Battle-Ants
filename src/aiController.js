@@ -781,6 +781,13 @@ function moveUnitToward(gameState, unit, targetPos) {
 
   console.log(`moveUnitToward: ${unit.id} from (${unit.position.q}, ${unit.position.r}) toward (${targetPos.q}, ${targetPos.r})`);
 
+  // Check if unit is ensnared - if so, cannot move
+  if (unit.ensnared && unit.ensnared > 0) {
+    console.log(`Unit ${unit.id} is ensnared (${unit.ensnared} turns remaining), cannot move`);
+    state.ants[unit.id] = { ...unit, hasMoved: true };
+    return state;
+  }
+
   // Get valid movement range with paths (all ants and eggs block movement)
   const antType = AntTypes[unit.type.toUpperCase()];
   const gridRadius = state.gridRadius || 6;
