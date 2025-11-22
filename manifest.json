@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Ant Wars",
+  "name": "Ant Wars - Strategic Battle Game",
   "icons": [
     {
       "src": "favicon.ico",
