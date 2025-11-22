@@ -4022,7 +4022,7 @@ function App() {
                         opacity: isMyTurn() ? 1 : 0.6
                       }}
                     >
-                      🎯 Focus Fire (15)
+                      🎯 Focus Fire (A, 15)
                     </button>
                     <button
                       onClick={() => setSelectedAction('bombardier_splash')}
@@ -4056,7 +4056,7 @@ function App() {
                       fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
                     }}
                   >
-                    Attack
+                    Attack (A)
                   </button>
                 )}
                   {gameState.ants[selectedAnt].type === 'queen' && (
@@ -4089,7 +4089,7 @@ function App() {
                           fontWeight: selectedAction === 'heal' ? 'bold' : 'normal'
                         }}
                       >
-                        Heal (25⚡)
+                        Heal (H, 25⚡)
                       </button>
                       {gameState.players[gameState.currentPlayer].upgrades.reveal > 0 && (
                         <button
@@ -4219,7 +4219,7 @@ function App() {
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
               <h4>Select Ant Type to Lay</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
+                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'healer', 'tank', 'cordyphage']
                   .map(id => AntTypes[id.toUpperCase()])
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
