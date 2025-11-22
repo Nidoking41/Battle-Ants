@@ -324,6 +324,13 @@ function App() {
               setPendingEggType('drone');
               return;
             }
+            // Otherwise, detonate action (for bombers only)
+            if (ant && ant.type === 'bomber') {
+              console.log('Detonate hotkey triggered');
+              e.preventDefault();
+              setSelectedAction('detonate');
+              return;
+            }
             return;
           case 's':
             // If in layEgg mode, select scout
@@ -4108,7 +4115,7 @@ function App() {
                       opacity: isMyTurn() ? 1 : 0.6
                     }}
                   >
-                    💥 DETONATE (Suicide Attack) 💥
+                    💥 DETONATE (D) (Suicide Attack) 💥
                   </button>
                 ) : gameState.ants[selectedAnt].type === 'healer' ? (
                   <>
