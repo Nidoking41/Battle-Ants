@@ -3462,7 +3462,8 @@ function App() {
             border: '2px solid #333',
             display: 'inline-block',
             maxWidth: '100%',
-            maxHeight: 'calc(100vh - 80px)'
+            maxHeight: 'calc(100vh - 80px)',
+            overflow: 'hidden'
           }}>
             <svg
               width="1200"
