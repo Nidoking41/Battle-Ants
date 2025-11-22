@@ -42,6 +42,7 @@ function App() {
   const [movingAnt, setMovingAnt] = useState(null); // {antId, path, currentStep} for animating movement
   const [bombardierRotation, setBombardierRotation] = useState(0); // 0-5 for the 6 hex directions
   const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
+  const [showHeroInfo, setShowHeroInfo] = useState(false); // Show hero info modal
 
   // Store random hex colors for earthy terrain
   const [hexColors] = useState(() => {
@@ -4481,15 +4482,18 @@ function App() {
           boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
         }}>
           {/* Hero Portrait */}
-          <div style={{
-            width: '64px',
-            height: '64px',
-            border: '3px solid ' + (gameState.players[gameState.currentPlayer]?.color || '#fff'),
-            borderRadius: '8px',
-            overflow: 'hidden',
-            backgroundColor: '#1a252f',
-            flexShrink: 0
-          }}>
+          <div
+            onClick={() => setShowHeroInfo(true)}
+            style={{
+              width: '64px',
+              height: '64px',
+              border: '3px solid ' + (gameState.players[gameState.currentPlayer]?.color || '#fff'),
+              borderRadius: '8px',
+              overflow: 'hidden',
+              backgroundColor: '#1a252f',
+              flexShrink: 0,
+              cursor: 'pointer'
+            }}>
             <img
               src={`${process.env.PUBLIC_URL}/sprites/hero_${(() => {
                 const color = gameState.players[gameState.currentPlayer]?.color || '#FF0000';
@@ -4738,6 +4742,144 @@ function App() {
       )}
 
       {/* Help Guide Popup Modal */}
+      {/* Hero Info Modal */}
+      {showHeroInfo && gameState.players[gameState.currentPlayer]?.heroId && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}
+        onClick={() => setShowHeroInfo(false)}
+        >
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '10px',
+            maxWidth: '600px',
+            width: '100%',
+            padding: '30px',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowHeroInfo(false)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                width: '35px',
+                height: '35px',
+                borderRadius: '50%',
+                backgroundColor: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              ×
+            </button>
+
+            {(() => {
+              const { getHeroById } = require('./heroQueens');
+              const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+              if (!hero) return null;
+
+              return (
+                <>
+                  <h1 style={{ marginTop: 0, color: '#333', borderBottom: '3px solid #2196F3', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '36px' }}>{hero.icon}</span>
+                    {hero.name}
+                  </h1>
+
+                  <div style={{ marginBottom: '25px' }}>
+                    <p style={{ fontSize: '16px', color: '#555', fontStyle: 'italic' }}>
+                      {hero.description}
+                    </p>
+                  </div>
+
+                  {/* Passive Bonuses Section */}
+                  <section style={{ marginBottom: '25px' }}>
+                    <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Passive Bonuses</h2>
+                    <div style={{ backgroundColor: '#f0f0f0', padding: '15px', borderRadius: '8px' }}>
+                      {hero.bonuses.meleeAttackBonus && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Melee Attack:</strong> +{Math.round(hero.bonuses.meleeAttackBonus * 100)}%
+                        </p>
+                      )}
+                      {hero.bonuses.meleeHealthBonus && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Melee Health:</strong> +{hero.bonuses.meleeHealthBonus}
+                        </p>
+                      )}
+                      {hero.bonuses.rangedAttackBonus && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Ranged Attack:</strong> +{Math.round(hero.bonuses.rangedAttackBonus * 100)}%
+                        </p>
+                      )}
+                      {hero.bonuses.attackMultiplier && hero.bonuses.attackMultiplier !== 1 && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>All Units Attack:</strong> {hero.bonuses.attackMultiplier > 1 ? '+' : ''}{Math.round((hero.bonuses.attackMultiplier - 1) * 100)}%
+                        </p>
+                      )}
+                      {hero.bonuses.healthMultiplier && hero.bonuses.healthMultiplier !== 1 && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>All Units Health:</strong> {hero.bonuses.healthMultiplier > 1 ? '+' : ''}{Math.round((hero.bonuses.healthMultiplier - 1) * 100)}%
+                        </p>
+                      )}
+                      {hero.bonuses.costMultiplier && hero.bonuses.costMultiplier !== 1 && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Unit Cost:</strong> {hero.bonuses.costMultiplier < 1 ? '' : '+'}{Math.round((hero.bonuses.costMultiplier - 1) * 100)}% (units are {hero.bonuses.costMultiplier < 1 ? 'cheaper' : 'more expensive'})
+                        </p>
+                      )}
+                      {hero.bonuses.healCostMultiplier && hero.bonuses.healCostMultiplier !== 1 && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Healing Cost:</strong> {Math.round((1 - hero.bonuses.healCostMultiplier) * 100)}% cheaper
+                        </p>
+                      )}
+                      {hero.bonuses.spawningSpotBonus && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Spawning Spots:</strong> +{hero.bonuses.spawningSpotBonus} (starts with {2 + hero.bonuses.spawningSpotBonus})
+                        </p>
+                      )}
+                      {hero.bonuses.queenDoubleHeal && (
+                        <p style={{ margin: '5px 0' }}>
+                          <strong>Queen Healing:</strong> Can heal twice per turn
+                        </p>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* Hero Ability Section */}
+                  <section style={{ marginBottom: '25px' }}>
+                    <h2 style={{ color: '#f39c12', marginBottom: '10px' }}>Hero Ability</h2>
+                    <div style={{ backgroundColor: '#fff4e6', padding: '15px', borderRadius: '8px', border: '2px solid #f39c12' }}>
+                      <h3 style={{ margin: '0 0 10px 0', color: '#e67e22' }}>{hero.heroAbility.name}</h3>
+                      <p style={{ margin: '5px 0', color: '#555' }}>
+                        {hero.heroAbility.description}
+                      </p>
+                      <p style={{ margin: '10px 0 5px 0', fontSize: '14px', color: '#888' }}>
+                        <strong>Activation:</strong> Gain 100 hero power by dealing and taking damage, then activate for powerful effects!
+                      </p>
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {showHelpGuide && (
         <div style={{
           position: 'fixed',
