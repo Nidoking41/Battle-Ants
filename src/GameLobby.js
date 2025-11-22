@@ -162,10 +162,22 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     let newPlayer2Color;
     if (playerRole === 'player1') {
       // Player 1 is changing, check if they'll match player 2
-      newPlayer2Color = newHero === lobbyState.player2.hero ? alternativeColors[0] : heroColors[lobbyState.player2.hero];
+      if (newHero === lobbyState.player2.hero) {
+        // Find alternative sprite color
+        const player1Color = heroColors[newHero];
+        newPlayer2Color = availableColors.find(color => color !== player1Color) || availableColors[0];
+      } else {
+        newPlayer2Color = heroColors[lobbyState.player2.hero];
+      }
     } else {
       // Player 2 is changing, check if they'll match player 1
-      newPlayer2Color = newHero === lobbyState.player1.hero ? alternativeColors[0] : heroColors[newHero];
+      if (newHero === lobbyState.player1.hero) {
+        // Find alternative sprite color
+        const player1Color = heroColors[lobbyState.player1.hero];
+        newPlayer2Color = availableColors.find(color => color !== player1Color) || availableColors[0];
+      } else {
+        newPlayer2Color = heroColors[newHero];
+      }
     }
 
     update(lobbyRef, {
