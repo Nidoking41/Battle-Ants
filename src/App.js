@@ -1433,30 +1433,35 @@ function App() {
 
     // If healing (Queen only)
     if (selectedAction === 'heal' && selectedAnt) {
-      const queen = currentState.ants[selectedAnt];
+      const healer = currentState.ants[selectedAnt];
 
-      // Check if it's a queen
-      if (queen.type !== 'queen') {
-        alert('Only queens can heal!');
+      // Check if it's a queen or healer
+      if (healer.type !== 'queen' && healer.type !== 'healer') {
+        alert('Only queens and healers can heal!');
         setSelectedAction(null);
         return;
       }
 
-      // Check if queen has already attacked (healing is a terminal action)
-      if (queen.hasAttacked) {
-        alert('This queen has already used a terminal action this turn!');
+      // Check if unit has already attacked (healing is a terminal action)
+      if (healer.hasAttacked) {
+        alert('This unit has already used a terminal action this turn!');
         return;
       }
 
+      // Get the appropriate heal energy cost
+      const healEnergyCost = healer.type === 'healer'
+        ? AntTypes.HEALER.healEnergyCost
+        : GameConstants.HEAL_ENERGY_COST;
+
       // Check energy
-      if (!hasEnoughEnergy(queen, GameConstants.HEAL_ENERGY_COST)) {
-        alert(`Not enough energy! Need ${GameConstants.HEAL_ENERGY_COST} energy to heal.`);
+      if (!hasEnoughEnergy(healer, healEnergyCost)) {
+        alert(`Not enough energy! Need ${healEnergyCost} energy to heal.`);
         return;
       }
 
       // Find if there's a friendly unit at the clicked hex
       const friendlyAtHex = Object.values(currentState.ants).find(
-        a => hexEquals(a.position, hex) && a.owner === queen.owner
+        a => hexEquals(a.position, hex) && a.owner === healer.owner
       );
 
       if (!friendlyAtHex) {
@@ -1470,15 +1475,16 @@ function App() {
         return;
       }
 
-      // Check if within heal range (queen's attack range)
-      const antType = AntTypes[queen.type.toUpperCase()];
+      // Check if within heal range
+      const antType = AntTypes[healer.type.toUpperCase()];
+      const healRange = healer.type === 'healer' ? antType.healRange : antType.attackRange;
       const distance = Math.max(
-        Math.abs(queen.position.q - friendlyAtHex.position.q),
-        Math.abs(queen.position.r - friendlyAtHex.position.r),
-        Math.abs((-queen.position.q - queen.position.r) - (-friendlyAtHex.position.q - friendlyAtHex.position.r))
+        Math.abs(healer.position.q - friendlyAtHex.position.q),
+        Math.abs(healer.position.r - friendlyAtHex.position.r),
+        Math.abs((-healer.position.q - healer.position.r) - (-friendlyAtHex.position.q - friendlyAtHex.position.r))
       );
 
-      if (distance > antType.attackRange) {
+      if (distance > healRange) {
         alert('Target is out of heal range!');
         return;
       }
@@ -1487,7 +1493,9 @@ function App() {
       const newState = healAnt(currentState, selectedAnt, friendlyAtHex.id);
 
       // Show heal animation (green +HP number)
-      const healAmount = Math.min(GameConstants.HEAL_AMOUNT, friendlyAtHex.maxHealth - friendlyAtHex.health);
+      const healAmount = healer.type === 'healer'
+        ? Math.min(AntTypes.HEALER.healAmount, friendlyAtHex.maxHealth - friendlyAtHex.health)
+        : Math.min(GameConstants.HEAL_AMOUNT, friendlyAtHex.maxHealth - friendlyAtHex.health);
       showResourceGain(healAmount, 'heal', friendlyAtHex.position); // Reuse resource gain animation
 
       updateGame(newState);

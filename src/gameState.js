@@ -993,33 +993,40 @@ export function getEggLayCost(queen) {
 }
 
 // Heal an ant with queen's heal ability
-export function healAnt(gameState, queenId, targetId) {
-  const queen = gameState.ants[queenId];
+export function healAnt(gameState, healerId, targetId) {
+  const healer = gameState.ants[healerId];
   const target = gameState.ants[targetId];
 
-  if (!queen || !target) return gameState;
-  if (queen.type !== 'queen') return gameState;
+  if (!healer || !target) return gameState;
+  if (healer.type !== 'queen' && healer.type !== 'healer') return gameState;
 
-  // Apply hero heal cost modifier
-  const currentPlayer = gameState.players[queen.owner];
+  // Get heal amount and cost based on healer type
+  const isHealer = healer.type === 'healer';
+  const healAmount = isHealer ? AntTypes.HEALER.healAmount : GameConstants.HEAL_AMOUNT;
+
+  // Apply hero heal cost modifier for queens
+  const currentPlayer = gameState.players[healer.owner];
   const { getHealEnergyCost, canQueenHealTwice } = require('./heroQueens');
-  const healCost = getHealEnergyCost(GameConstants.HEAL_ENERGY_COST, currentPlayer?.heroId);
+  const baseHealCost = isHealer ? AntTypes.HEALER.healEnergyCost : GameConstants.HEAL_ENERGY_COST;
+  const healCost = healer.type === 'queen'
+    ? getHealEnergyCost(baseHealCost, currentPlayer?.heroId)
+    : baseHealCost;
 
-  if (!hasEnoughEnergy(queen, healCost)) return gameState;
+  if (!hasEnoughEnergy(healer, healCost)) return gameState;
 
   // Can't heal enemy ants
-  if (queen.owner !== target.owner) return gameState;
+  if (healer.owner !== target.owner) return gameState;
 
   // Calculate new health (can't exceed max health)
-  const newHealth = Math.min(target.maxHealth, target.health + GameConstants.HEAL_AMOUNT);
+  const newHealth = Math.min(target.maxHealth, target.health + healAmount);
 
-  // Check if queen can heal twice (Vexxara bonus)
-  const doubleHealAllowed = canQueenHealTwice(currentPlayer?.heroId);
-  const hasHealedOnce = queen.hasHealed === true;
-  const hasHealedTwice = queen.healCount >= 2;
+  // Check if queen can heal twice (Vexxara bonus) - only applies to queens
+  const doubleHealAllowed = healer.type === 'queen' && canQueenHealTwice(currentPlayer?.heroId);
+  const hasHealedOnce = healer.hasHealed === true;
+  const hasHealedTwice = healer.healCount >= 2;
 
   // Prevent healing if already used terminal action or maxed out heals
-  if (queen.hasAttacked && !doubleHealAllowed) return gameState;
+  if (healer.hasAttacked && !doubleHealAllowed) return gameState;
   if (doubleHealAllowed && hasHealedTwice) return gameState;
 
   // Healing removes plague and ensnare conditions
@@ -1035,11 +1042,11 @@ export function healAnt(gameState, queenId, targetId) {
     ...gameState,
     ants: {
       ...gameState.ants,
-      [queenId]: {
-        ...deductEnergy(queen, healCost),
-        hasAttacked: doubleHealAllowed ? (hasHealedOnce ? true : queen.hasAttacked) : true, // Terminal after first heal (normal) or second heal (Vexxara)
+      [healerId]: {
+        ...deductEnergy(healer, healCost),
+        hasAttacked: doubleHealAllowed ? (hasHealedOnce ? true : healer.hasAttacked) : true, // Terminal after first heal (normal) or second heal (Vexxara)
         hasHealed: true,
-        healCount: (queen.healCount || 0) + 1
+        healCount: (healer.healCount || 0) + 1
       },
       [targetId]: cleansedTarget
     }
