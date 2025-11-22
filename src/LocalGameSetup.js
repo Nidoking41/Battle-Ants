@@ -15,6 +15,18 @@ function LocalGameSetup({ onStartGame, onBack }) {
     'vexxara': '#000000'    // Black
   };
 
+  // Available alternative colors if same hero is selected
+  const alternativeColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+
+  // Get actual color for player 2, handling duplicate hero selection
+  const getPlayer2Color = () => {
+    if (player1Hero === player2Hero) {
+      // Same hero selected, use an alternative color
+      return alternativeColors[0]; // Use first alternative
+    }
+    return heroColors[player2Hero];
+  };
+
   // Hero options
   const heroOptions = Object.values(HeroQueens);
 
@@ -33,7 +45,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
       isMultiplayer: false,
       mapSize,
       player1Color: heroColors[player1Hero],
-      player2Color: heroColors[player2Hero],
+      player2Color: getPlayer2Color(),
       player1Hero: player1Hero,
       player2Hero: player2Hero
     });
@@ -125,10 +137,10 @@ function LocalGameSetup({ onStartGame, onBack }) {
               <div style={{
                 width: '24px',
                 height: '24px',
-                backgroundColor: heroColors[player2Hero],
+                backgroundColor: getPlayer2Color(),
                 border: '2px solid #2c3e50',
                 borderRadius: '50%'
-              }} title={`Color: ${heroColors[player2Hero]}`} />
+              }} title={`Color: ${getPlayer2Color()}`} />
             </h3>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Hero:</label>

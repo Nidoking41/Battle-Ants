@@ -18,6 +18,18 @@ function AIGameSetup({ onStartGame, onBack }) {
     'vexxara': '#000000'    // Black
   };
 
+  // Available alternative colors if same hero is selected
+  const alternativeColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+
+  // Get actual color for player 2/AI, handling duplicate hero selection
+  const getPlayer2Color = () => {
+    if (playerHero === aiHero) {
+      // Same hero selected, use an alternative color
+      return alternativeColors[0]; // Use first alternative
+    }
+    return heroColors[aiHero];
+  };
+
   // Hero options
   const heroOptions = Object.values(HeroQueens);
 
@@ -46,7 +58,7 @@ function AIGameSetup({ onStartGame, onBack }) {
       fogOfWar: fogOfWar,
       mapSize,
       player1Color: heroColors[playerHero],
-      player2Color: heroColors[aiHero],
+      player2Color: getPlayer2Color(),
       player1Hero: playerHero,
       player2Hero: aiHero
     });
@@ -256,10 +268,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                 <div style={{
                   width: '24px',
                   height: '24px',
-                  backgroundColor: heroColors[aiHero],
+                  backgroundColor: getPlayer2Color(),
                   border: '2px solid #2c3e50',
                   borderRadius: '50%'
-                }} title={`Color: ${heroColors[aiHero]}`} />
+                }} title={`Color: ${getPlayer2Color()}`} />
               </h3>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose AI Hero:</label>

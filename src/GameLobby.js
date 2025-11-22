@@ -30,6 +30,18 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     'vexxara': '#000000'    // Black
   };
 
+  // Available alternative colors if same hero is selected
+  const alternativeColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+
+  // Get actual color for player 2, handling duplicate hero selection
+  const getPlayer2Color = () => {
+    if (lobbyState.player1.hero === lobbyState.player2.hero) {
+      // Same hero selected, use an alternative color
+      return alternativeColors[0]; // Use first alternative
+    }
+    return heroColors[lobbyState.player2.hero];
+  };
+
   // Hero options
   const heroOptions = Object.values(HeroQueens);
 
@@ -112,6 +124,11 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
 
         // If game started, transition to game
         if (data.gameStarted) {
+          // Calculate the correct player 2 color
+          const actualPlayer2Color = data.player1.hero === data.player2.hero
+            ? alternativeColors[0]
+            : heroColors[data.player2.hero];
+
           onStartGame({
             gameId: roomCode,
             playerId,
@@ -120,7 +137,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             mapSize: data.mapSize,
             fogOfWar: data.fogOfWar !== undefined ? data.fogOfWar : true,
             player1Color: data.player1.color,
-            player2Color: data.player2.color,
+            player2Color: actualPlayer2Color,
             player1Hero: data.player1.hero,
             player2Hero: data.player2.hero
           });
@@ -133,9 +150,22 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
 
   const handleHeroChange = (newHero) => {
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
+
+    // Determine the new player 2 color based on hero selection
+    let newPlayer2Color;
+    if (playerRole === 'player1') {
+      // Player 1 is changing, check if they'll match player 2
+      newPlayer2Color = newHero === lobbyState.player2.hero ? alternativeColors[0] : heroColors[lobbyState.player2.hero];
+    } else {
+      // Player 2 is changing, check if they'll match player 1
+      newPlayer2Color = newHero === lobbyState.player1.hero ? alternativeColors[0] : heroColors[newHero];
+    }
+
     update(lobbyRef, {
       [`${playerRole}/hero`]: newHero,
-      [`${playerRole}/color`]: heroColors[newHero]
+      [`${playerRole}/color`]: playerRole === 'player1' ? heroColors[newHero] : newPlayer2Color,
+      // Also update player 2's color if player 1 changes hero
+      ...(playerRole === 'player1' && { 'player2/color': newPlayer2Color })
     });
   };
 
@@ -274,10 +304,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
               <div style={{
                 width: '20px',
                 height: '20px',
-                backgroundColor: heroColors[lobbyState.player2.hero],
+                backgroundColor: getPlayer2Color(),
                 border: '2px solid #2c3e50',
                 borderRadius: '50%'
-              }} title={`Color: ${heroColors[lobbyState.player2.hero]}`} />
+              }} title={`Color: ${getPlayer2Color()}`} />
             </h3>
             {lobbyState.player2.id ? (
               <>
