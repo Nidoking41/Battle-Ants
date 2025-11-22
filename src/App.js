@@ -4528,7 +4528,7 @@ function App() {
 
           {/* Hero Power Bar and Button */}
           <div style={{ minWidth: '250px' }}>
-            <div style={{ marginBottom: '6px', color: '#ecf0f1', fontSize: '13px', fontWeight: 'bold' }}>
+            <div style={{ marginBottom: '6px', color: '#ecf0f1', fontSize: '18px', fontWeight: 'bold' }}>
               {(() => {
                 const { getHeroById } = require('./heroQueens');
                 const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
