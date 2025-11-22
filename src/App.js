@@ -342,7 +342,7 @@ function App() {
               return;
             }
             return;
-          case 't':
+          case 'b':
             // If in layEgg mode, select tank (bullet ant)
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Tank egg type selected');
@@ -351,8 +351,9 @@ function App() {
               return;
             }
             return;
-          case 'i':
+          case 'a':
             // If in layEgg mode, select spitter (acid ant)
+            // Note: This conflicts with attack hotkey, but layEgg mode takes priority
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Spitter egg type selected');
               e.preventDefault();
@@ -369,7 +370,7 @@ function App() {
               return;
             }
             return;
-          case 'o':
+          case 'r':
             // If in layEgg mode, select bombardier
             if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
               console.log('Bombardier egg type selected');
