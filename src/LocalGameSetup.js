@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
+import { HeroQueens } from './heroQueens';
 
 function LocalGameSetup({ onStartGame, onBack }) {
-  const [player1Color, setPlayer1Color] = useState('#FF0000');
-  const [player2Color, setPlayer2Color] = useState('#0000FF');
   const [mapSize, setMapSize] = useState('large');
+  const [player1Hero, setPlayer1Hero] = useState('gorlak');
+  const [player2Hero, setPlayer2Hero] = useState('sorlorg');
 
-  // Color options (only colors with sprite variants)
-  const colorOptions = [
-    { name: 'Red', value: '#FF0000' },
-    { name: 'Blue', value: '#0000FF' },
-    { name: 'Green', value: '#00FF00' },
-    { name: 'Yellow', value: '#FFFF00' }
-  ];
+  // Hero to color mapping
+  const heroColors = {
+    'gorlak': '#FF0000',    // Red
+    'sorlorg': '#00FF00',   // Green
+    'skrazzit': '#0000FF',  // Blue
+    'thorgrim': '#FFFF00',  // Yellow
+    'vexxara': '#000000'    // Black
+  };
+
+  // Hero options
+  const heroOptions = Object.values(HeroQueens);
 
   // Map size options
   const mapSizeOptions = [
@@ -27,8 +32,10 @@ function LocalGameSetup({ onStartGame, onBack }) {
       playerRole: 'player1',
       isMultiplayer: false,
       mapSize,
-      player1Color,
-      player2Color
+      player1Color: heroColors[player1Hero],
+      player2Color: heroColors[player2Hero],
+      player1Hero: player1Hero,
+      player2Hero: player2Hero
     });
   };
 
@@ -64,42 +71,40 @@ function LocalGameSetup({ onStartGame, onBack }) {
             borderRadius: '8px',
             border: '3px solid #e74c3c'
           }}>
-            <h3 style={{ marginBottom: '15px' }}>
+            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               👤 Player 1 (South)
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: heroColors[player1Hero],
+                border: '2px solid #2c3e50',
+                borderRadius: '50%'
+              }} title={`Color: ${heroColors[player1Hero]}`} />
             </h3>
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {colorOptions.map(color => (
-                  <button
-                    key={color.value}
-                    onClick={() => setPlayer1Color(color.value)}
-                    disabled={player2Color === color.value}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: color.value,
-                      border: player1Color === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                      borderRadius: '50%',
-                      cursor: player2Color !== color.value ? 'pointer' : 'not-allowed',
-                      opacity: player2Color === color.value ? 0.3 : 1
-                    }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            <div style={{
-              marginTop: '15px',
-              padding: '10px',
-              backgroundColor: player1Color,
-              borderRadius: '5px',
-              textAlign: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-            }}>
-              Preview
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Hero:</label>
+              {heroOptions.map(hero => (
+                <button
+                  key={hero.id}
+                  onClick={() => setPlayer1Hero(hero.id)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    marginBottom: '5px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    backgroundColor: player1Hero === hero.id ? '#e74c3c' : 'white',
+                    color: player1Hero === hero.id ? 'white' : '#2c3e50',
+                    border: '2px solid #e74c3c',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span>{hero.icon} {hero.name}</span>
+                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -111,42 +116,40 @@ function LocalGameSetup({ onStartGame, onBack }) {
             borderRadius: '8px',
             border: '3px solid #3498db'
           }}>
-            <h3 style={{ marginBottom: '15px' }}>
+            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               👤 Player 2 (North)
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: heroColors[player2Hero],
+                border: '2px solid #2c3e50',
+                borderRadius: '50%'
+              }} title={`Color: ${heroColors[player2Hero]}`} />
             </h3>
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {colorOptions.map(color => (
-                  <button
-                    key={color.value}
-                    onClick={() => setPlayer2Color(color.value)}
-                    disabled={player1Color === color.value}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: color.value,
-                      border: player2Color === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                      borderRadius: '50%',
-                      cursor: player1Color !== color.value ? 'pointer' : 'not-allowed',
-                      opacity: player1Color === color.value ? 0.3 : 1
-                    }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            <div style={{
-              marginTop: '15px',
-              padding: '10px',
-              backgroundColor: player2Color,
-              borderRadius: '5px',
-              textAlign: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-            }}>
-              Preview
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Hero:</label>
+              {heroOptions.map(hero => (
+                <button
+                  key={hero.id}
+                  onClick={() => setPlayer2Hero(hero.id)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    marginBottom: '5px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    backgroundColor: player2Hero === hero.id ? '#3498db' : 'white',
+                    color: player2Hero === hero.id ? 'white' : '#2c3e50',
+                    border: '2px solid #3498db',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span>{hero.icon} {hero.name}</span>
+                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

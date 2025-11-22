@@ -3,24 +3,23 @@ import { AIDifficulty } from './aiController';
 import { HeroQueens } from './heroQueens';
 
 function AIGameSetup({ onStartGame, onBack }) {
-  const [playerColor, setPlayerColor] = useState('#FF0000');
-  const [aiColor, setAIColor] = useState('#0000FF');
   const [mapSize, setMapSize] = useState('large');
   const [difficulty, setDifficulty] = useState(AIDifficulty.EASY);
   const [fogOfWar, setFogOfWar] = useState(true);
   const [playerHero, setPlayerHero] = useState('gorlak');
   const [aiHero, setAiHero] = useState('sorlorg');
 
+  // Hero to color mapping
+  const heroColors = {
+    'gorlak': '#FF0000',    // Red
+    'sorlorg': '#00FF00',   // Green
+    'skrazzit': '#0000FF',  // Blue
+    'thorgrim': '#FFFF00',  // Yellow
+    'vexxara': '#000000'    // Black
+  };
+
   // Hero options
   const heroOptions = Object.values(HeroQueens);
-
-  // Color options (only colors with sprite variants)
-  const colorOptions = [
-    { name: 'Red', value: '#FF0000' },
-    { name: 'Blue', value: '#0000FF' },
-    { name: 'Green', value: '#00FF00' },
-    { name: 'Yellow', value: '#FFFF00' }
-  ];
 
   // Map size options
   const mapSizeOptions = [
@@ -46,8 +45,8 @@ function AIGameSetup({ onStartGame, onBack }) {
       aiDifficulty: difficulty,
       fogOfWar: fogOfWar,
       mapSize,
-      player1Color: playerColor,
-      player2Color: aiColor,
+      player1Color: heroColors[playerHero],
+      player2Color: heroColors[aiHero],
       player1Hero: playerHero,
       player2Hero: aiHero
     });
@@ -89,33 +88,18 @@ function AIGameSetup({ onStartGame, onBack }) {
               borderRadius: '8px',
               border: '3px solid #3498db'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 👤 You (South)
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: heroColors[playerHero],
+                  border: '2px solid #2c3e50',
+                  borderRadius: '50%'
+                }} title={`Color: ${heroColors[playerHero]}`} />
               </h3>
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {colorOptions.map(color => (
-                    <button
-                      key={color.value}
-                      onClick={() => setPlayerColor(color.value)}
-                      disabled={aiColor === color.value}
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        backgroundColor: color.value,
-                        border: playerColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                        borderRadius: '50%',
-                        cursor: aiColor !== color.value ? 'pointer' : 'not-allowed',
-                        opacity: aiColor === color.value ? 0.3 : 1
-                      }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-              </div>
               <div style={{ marginTop: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
                 {heroOptions.map(hero => (
                   <button
                     key={hero.id}
@@ -221,33 +205,18 @@ function AIGameSetup({ onStartGame, onBack }) {
               borderRadius: '8px',
               border: '3px solid #e74c3c'
             }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 🤖 AI (North)
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: heroColors[aiHero],
+                  border: '2px solid #2c3e50',
+                  borderRadius: '50%'
+                }} title={`Color: ${heroColors[aiHero]}`} />
               </h3>
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {colorOptions.map(color => (
-                    <button
-                      key={color.value}
-                      onClick={() => setAIColor(color.value)}
-                      disabled={playerColor === color.value}
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        backgroundColor: color.value,
-                        border: aiColor === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                        borderRadius: '50%',
-                        cursor: playerColor !== color.value ? 'pointer' : 'not-allowed',
-                        opacity: playerColor === color.value ? 0.3 : 1
-                      }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-              </div>
               <div style={{ marginTop: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose AI Hero:</label>
                 {heroOptions.map(hero => (
                   <button
                     key={hero.id}
