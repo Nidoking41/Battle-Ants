@@ -6,7 +6,9 @@ export function createInitialGameState(options = {}) {
   const {
     mapSize = 'large', // 'small', 'medium', 'large'
     player1Color = '#FF0000',
-    player2Color = '#0000FF'
+    player2Color = '#0000FF',
+    player1Hero = null,
+    player2Hero = null
   } = options;
 
   // Map size to grid radius
@@ -28,24 +30,32 @@ export function createInitialGameState(options = {}) {
         name: 'Player 1',
         resources: { ...GameConstants.STARTING_RESOURCES },
         color: player1Color,
+        heroId: player1Hero,
         upgrades: {
           meleeAttack: 0,
           rangedAttack: 0,
           defense: 0,
           cannibalism: 0
-        }
+        },
+        heroPower: 0, // Hero power bar (0-100)
+        heroAbilityActive: false, // Whether hero ability is currently active
+        heroAbilityEndsOnTurn: null // Track when hero ability ends (for Thorgrim)
       },
       player2: {
         id: 'player2',
         name: 'Player 2',
         resources: { ...GameConstants.STARTING_RESOURCES },
         color: player2Color,
+        heroId: player2Hero,
         upgrades: {
           meleeAttack: 0,
           rangedAttack: 0,
           defense: 0,
           cannibalism: 0
-        }
+        },
+        heroPower: 0, // Hero power bar (0-100)
+        heroAbilityActive: false, // Whether hero ability is currently active
+        heroAbilityEndsOnTurn: null // Track when hero ability ends (for Thorgrim)
       }
     },
     ants: {
@@ -126,6 +136,7 @@ export function createInitialGameState(options = {}) {
       }
     },
     eggs: {},
+    deadAnts: {}, // Dead ants that persist for 2 seconds
     resources: generateResourceNodes(gridRadius),
     anthills: {}, // Anthills built on resource nodes
     selectedAnt: null,
@@ -291,10 +302,23 @@ export function respawnResource(gameState, resourceType, isNorthSide) {
 }
 
 // Create a new ant instance
-export function createAnt(type, owner, position) {
+export function createAnt(type, owner, position, heroId = null) {
   const antType = AntTypes[type.toUpperCase()];
   if (!antType) {
     throw new Error(`Unknown ant type: ${type}`);
+  }
+
+  let health = antType.maxHealth;
+  let maxHealth = antType.maxHealth;
+  let attack = antType.attack;
+
+  // Apply hero bonuses if heroId is provided
+  if (heroId) {
+    const { applyHeroBonuses } = require('./heroQueens');
+    const bonusedStats = applyHeroBonuses({ health, maxHealth, attack }, type.toLowerCase(), heroId);
+    health = bonusedStats.health;
+    maxHealth = bonusedStats.maxHealth;
+    attack = bonusedStats.attack;
   }
 
   const ant = {
@@ -302,10 +326,15 @@ export function createAnt(type, owner, position) {
     type: antType.id,
     owner,
     position,
-    health: antType.maxHealth,
-    maxHealth: antType.maxHealth,
+    health,
+    maxHealth,
     hasMoved: false
   };
+
+  // Store bonus attack if different from base
+  if (attack !== antType.attack) {
+    ant.bonusAttack = attack - antType.attack;
+  }
 
   // Add energy system for units that have it (like healers)
   if (antType.maxEnergy) {
@@ -364,18 +393,34 @@ export function completeAnthill(anthill) {
 // Check if player can afford an ant
 export function canAfford(player, antType) {
   const type = AntTypes[antType.toUpperCase()];
-  return player.resources.food >= type.cost.food &&
-         player.resources.minerals >= type.cost.minerals;
+  let cost = type.cost;
+
+  // Apply hero cost modifier if player has a hero
+  if (player.heroId) {
+    const { applyHeroCostModifier } = require('./heroQueens');
+    cost = applyHeroCostModifier(cost, player.heroId);
+  }
+
+  return player.resources.food >= cost.food &&
+         player.resources.minerals >= cost.minerals;
 }
 
 // Deduct cost from player resources
 export function deductCost(player, antType) {
   const type = AntTypes[antType.toUpperCase()];
+  let cost = type.cost;
+
+  // Apply hero cost modifier if player has a hero
+  if (player.heroId) {
+    const { applyHeroCostModifier } = require('./heroQueens');
+    cost = applyHeroCostModifier(cost, player.heroId);
+  }
+
   return {
     ...player,
     resources: {
-      food: player.resources.food - type.cost.food,
-      minerals: player.resources.minerals - type.cost.minerals
+      food: player.resources.food - cost.food,
+      minerals: player.resources.minerals - cost.minerals
     }
   };
 }
@@ -391,8 +436,9 @@ export function endTurn(gameState) {
 
   Object.values(gameState.eggs).forEach(egg => {
     if (isNewRound && egg.hatchTurn <= gameState.turn) {
-      // Egg hatches
-      const newAnt = createAnt(egg.antType, egg.owner, egg.position);
+      // Egg hatches - pass hero ID from player state
+      const heroId = gameState.players[egg.owner]?.heroId || null;
+      const newAnt = createAnt(egg.antType, egg.owner, egg.position, heroId);
       newAnts[newAnt.id] = newAnt;
     } else {
       remainingEggs[egg.id] = egg;
@@ -514,10 +560,15 @@ export function endTurn(gameState) {
         updates.energy = newEnergy;
       }
 
-      // Regenerate energy for healers at the start of their turn
+      // Regenerate energy for healers and cordyphages at the start of their turn
       if (ant.type === 'healer' && ant.maxEnergy) {
         const healerType = AntTypes.HEALER;
         const newEnergy = Math.min(ant.maxEnergy, (ant.energy || 0) + healerType.energyRegen);
+        updates.energy = newEnergy;
+      }
+      if (ant.type === 'cordyphage' && ant.maxEnergy) {
+        const cordyphageType = AntTypes.CORDYPHAGE;
+        const newEnergy = Math.min(ant.maxEnergy, (ant.energy || 0) + cordyphageType.energyRegen);
         updates.energy = newEnergy;
       }
 
@@ -526,6 +577,19 @@ export function endTurn(gameState) {
         updates.ensnared = ant.ensnared - 1;
         if (updates.ensnared <= 0) {
           delete updates.ensnared;
+        }
+      }
+
+      // Apply plague damage and decrease duration
+      if (ant.plagued && ant.plagued > 0) {
+        const cordyphageType = AntTypes.CORDYPHAGE;
+        const plagueDamage = Math.ceil(ant.maxHealth * cordyphageType.plagueHealthLoss);
+        updates.health = Math.max(1, updates.health - plagueDamage); // Min 1 health
+
+        // Decrease plague duration
+        updates.plagued = ant.plagued - 1;
+        if (updates.plagued <= 0) {
+          delete updates.plagued;
         }
       }
 
@@ -548,6 +612,35 @@ export function endTurn(gameState) {
       };
     }
   });
+
+  // Gain hero power at the start of each turn (10 points per turn)
+  const currentPlayerData = updatedPlayers[gameState.currentPlayer];
+  if (currentPlayerData && currentPlayerData.heroPower < 100) {
+    updatedPlayers[gameState.currentPlayer] = {
+      ...currentPlayerData,
+      heroPower: Math.min(100, currentPlayerData.heroPower + 10)
+    };
+  }
+
+  // Deactivate hero ability if it was active only for one turn (Gorlak, Sorlorg, Vexxara, Skrazzit)
+  // Thorgrim's ability lasts until next turn
+  if (currentPlayerData && currentPlayerData.heroAbilityActive) {
+    const heroId = currentPlayerData.heroId;
+    if (heroId !== 'thorgrim') {
+      // Deactivate for non-Thorgrim heroes
+      updatedPlayers[gameState.currentPlayer] = {
+        ...updatedPlayers[gameState.currentPlayer],
+        heroAbilityActive: false
+      };
+    } else if (currentPlayerData.heroAbilityEndsOnTurn === gameState.turn) {
+      // Deactivate Thorgrim's ability when it expires
+      updatedPlayers[gameState.currentPlayer] = {
+        ...updatedPlayers[gameState.currentPlayer],
+        heroAbilityActive: false,
+        heroAbilityEndsOnTurn: null
+      };
+    }
+  }
 
   return {
     gameState: {
@@ -740,6 +833,11 @@ export function getAntAttack(ant, player) {
   const antType = AntTypes[ant.type.toUpperCase()];
   let attack = antType.attack;
 
+  // Apply hero bonus attack (stored when ant was created)
+  if (ant.bonusAttack) {
+    attack += ant.bonusAttack;
+  }
+
   // Apply melee attack upgrade (for attackRange <= 1)
   // Each tier adds +10% (rounded down, minimum +1 per tier)
   if (antType.attackRange <= 1) {
@@ -813,7 +911,13 @@ export function healAnt(gameState, queenId, targetId) {
 
   if (!queen || !target) return gameState;
   if (queen.type !== 'queen') return gameState;
-  if (!hasEnoughEnergy(queen, GameConstants.HEAL_ENERGY_COST)) return gameState;
+
+  // Apply hero heal cost modifier
+  const currentPlayer = gameState.players[queen.owner];
+  const { getHealEnergyCost, canQueenHealTwice } = require('./heroQueens');
+  const healCost = getHealEnergyCost(GameConstants.HEAL_ENERGY_COST, currentPlayer?.heroId);
+
+  if (!hasEnoughEnergy(queen, healCost)) return gameState;
 
   // Can't heal enemy ants
   if (queen.owner !== target.owner) return gameState;
@@ -821,19 +925,35 @@ export function healAnt(gameState, queenId, targetId) {
   // Calculate new health (can't exceed max health)
   const newHealth = Math.min(target.maxHealth, target.health + GameConstants.HEAL_AMOUNT);
 
+  // Check if queen can heal twice (Vexxara bonus)
+  const doubleHealAllowed = canQueenHealTwice(currentPlayer?.heroId);
+  const hasHealedOnce = queen.hasHealed === true;
+  const hasHealedTwice = queen.healCount >= 2;
+
+  // Prevent healing if already used terminal action or maxed out heals
+  if (queen.hasAttacked && !doubleHealAllowed) return gameState;
+  if (doubleHealAllowed && hasHealedTwice) return gameState;
+
+  // Healing removes plague and ensnare conditions
+  const cleansedTarget = {
+    ...target,
+    health: newHealth,
+    plagued: undefined,
+    ensnared: undefined
+  };
+
   // Update game state
   return {
     ...gameState,
     ants: {
       ...gameState.ants,
       [queenId]: {
-        ...deductEnergy(queen, GameConstants.HEAL_ENERGY_COST),
-        hasAttacked: true // Healing is a terminal action
+        ...deductEnergy(queen, healCost),
+        hasAttacked: doubleHealAllowed ? (hasHealedOnce ? true : queen.hasAttacked) : true, // Terminal after first heal (normal) or second heal (Vexxara)
+        hasHealed: true,
+        healCount: (queen.healCount || 0) + 1
       },
-      [targetId]: {
-        ...target,
-        health: newHealth
-      }
+      [targetId]: cleansedTarget
     }
   };
 }
@@ -1112,8 +1232,13 @@ export function healAlly(gameState, healerId, targetId) {
 
   const healerType = AntTypes.HEALER;
 
+  // Apply hero heal cost modifier
+  const currentPlayer = gameState.players[healer.owner];
+  const { getHealEnergyCost } = require('./heroQueens');
+  const healCost = getHealEnergyCost(healerType.healEnergyCost, currentPlayer?.heroId);
+
   // Check energy cost
-  if ((healer.energy || 0) < healerType.healEnergyCost) return gameState;
+  if ((healer.energy || 0) < healCost) return gameState;
 
   // Check range
   const distance = Math.max(
@@ -1126,19 +1251,24 @@ export function healAlly(gameState, healerId, targetId) {
   // Apply healing
   const newHealth = Math.min(target.maxHealth, target.health + healerType.healAmount);
 
+  // Healing removes plague and ensnare conditions
+  const cleansedTarget = {
+    ...target,
+    health: newHealth,
+    plagued: undefined,
+    ensnared: undefined
+  };
+
   return {
     ...gameState,
     ants: {
       ...gameState.ants,
       [healerId]: {
         ...healer,
-        energy: healer.energy - healerType.healEnergyCost,
+        energy: healer.energy - healCost,
         hasAttacked: true // Using heal counts as an action
       },
-      [targetId]: {
-        ...target,
-        health: newHealth
-      }
+      [targetId]: cleansedTarget
     }
   };
 }
@@ -1184,46 +1314,46 @@ export function ensnareEnemy(gameState, healerId, targetId) {
   };
 }
 
-// Mind control an enemy unit (Cordyceps Purge)
-export function cordycepsPurge(gameState, healerId, targetId) {
-  const healer = gameState.ants[healerId];
+// Mind control an enemy unit (Cordyceps Purge) - Cordyphage ability
+export function cordycepsPurge(gameState, cordyphageId, targetId) {
+  const cordyphage = gameState.ants[cordyphageId];
   const target = gameState.ants[targetId];
 
-  if (!healer || !target) return gameState;
-  if (healer.type !== 'healer') return gameState;
-  if (healer.owner === target.owner) return gameState; // Can only mind control enemies
+  if (!cordyphage || !target) return gameState;
+  if (cordyphage.type !== 'cordyphage') return gameState;
+  if (cordyphage.owner === target.owner) return gameState; // Can only mind control enemies
   if (target.type === 'queen') return gameState; // Cannot mind control queens
 
-  const healerType = AntTypes.HEALER;
-  const player = gameState.players[healer.owner];
+  const cordyphageType = AntTypes.CORDYPHAGE;
+  const player = gameState.players[cordyphage.owner];
 
   // Check if upgrade is researched
   if (!player.upgrades.cordycepsPurge || player.upgrades.cordycepsPurge === 0) return gameState;
 
   // Check energy cost
-  if ((healer.energy || 0) < healerType.cordycepsEnergyCost) return gameState;
+  if ((cordyphage.energy || 0) < cordyphageType.cordycepsEnergyCost) return gameState;
 
   // Check range
   const distance = Math.max(
-    Math.abs(healer.position.q - target.position.q),
-    Math.abs(healer.position.r - target.position.r),
-    Math.abs((-healer.position.q - healer.position.r) - (-target.position.q - target.position.r))
+    Math.abs(cordyphage.position.q - target.position.q),
+    Math.abs(cordyphage.position.r - target.position.r),
+    Math.abs((-cordyphage.position.q - cordyphage.position.r) - (-target.position.q - target.position.r))
   );
-  if (distance > healerType.cordycepsRange) return gameState;
+  if (distance > cordyphageType.cordycepsRange) return gameState;
 
   // Transfer ownership
   return {
     ...gameState,
     ants: {
       ...gameState.ants,
-      [healerId]: {
-        ...healer,
-        energy: healer.energy - healerType.cordycepsEnergyCost,
+      [cordyphageId]: {
+        ...cordyphage,
+        energy: cordyphage.energy - cordyphageType.cordycepsEnergyCost,
         hasAttacked: true // Using mind control counts as an action
       },
       [targetId]: {
         ...target,
-        owner: healer.owner, // Change ownership
+        owner: cordyphage.owner, // Change ownership
         hasMoved: true, // Mark as moved so it can't act this turn
         hasAttacked: true
       }
@@ -1231,30 +1361,94 @@ export function cordycepsPurge(gameState, healerId, targetId) {
   };
 }
 
-// Get valid cordyceps targets for a healer
-export function getValidCordycepsTargets(gameState, healerId) {
-  const healer = gameState.ants[healerId];
-  if (!healer || healer.type !== 'healer') return [];
+// Get valid cordyceps targets for a cordyphage
+export function getValidCordycepsTargets(gameState, cordyphageId) {
+  const cordyphage = gameState.ants[cordyphageId];
+  if (!cordyphage || cordyphage.type !== 'cordyphage') return [];
 
-  const healerType = AntTypes.HEALER;
-  const player = gameState.players[healer.owner];
+  const cordyphageType = AntTypes.CORDYPHAGE;
+  const player = gameState.players[cordyphage.owner];
 
   // Check if upgrade is researched
   if (!player.upgrades.cordycepsPurge || player.upgrades.cordycepsPurge === 0) return [];
 
   // Check energy
-  if ((healer.energy || 0) < healerType.cordycepsEnergyCost) return [];
+  if ((cordyphage.energy || 0) < cordyphageType.cordycepsEnergyCost) return [];
 
   return Object.values(gameState.ants).filter(enemy => {
-    if (enemy.owner === healer.owner) return false;
+    if (enemy.owner === cordyphage.owner) return false;
     if (enemy.type === 'queen') return false; // Cannot mind control queens
 
     const distance = Math.max(
-      Math.abs(healer.position.q - enemy.position.q),
-      Math.abs(healer.position.r - enemy.position.r),
-      Math.abs((-healer.position.q - healer.position.r) - (-enemy.position.q - enemy.position.r))
+      Math.abs(cordyphage.position.q - enemy.position.q),
+      Math.abs(cordyphage.position.r - enemy.position.r),
+      Math.abs((-cordyphage.position.q - cordyphage.position.r) - (-enemy.position.q - enemy.position.r))
     );
-    return distance <= healerType.cordycepsRange;
+    return distance <= cordyphageType.cordycepsRange;
+  });
+}
+
+// Cordyphage: Inflict plague on an enemy unit
+export function plagueEnemy(gameState, cordyphageId, targetId) {
+  const cordyphage = gameState.ants[cordyphageId];
+  const target = gameState.ants[targetId];
+
+  if (!cordyphage || !target) return gameState;
+  if (cordyphage.type !== 'cordyphage') return gameState;
+  if (cordyphage.owner === target.owner) return gameState; // Can only plague enemies
+  if (target.plagued) return gameState; // Already plagued
+
+  const cordyphageType = AntTypes.CORDYPHAGE;
+
+  // Check energy cost
+  if ((cordyphage.energy || 0) < cordyphageType.plagueEnergyCost) return gameState;
+
+  // Check range
+  const distance = Math.max(
+    Math.abs(cordyphage.position.q - target.position.q),
+    Math.abs(cordyphage.position.r - target.position.r),
+    Math.abs((-cordyphage.position.q - cordyphage.position.r) - (-target.position.q - target.position.r))
+  );
+  if (distance > cordyphageType.plagueRange) return gameState;
+
+  // Apply plague
+  return {
+    ...gameState,
+    ants: {
+      ...gameState.ants,
+      [cordyphageId]: {
+        ...cordyphage,
+        energy: cordyphage.energy - cordyphageType.plagueEnergyCost,
+        hasAttacked: true // Using plague counts as an action
+      },
+      [targetId]: {
+        ...target,
+        plagued: cordyphageType.plagueDuration // Turns remaining
+      }
+    }
+  };
+}
+
+// Get valid plague targets for a cordyphage
+export function getValidPlagueTargets(gameState, cordyphageId) {
+  const cordyphage = gameState.ants[cordyphageId];
+  if (!cordyphage || cordyphage.type !== 'cordyphage') return [];
+
+  const cordyphageType = AntTypes.CORDYPHAGE;
+
+  // Check energy
+  if ((cordyphage.energy || 0) < cordyphageType.plagueEnergyCost) return [];
+
+  return Object.values(gameState.ants).filter(enemy => {
+    if (enemy.owner === cordyphage.owner) return false;
+    if (enemy.plagued) return false; // Already plagued
+
+    const distance = Math.max(
+      Math.abs(cordyphage.position.q - enemy.position.q),
+      Math.abs(cordyphage.position.r - enemy.position.r),
+      Math.abs((-cordyphage.position.q - cordyphage.position.r) - (-enemy.position.q - enemy.position.r))
+    );
+    return distance <= cordyphageType.plagueRange;
   });
 }
 
@@ -1264,7 +1458,13 @@ export function getValidHealTargets(gameState, healerId) {
   if (!healer || healer.type !== 'healer') return [];
 
   const healerType = AntTypes.HEALER;
-  if ((healer.energy || 0) < healerType.healEnergyCost) return [];
+
+  // Apply hero heal cost modifier
+  const currentPlayer = gameState.players[healer.owner];
+  const { getHealEnergyCost } = require('./heroQueens');
+  const healCost = getHealEnergyCost(healerType.healEnergyCost, currentPlayer?.heroId);
+
+  if ((healer.energy || 0) < healCost) return [];
 
   return Object.values(gameState.ants).filter(ally => {
     if (ally.owner !== healer.owner) return false;
@@ -1313,3 +1513,82 @@ export function getSpawningPoolHexes(queen, getNeighborsFunc) {
   // Order: top-right, right, bottom-right, bottom-left, left, top-left
   return allNeighbors.slice(0, spawningSpots);
 }
+
+
+// Activate hero ability
+export function activateHeroAbility(gameState, playerId) {
+  const player = gameState.players[playerId];
+  
+  if (!player) return gameState;
+  if (player.heroPower < 100) return gameState; // Need full hero power
+  if (player.heroAbilityActive) return gameState; // Already active
+
+  const heroId = player.heroId;
+  if (!heroId) return gameState;
+
+  const updatedAnts = { ...gameState.ants };
+  const updatedPlayers = { ...gameState.players };
+
+  // Get player ants
+  const playerAnts = Object.values(updatedAnts).filter(ant => ant.owner === playerId);
+
+  // Apply hero ability based on hero ID
+  switch (heroId) {
+    case "gorlak":
+      // Melee units can move one more space this turn (temporary buff)
+      // Attack boost is passive, handled in combat calculations
+      break;
+
+    case "sorlorg":
+      // Ranged units gain +1 range (temporary buff)
+      // Damage boost is passive, handled in combat calculations
+      break;
+
+    case "skrazzit":
+      // Multiply resources by 1.5
+      updatedPlayers[playerId] = {
+        ...updatedPlayers[playerId],
+        resources: {
+          food: Math.floor(player.resources.food * 1.5),
+          minerals: Math.floor(player.resources.minerals * 1.5)
+        }
+      };
+      break;
+
+    case "thorgrim":
+      // Units gain +2 defense and +2 attack until next turn (handled in combat)
+      updatedPlayers[playerId] = {
+        ...updatedPlayers[playerId],
+        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+      };
+      break;
+
+    case "vexxara":
+      // Restore all units to full health and energy
+      playerAnts.forEach(ant => {
+        updatedAnts[ant.id] = {
+          ...ant,
+          health: ant.maxHealth,
+          energy: ant.maxEnergy || ant.energy
+        };
+      });
+      break;
+
+    default:
+      break;
+  }
+
+  // Activate ability and reset hero power
+  updatedPlayers[playerId] = {
+    ...updatedPlayers[playerId],
+    heroPower: 0,
+    heroAbilityActive: true
+  };
+
+  return {
+    ...gameState,
+    players: updatedPlayers,
+    ants: updatedAnts
+  };
+}
+
