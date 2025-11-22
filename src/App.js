@@ -28,6 +28,7 @@ function App() {
   const [pathWaypoint, setPathWaypoint] = useState(null); // Intermediate waypoint for pathfinding
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
   const [showAntTypeSelector, setShowAntTypeSelector] = useState(false); // Show ant type buttons
+  const [pendingEggType, setPendingEggType] = useState(null); // Store egg type when using Q+key hotkeys
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
   const [selectedAnthill, setSelectedAnthill] = useState(null); // Store selected anthill for viewing info
   const [damageNumbers, setDamageNumbers] = useState([]); // Array of {id, damage, position, timestamp}
@@ -305,12 +306,103 @@ function App() {
               return;
             }
             return;
+          case 'q':
+            console.log('Lay egg hotkey triggered');
+            e.preventDefault();
+            // Lay egg action (for queens only)
+            if (ant && ant.type === 'queen') {
+              setSelectedAction('layEgg');
+              return;
+            }
+            return;
+          case 'd':
+            // If in layEgg mode, select drone
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Drone egg type selected');
+              e.preventDefault();
+              setPendingEggType('drone');
+              return;
+            }
+            return;
+          case 's':
+            // If in layEgg mode, select scout
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Scout egg type selected');
+              e.preventDefault();
+              setPendingEggType('scout');
+              return;
+            }
+            return;
+          case 'm':
+            // If in layEgg mode, select soldier (marauder)
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Soldier egg type selected');
+              e.preventDefault();
+              setPendingEggType('soldier');
+              return;
+            }
+            return;
+          case 't':
+            // If in layEgg mode, select tank (bullet ant)
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Tank egg type selected');
+              e.preventDefault();
+              setPendingEggType('tank');
+              return;
+            }
+            return;
+          case 'i':
+            // If in layEgg mode, select spitter (acid ant)
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Spitter egg type selected');
+              e.preventDefault();
+              setPendingEggType('spitter');
+              return;
+            }
+            return;
+          case 'x':
+            // If in layEgg mode, select bomber (exploding ant)
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Bomber egg type selected');
+              e.preventDefault();
+              setPendingEggType('bomber');
+              return;
+            }
+            return;
+          case 'o':
+            // If in layEgg mode, select bombardier
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Bombardier egg type selected');
+              e.preventDefault();
+              setPendingEggType('bombardier');
+              return;
+            }
+            return;
+          case 'w':
+            // If in layEgg mode, select healer (weaver ant)
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Healer egg type selected');
+              e.preventDefault();
+              setPendingEggType('healer');
+              return;
+            }
+            return;
+          case 'c':
+            // If in layEgg mode, select cordyphage
+            if (ant && ant.type === 'queen' && selectedAction === 'layEgg') {
+              console.log('Cordyphage egg type selected');
+              e.preventDefault();
+              setPendingEggType('cordyphage');
+              return;
+            }
+            return;
           case 'escape':
             console.log('Escape hotkey triggered');
             e.preventDefault();
-            // Deselect ant
+            // Deselect ant and clear egg laying mode
             setSelectedAnt(null);
             setSelectedAction(null);
+            setPendingEggType(null);
             return;
           default:
             break;
@@ -1554,6 +1646,13 @@ function App() {
       // If we have a selected ant type from clicking a button, lay the egg
       if (selectedEggHex && selectedEggHex.antType) {
         handleLayEgg(selectedEggHex.antType, hex);
+        return;
+      }
+
+      // If we have a pending egg type from Q+key hotkey, lay the egg
+      if (pendingEggType) {
+        handleLayEgg(pendingEggType, hex);
+        setPendingEggType(null); // Clear pending egg type
         return;
       }
 
