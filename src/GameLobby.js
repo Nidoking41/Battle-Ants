@@ -21,22 +21,23 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     gameStarted: false
   });
 
+  // Hero to color mapping
+  const heroColors = {
+    'gorlak': '#FF0000',    // Red
+    'sorlorg': '#00FF00',   // Green
+    'skrazzit': '#0000FF',  // Blue
+    'thorgrim': '#FFFF00',  // Yellow
+    'vexxara': '#000000'    // Black
+  };
+
   // Hero options
   const heroOptions = Object.values(HeroQueens);
 
   const isHost = playerRole === 'player1';
-  const myColor = playerRole === 'player1' ? lobbyState.player1.color : lobbyState.player2.color;
-  const opponentColor = playerRole === 'player1' ? lobbyState.player2.color : lobbyState.player1.color;
+  const myColor = heroColors[playerRole === 'player1' ? lobbyState.player1.hero : lobbyState.player2.hero];
+  const opponentColor = heroColors[playerRole === 'player1' ? lobbyState.player2.hero : lobbyState.player1.hero];
   const opponentReady = playerRole === 'player1' ? lobbyState.player2.ready : lobbyState.player1.ready;
   const opponentJoined = playerRole === 'player1' ? lobbyState.player2.id : lobbyState.player1.id;
-
-  // Color options (only colors with sprite variants)
-  const colorOptions = [
-    { name: 'Red', value: '#FF0000' },
-    { name: 'Blue', value: '#0000FF' },
-    { name: 'Green', value: '#00FF00' },
-    { name: 'Yellow', value: '#FFFF00' }
-  ];
 
   // Map size options
   const mapSizeOptions = [
@@ -130,17 +131,11 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     return () => unsubscribe();
   }, [roomCode, playerId, playerRole, isHost, onStartGame]);
 
-  const handleColorChange = (newColor) => {
-    const lobbyRef = ref(database, `lobbies/${roomCode}`);
-    update(lobbyRef, {
-      [`${playerRole}/color`]: newColor
-    });
-  };
-
   const handleHeroChange = (newHero) => {
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
-      [`${playerRole}/hero`]: newHero
+      [`${playerRole}/hero`]: newHero,
+      [`${playerRole}/color`]: heroColors[newHero]
     });
   };
 
@@ -212,59 +207,44 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             borderRadius: '8px',
             border: playerRole === 'player1' ? '3px solid #3498db' : 'none'
           }}>
-            <h3 style={{ marginBottom: '15px' }}>
+            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               👤 Player 1 {playerRole === 'player1' && '(You)'}
               {isHost && ' 👑'}
+              <div style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: heroColors[lobbyState.player1.hero],
+                border: '2px solid #2c3e50',
+                borderRadius: '50%'
+              }} title={`Color: ${heroColors[lobbyState.player1.hero]}`} />
             </h3>
             {lobbyState.player1.id ? (
               <>
                 <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {colorOptions.map(color => (
-                      <button
-                        key={color.value}
-                        onClick={() => playerRole === 'player1' && handleColorChange(color.value)}
-                        disabled={playerRole !== 'player1' || opponentColor === color.value}
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                    {heroOptions.map(hero => (
+                      <div
+                        key={hero.id}
+                        onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
                         style={{
-                          width: '40px',
-                          height: '40px',
-                          backgroundColor: color.value,
-                          border: lobbyState.player1.color === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                          borderRadius: '50%',
-                          cursor: playerRole === 'player1' && opponentColor !== color.value ? 'pointer' : 'not-allowed',
-                          opacity: opponentColor === color.value ? 0.3 : 1
+                          width: '100px',
+                          padding: '8px',
+                          border: lobbyState.player1.hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
+                          borderRadius: '8px',
+                          cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
+                          opacity: playerRole !== 'player1' ? 0.7 : 1,
+                          backgroundColor: lobbyState.player1.hero === hero.id ? '#e3f2fd' : 'white',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
                         }}
-                        title={color.name}
-                      />
+                      >
+                        <div style={{ fontSize: '32px', marginBottom: '4px' }}>{hero.icon}</div>
+                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
+                        <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
-                  {heroOptions.map(hero => (
-                    <button
-                      key={hero.id}
-                      onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
-                      disabled={playerRole !== 'player1'}
-                      style={{
-                        width: '100%',
-                        padding: '6px',
-                        marginBottom: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        backgroundColor: lobbyState.player1.hero === hero.id ? '#3498db' : 'white',
-                        color: lobbyState.player1.hero === hero.id ? 'white' : '#2c3e50',
-                        border: '2px solid #3498db',
-                        borderRadius: '5px',
-                        cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
-                        textAlign: 'left',
-                        opacity: playerRole !== 'player1' ? 0.7 : 1
-                      }}
-                    >
-                      {hero.icon} {hero.name}
-                    </button>
-                  ))}
                 </div>
                 {lobbyState.player1.ready && (
                   <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>
@@ -285,58 +265,43 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             borderRadius: '8px',
             border: playerRole === 'player2' ? '3px solid #3498db' : 'none'
           }}>
-            <h3 style={{ marginBottom: '15px' }}>
+            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               👤 Player 2 {playerRole === 'player2' && '(You)'}
+              <div style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: heroColors[lobbyState.player2.hero],
+                border: '2px solid #2c3e50',
+                borderRadius: '50%'
+              }} title={`Color: ${heroColors[lobbyState.player2.hero]}`} />
             </h3>
             {lobbyState.player2.id ? (
               <>
                 <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {colorOptions.map(color => (
-                      <button
-                        key={color.value}
-                        onClick={() => playerRole === 'player2' && handleColorChange(color.value)}
-                        disabled={playerRole !== 'player2' || opponentColor === color.value}
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                    {heroOptions.map(hero => (
+                      <div
+                        key={hero.id}
+                        onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
                         style={{
-                          width: '40px',
-                          height: '40px',
-                          backgroundColor: color.value,
-                          border: lobbyState.player2.color === color.value ? '4px solid #2c3e50' : '2px solid #95a5a6',
-                          borderRadius: '50%',
-                          cursor: playerRole === 'player2' && opponentColor !== color.value ? 'pointer' : 'not-allowed',
-                          opacity: opponentColor === color.value ? 0.3 : 1
+                          width: '100px',
+                          padding: '8px',
+                          border: lobbyState.player2.hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
+                          borderRadius: '8px',
+                          cursor: playerRole === 'player2' ? 'pointer' : 'not-allowed',
+                          opacity: playerRole !== 'player2' ? 0.7 : 1,
+                          backgroundColor: lobbyState.player2.hero === hero.id ? '#ffebee' : 'white',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
                         }}
-                        title={color.name}
-                      />
+                      >
+                        <div style={{ fontSize: '32px', marginBottom: '4px' }}>{hero.icon}</div>
+                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
+                        <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
-                  {heroOptions.map(hero => (
-                    <button
-                      key={hero.id}
-                      onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
-                      disabled={playerRole !== 'player2'}
-                      style={{
-                        width: '100%',
-                        padding: '6px',
-                        marginBottom: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        backgroundColor: lobbyState.player2.hero === hero.id ? '#e74c3c' : 'white',
-                        color: lobbyState.player2.hero === hero.id ? 'white' : '#2c3e50',
-                        border: '2px solid #e74c3c',
-                        borderRadius: '5px',
-                        cursor: playerRole === 'player2' ? 'pointer' : 'not-allowed',
-                        textAlign: 'left',
-                        opacity: playerRole !== 'player2' ? 0.7 : 1
-                      }}
-                    >
-                      {hero.icon} {hero.name}
-                    </button>
-                  ))}
                 </div>
                 {lobbyState.player2.ready && (
                   <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>
