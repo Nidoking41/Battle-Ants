@@ -98,6 +98,18 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       backgroundRepeat: 'no-repeat',
       padding: '20px'
     }}>
+      {/* Title Image */}
+      <img
+        src={`${process.env.PUBLIC_URL}/sprites/title_screen_title.png`}
+        alt="Ant Wars"
+        style={{
+          maxWidth: '500px',
+          width: '90%',
+          marginBottom: '30px',
+          filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+        }}
+      />
+
       <div style={{
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
         padding: '25px',
@@ -107,8 +119,6 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
         width: '100%',
         border: '2px solid rgba(192, 192, 192, 0.3)'
       }}>
-        <h2 style={{ marginBottom: '30px', textAlign: 'center', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>Choose Game Mode</h2>
-
         {/* AI Game */}
         <button
           onClick={handleAIGame}
@@ -135,7 +145,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
             e.target.style.borderColor = '#666';
           }}
         >
-          ⚙️ Versus AI
+          Versus AI
         </button>
 
         {/* Local Game */}
@@ -145,7 +155,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
             width: '100%',
             padding: '15px',
             fontSize: '18px',
-            marginBottom: '30px',
+            marginBottom: '15px',
             background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
             color: '#e0e0e0',
             border: '2px solid #666',
@@ -164,71 +174,22 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
             e.target.style.borderColor = '#666';
           }}
         >
-          🖥️ Local Game (Hot Seat)
+          Local Game (Hot Seat)
         </button>
 
-        <div style={{
-          borderTop: '2px solid rgba(192, 192, 192, 0.3)',
-          paddingTop: '30px',
-          marginBottom: '30px'
-        }}>
-          <h3 style={{ marginBottom: '20px', textAlign: 'center', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>Online Multiplayer</h3>
-
-          {/* Quick Play */}
-          <button
-            onClick={handleQuickPlay}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '15px',
-              fontSize: '18px',
-              marginBottom: '20px',
-              background: loading ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
-              color: '#e0e0e0',
-              border: '2px solid #666',
-              borderRadius: '5px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              fontWeight: 'bold',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => {
-              if (!loading) {
-                e.target.style.background = 'linear-gradient(145deg, #5a5a5a, #3a3a3a)';
-                e.target.style.borderColor = '#888';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!loading) {
-                e.target.style.background = 'linear-gradient(145deg, #4a4a4a, #2a2a2a)';
-                e.target.style.borderColor = '#666';
-              }
-            }}
-          >
-            ⚡ Quick Play (Create Room)
-          </button>
-
-          <div style={{
+        {/* Join with Code */}
+        <div style={{ marginTop: '10px' }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '10px',
+            fontWeight: 'bold',
+            color: '#e0e0e0',
             textAlign: 'center',
-            margin: '20px 0',
-            color: '#ccc',
-            fontSize: '14px',
-            fontWeight: 'bold'
+            fontSize: '14px'
           }}>
-            OR
-          </div>
-
-          {/* Join with Code */}
-          <div style={{ marginTop: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '10px',
-              fontWeight: 'bold',
-              color: '#e0e0e0'
-            }}>
-              Enter 4-Digit Room Code:
-            </label>
+            Join Room:
+          </label>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
               type="text"
               value={roomCode}
@@ -236,14 +197,13 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
               placeholder="0000"
               maxLength="4"
               style={{
-                width: '100%',
-                padding: '15px',
-                fontSize: '24px',
+                flex: '1',
+                padding: '12px',
+                fontSize: '20px',
                 textAlign: 'center',
                 border: '2px solid #666',
                 borderRadius: '5px',
-                marginBottom: '10px',
-                letterSpacing: '8px',
+                letterSpacing: '6px',
                 fontWeight: 'bold',
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
@@ -253,9 +213,8 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
               onClick={handleJoinWithCode}
               disabled={loading || roomCode.length !== 4}
               style={{
-                width: '100%',
-                padding: '15px',
-                fontSize: '18px',
+                padding: '12px 20px',
+                fontSize: '16px',
                 background: (loading || roomCode.length !== 4) ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
                 color: '#e0e0e0',
                 border: '2px solid #666',
@@ -264,7 +223,8 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
                 opacity: (loading || roomCode.length !== 4) ? 0.6 : 1,
                 fontWeight: 'bold',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
               }}
               onMouseOver={(e) => {
                 if (!loading && roomCode.length === 4) {
@@ -279,21 +239,22 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
                 }
               }}
             >
-              {loading ? 'Joining...' : '🚪 Join/Create Room'}
+              {loading ? 'Joining...' : 'Join'}
             </button>
           </div>
         </div>
 
         <div style={{
-          marginTop: '30px',
-          padding: '15px',
+          marginTop: '20px',
+          padding: '12px',
           backgroundColor: 'rgba(0, 0, 0, 0.4)',
           borderRadius: '5px',
-          fontSize: '13px',
-          color: '#e0e0e0',
-          border: '1px solid rgba(192, 192, 192, 0.2)'
+          fontSize: '12px',
+          color: '#ccc',
+          border: '1px solid rgba(192, 192, 192, 0.2)',
+          textAlign: 'center'
         }}>
-          <strong>💡 Tip:</strong> Share your 4-digit room code with a friend to play together!
+          Enter a 4-digit room code to join or create a multiplayer game
         </div>
       </div>
     </div>
