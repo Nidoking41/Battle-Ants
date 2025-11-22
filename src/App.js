@@ -174,10 +174,11 @@ function App() {
 
     if (queen) {
       const queenPixel = hexToPixel(queen.position, hexSize);
-      // Center on queen (account for the SVG viewport center)
+      // Position queen in bottom third of viewport (offset by 150 pixels upward)
+      // This way the queen is visible at the bottom third instead of dead center
       setCameraOffset({
         x: -queenPixel.x,
-        y: -queenPixel.y
+        y: -queenPixel.y + 150
       });
     }
   };
@@ -478,6 +479,18 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions]);
+
+  // Center camera on queen when game starts
+  useEffect(() => {
+    // Only center if we have a valid game mode (not null, 'lobby', 'localSetup', or 'aiSetup')
+    if (gameMode && typeof gameMode === 'object' && gameState.ants) {
+      // Small delay to ensure game state is fully loaded
+      const timer = setTimeout(() => {
+        centerOnQueen();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [gameMode?.isMultiplayer, gameMode?.isAI]); // Only run when gameMode changes to a game object
 
   // Calculate movement paths when selectedAnt or selectedAction changes
   useEffect(() => {
