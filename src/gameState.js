@@ -1579,12 +1579,21 @@ export function getValidEnsnareTargets(gameState, healerId) {
 // Get valid spawning pool hexes for a queen based on tier
 export function getSpawningPoolHexes(queen, getNeighborsFunc) {
   const queenTier = QueenTiers[queen.queenTier || 'queen'];
-  const spawningSpots = queenTier.spawningSpots;
+  let spawningSpots = queenTier.spawningSpots;
+
+  // Apply hero bonus if applicable (Skrazzit gets +1 spawning spot)
+  if (queen.heroId) {
+    const { getHeroById } = require('./heroQueens');
+    const hero = getHeroById(queen.heroId);
+    if (hero && hero.bonuses && hero.bonuses.spawningSpotBonus) {
+      spawningSpots += hero.bonuses.spawningSpotBonus;
+    }
+  }
 
   // Get all neighbors
   const allNeighbors = getNeighborsFunc(queen.position);
 
-  // Return the first N spots based on queen tier
+  // Return the first N spots based on queen tier and hero bonuses
   // We'll use a consistent ordering to make it predictable
   // Order: top-right, right, bottom-right, bottom-left, left, top-left
   return allNeighbors.slice(0, spawningSpots);
