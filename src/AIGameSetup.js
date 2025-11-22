@@ -74,7 +74,10 @@ function AIGameSetup({ onStartGame, onBack }) {
       alignItems: 'center',
       justifyContent: 'flex-start',
       minHeight: '100vh',
-      backgroundColor: '#f0f0f0',
+      backgroundImage: `url(${process.env.PUBLIC_URL}/sprites/antwars_background.png)`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
       padding: '10px',
       overflowY: 'auto'
     }}>

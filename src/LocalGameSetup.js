@@ -61,7 +61,10 @@ function LocalGameSetup({ onStartGame, onBack }) {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#f0f0f0',
+      backgroundImage: `url(${process.env.PUBLIC_URL}/sprites/antwars_background.png)`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
       padding: '20px'
     }}>
       <div style={{

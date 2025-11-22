@@ -92,7 +92,10 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#f0f0f0',
+      backgroundImage: `url(${process.env.PUBLIC_URL}/sprites/antwars_background.png)`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
       padding: '20px'
     }}>
       <h1 style={{ marginBottom: '40px' }}>🐜 Ant Wars</h1>
