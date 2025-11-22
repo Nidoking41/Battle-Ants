@@ -226,6 +226,11 @@ function App() {
 
       console.log('Key pressed:', e.key, 'selectedAnt:', selectedAnt, 'myTurn:', myTurn);
 
+      // Ignore repeated keydown events from holding keys (except for camera panning)
+      if (e.repeat && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
+        return;
+      }
+
       // Action hotkeys when an ant is selected
       if (selectedAnt && myTurn) {
         const ant = gameState.ants[selectedAnt];
