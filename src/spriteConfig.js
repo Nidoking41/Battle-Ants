@@ -79,7 +79,8 @@ const COLOR_MAP = {
   '#FF0000': 'red',
   '#0000FF': 'blue',
   '#00FF00': 'green',
-  '#FFFF00': 'yellow'
+  '#FFFF00': 'yellow',
+  '#000000': 'black'
 };
 
 // Ant types that have colored sprite variants
