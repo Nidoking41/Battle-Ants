@@ -61,29 +61,29 @@ function AIGameSetup({ onStartGame, onBack }) {
       justifyContent: 'flex-start',
       minHeight: '100vh',
       backgroundColor: '#f0f0f0',
-      padding: '20px',
+      padding: '10px',
       overflowY: 'auto'
     }}>
       <div style={{
         backgroundColor: 'white',
-        padding: '20px',
+        padding: '15px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
         maxWidth: '750px',
         width: '100%',
-        margin: '20px 0'
+        margin: '10px 0'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px' }}>🤖 VS AI Setup</h1>
         <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#7f8c8d', fontSize: '16px' }}>
           Single Player
         </h3>
 
-        <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
           {/* Left Column - You */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Player Card */}
             <div style={{
-              padding: '12px',
+              padding: '10px',
               backgroundColor: '#ecf0f1',
               borderRadius: '8px',
               border: '3px solid #3498db'
@@ -142,7 +142,7 @@ function AIGameSetup({ onStartGame, onBack }) {
 
             {/* Map Size Selection */}
             <div style={{
-              padding: '12px',
+              padding: '10px',
               backgroundColor: '#ecf0f1',
               borderRadius: '8px'
             }}>
@@ -173,7 +173,7 @@ function AIGameSetup({ onStartGame, onBack }) {
 
             {/* Fog of War Toggle */}
             <div style={{
-              padding: '12px',
+              padding: '10px',
               backgroundColor: '#ecf0f1',
               borderRadius: '8px'
             }}>
@@ -209,10 +209,10 @@ function AIGameSetup({ onStartGame, onBack }) {
           </div>
 
           {/* Right Column - AI */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* AI Card */}
             <div style={{
-              padding: '12px',
+              padding: '10px',
               backgroundColor: '#ecf0f1',
               borderRadius: '8px',
               border: '3px solid #e74c3c'
@@ -271,7 +271,7 @@ function AIGameSetup({ onStartGame, onBack }) {
 
             {/* AI Difficulty Selection */}
             <div style={{
-              padding: '12px',
+              padding: '10px',
               backgroundColor: '#ecf0f1',
               borderRadius: '8px'
             }}>
@@ -351,11 +351,11 @@ function AIGameSetup({ onStartGame, onBack }) {
         </div>
 
         <div style={{
-          marginTop: '12px',
-          padding: '10px',
+          marginTop: '8px',
+          padding: '8px',
           backgroundColor: '#d5f4e6',
           borderRadius: '5px',
-          fontSize: '12px',
+          fontSize: '11px',
           color: '#0c5460'
         }}>
           <strong>🤖 AI Mode:</strong> Test your skills against a computer opponent. Choose your difficulty and dominate the battlefield!
