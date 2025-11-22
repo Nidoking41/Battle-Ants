@@ -2224,32 +2224,19 @@ function App() {
       const isOwnAnt = clickedAnt.owner === currentState.currentPlayer;
 
       if (isOwnAnt && isMyTurn()) {
-        // If the ant has already moved and attacked, inform the user and don't select it
-        if (clickedAnt.hasMoved && clickedAnt.hasAttacked) {
-          alert('This unit has already completed all actions this turn!');
-          setSelectedAnt(null);
-          setSelectedAction(null);
-          setSelectedEgg(null);
-          return;
-        }
-
-        // If the ant has only attacked (can't move after attacking), inform the user
-        if (clickedAnt.hasAttacked && clickedAnt.type !== 'queen') {
-          alert('This unit has already attacked and cannot move!');
-          setSelectedAnt(null);
-          setSelectedAction(null);
-          setSelectedEgg(null);
-          return;
-        }
-
         setSelectedAnt(clickedAnt.id);
-        // Auto-select action based on unit type:
-        // - Queens: lay egg
-        // - Others (including bombers): move
-        if (clickedAnt.type === 'queen') {
+
+        // Only auto-select action if the unit can still perform actions
+        // Auto-select action based on unit type and available actions:
+        // - Queens: lay egg (if hasn't attacked)
+        // - Others: move (if hasn't moved or attacked)
+        if (clickedAnt.type === 'queen' && !clickedAnt.hasAttacked) {
           setSelectedAction('layEgg');
-        } else {
+        } else if (!clickedAnt.hasMoved && !clickedAnt.hasAttacked) {
           setSelectedAction('move');
+        } else {
+          // Unit has used actions - just select for viewing, no action
+          setSelectedAction(null);
         }
       } else {
         // Enemy ant or not your turn - just select for viewing info, no actions
