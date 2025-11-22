@@ -109,6 +109,7 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
   }
 
   let spritePath = sprites[animation].path;
+  let frameCount = sprites[animation].frames;
 
   // If playerColor is provided and this ant type has colored variants
   // Always use colored idle sprite (even for walk/attack) until colored variants exist for those animations
@@ -119,11 +120,14 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       const spritePrefix = ANT_TYPE_TO_SPRITE_PREFIX[antType] || antType;
       // Use colored idle sprite for all animations (colored walk/attack sprites don't exist yet)
       spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
+      // All colored idle sprites have 8 frames
+      frameCount = 8;
     }
   }
 
   return {
     ...sprites[animation],
+    frames: frameCount,
     path: spritePath,
     fullPath: `${process.env.PUBLIC_URL}/sprites/ants/${spritePath}`,
     frameWidth: SpriteConfig.SPRITE_SIZE,
