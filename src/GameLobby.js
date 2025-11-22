@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from './firebaseConfig';
+import { HeroQueens } from './heroQueens';
 
 function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
   const [lobbyState, setLobbyState] = useState({
     player1: {
       id: null,
       color: '#FF0000',
+      hero: 'gorlak',
       ready: false
     },
     player2: {
       id: null,
       color: '#0000FF',
+      hero: 'sorlorg',
       ready: false
     },
     mapSize: 'large',
     gameStarted: false
   });
+
+  // Hero options
+  const heroOptions = Object.values(HeroQueens);
 
   const isHost = playerRole === 'player1';
   const myColor = playerRole === 'player1' ? lobbyState.player1.color : lobbyState.player2.color;
@@ -55,11 +61,13 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             player1: {
               id: playerId,
               color: '#FF0000',
+              hero: 'gorlak',
               ready: false
             },
             player2: {
               id: null,
               color: '#0000FF',
+              hero: 'sorlorg',
               ready: false
             },
             mapSize: 'large',
@@ -111,7 +119,9 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
             mapSize: data.mapSize,
             fogOfWar: data.fogOfWar !== undefined ? data.fogOfWar : true,
             player1Color: data.player1.color,
-            player2Color: data.player2.color
+            player2Color: data.player2.color,
+            player1Hero: data.player1.hero,
+            player2Hero: data.player2.hero
           });
         }
       }
@@ -124,6 +134,13 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
       [`${playerRole}/color`]: newColor
+    });
+  };
+
+  const handleHeroChange = (newHero) => {
+    const lobbyRef = ref(database, `lobbies/${roomCode}`);
+    update(lobbyRef, {
+      [`${playerRole}/hero`]: newHero
     });
   };
 
@@ -223,6 +240,32 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                     ))}
                   </div>
                 </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                  {heroOptions.map(hero => (
+                    <button
+                      key={hero.id}
+                      onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
+                      disabled={playerRole !== 'player1'}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        marginBottom: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        backgroundColor: lobbyState.player1.hero === hero.id ? '#3498db' : 'white',
+                        color: lobbyState.player1.hero === hero.id ? 'white' : '#2c3e50',
+                        border: '2px solid #3498db',
+                        borderRadius: '5px',
+                        cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
+                        textAlign: 'left',
+                        opacity: playerRole !== 'player1' ? 0.7 : 1
+                      }}
+                    >
+                      {hero.icon} {hero.name}
+                    </button>
+                  ))}
+                </div>
                 {lobbyState.player1.ready && (
                   <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>
                     ✓ Ready!
@@ -268,6 +311,32 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                       />
                     ))}
                   </div>
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+                  {heroOptions.map(hero => (
+                    <button
+                      key={hero.id}
+                      onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
+                      disabled={playerRole !== 'player2'}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        marginBottom: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        backgroundColor: lobbyState.player2.hero === hero.id ? '#e74c3c' : 'white',
+                        color: lobbyState.player2.hero === hero.id ? 'white' : '#2c3e50',
+                        border: '2px solid #e74c3c',
+                        borderRadius: '5px',
+                        cursor: playerRole === 'player2' ? 'pointer' : 'not-allowed',
+                        textAlign: 'left',
+                        opacity: playerRole !== 'player2' ? 0.7 : 1
+                      }}
+                    >
+                      {hero.icon} {hero.name}
+                    </button>
+                  ))}
                 </div>
                 {lobbyState.player2.ready && (
                   <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>

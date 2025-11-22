@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AIDifficulty } from './aiController';
+import { HeroQueens } from './heroQueens';
 
 function AIGameSetup({ onStartGame, onBack }) {
   const [playerColor, setPlayerColor] = useState('#FF0000');
@@ -7,6 +8,11 @@ function AIGameSetup({ onStartGame, onBack }) {
   const [mapSize, setMapSize] = useState('large');
   const [difficulty, setDifficulty] = useState(AIDifficulty.EASY);
   const [fogOfWar, setFogOfWar] = useState(true);
+  const [playerHero, setPlayerHero] = useState('gorlak');
+  const [aiHero, setAiHero] = useState('sorlorg');
+
+  // Hero options
+  const heroOptions = Object.values(HeroQueens);
 
   // Color options (only colors with sprite variants)
   const colorOptions = [
@@ -41,7 +47,9 @@ function AIGameSetup({ onStartGame, onBack }) {
       fogOfWar: fogOfWar,
       mapSize,
       player1Color: playerColor,
-      player2Color: aiColor
+      player2Color: aiColor,
+      player1Hero: playerHero,
+      player2Hero: aiHero
     });
   };
 
@@ -104,18 +112,30 @@ function AIGameSetup({ onStartGame, onBack }) {
                 ))}
               </div>
             </div>
-            <div style={{
-              marginTop: '10px',
-              padding: '8px',
-              backgroundColor: playerColor,
-              borderRadius: '5px',
-              textAlign: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-              fontSize: '14px'
-            }}>
-              Preview
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+              {heroOptions.map(hero => (
+                <button
+                  key={hero.id}
+                  onClick={() => setPlayerHero(hero.id)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    marginBottom: '5px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    backgroundColor: playerHero === hero.id ? '#3498db' : 'white',
+                    color: playerHero === hero.id ? 'white' : '#2c3e50',
+                    border: '2px solid #3498db',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span>{hero.icon} {hero.name}</span>
+                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -152,18 +172,30 @@ function AIGameSetup({ onStartGame, onBack }) {
                 ))}
               </div>
             </div>
-            <div style={{
-              marginTop: '10px',
-              padding: '8px',
-              backgroundColor: aiColor,
-              borderRadius: '5px',
-              textAlign: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-              fontSize: '14px'
-            }}>
-              Preview
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Hero Queen:</label>
+              {heroOptions.map(hero => (
+                <button
+                  key={hero.id}
+                  onClick={() => setAiHero(hero.id)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    marginBottom: '5px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    backgroundColor: aiHero === hero.id ? '#e74c3c' : 'white',
+                    color: aiHero === hero.id ? 'white' : '#2c3e50',
+                    border: '2px solid #e74c3c',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span>{hero.icon} {hero.name}</span>
+                  <div style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.8 }}>{hero.description}</div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -246,15 +246,6 @@ export async function getAvailableGames() {
 export function getVisibleHexes(gameState, playerId) {
   const visibleHexes = new Set();
 
-  console.log('getVisibleHexes called with playerId:', playerId);
-  console.log('Total ants in game state:', gameState.ants ? Object.keys(gameState.ants).length : 0);
-
-  // Debug: Log all ant owners
-  if (gameState.ants) {
-    const antOwners = Object.values(gameState.ants).map(a => a.owner);
-    console.log('Ant owners:', antOwners);
-  }
-
   // Get all ants owned by the player
   let playerAntCount = 0;
   if (gameState.ants) {
@@ -303,7 +294,34 @@ export function getVisibleHexes(gameState, playerId) {
     });
   }
 
-  console.log(`Player ${playerId} has ${playerAntCount} ants, visible hexes:`, visibleHexes.size);
+  // Add revealed hexes from Reveal ability
+  if (gameState.players?.[playerId]?.revealedHexes) {
+    gameState.players[playerId].revealedHexes.forEach(hex => {
+      visibleHexes.add(`${hex.q},${hex.r}`);
+    });
+  }
+
+  // Add vision from dead ants (1 hex radius)
+  if (gameState.deadAnts) {
+    Object.values(gameState.deadAnts).forEach(deadAnt => {
+      if (deadAnt.owner === playerId) {
+        const DEAD_ANT_VISION = 1;
+        // Add all hexes within 1 radius of dead ant
+        for (let q = -DEAD_ANT_VISION; q <= DEAD_ANT_VISION; q++) {
+          for (let r = -DEAD_ANT_VISION; r <= DEAD_ANT_VISION; r++) {
+            const s = -q - r;
+            if (Math.abs(q) <= DEAD_ANT_VISION && Math.abs(r) <= DEAD_ANT_VISION && Math.abs(s) <= DEAD_ANT_VISION) {
+              const visibleHex = new HexCoord(deadAnt.position.q + q, deadAnt.position.r + r);
+              if (hexDistance(deadAnt.position, visibleHex) <= DEAD_ANT_VISION) {
+                visibleHexes.add(`${visibleHex.q},${visibleHex.r}`);
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   return visibleHexes;
 }
 
@@ -398,11 +416,23 @@ export function applyFogOfWar(gameState, playerId) {
     }
   });
 
+  // Filter dead ants - only show dead ants in visible range
+  const filteredDeadAnts = {};
+  if (gameState.deadAnts) {
+    Object.entries(gameState.deadAnts).forEach(([id, deadAnt]) => {
+      const hexKey = `${deadAnt.position.q},${deadAnt.position.r}`;
+      if (visibleHexes.has(hexKey)) {
+        filteredDeadAnts[id] = deadAnt;
+      }
+    });
+  }
+
   return {
     ...gameState,
     ants: filteredAnts,
     eggs: filteredEggs,
     resources: filteredResources,
-    anthills: filteredAnthills
+    anthills: filteredAnthills,
+    deadAnts: filteredDeadAnts
   };
 }

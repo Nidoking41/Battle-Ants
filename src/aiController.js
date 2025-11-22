@@ -59,16 +59,16 @@ function analyzeGameState(gameState, aiPlayer, difficulty) {
   let shouldDefend = false;
 
   if (phase === 'early') {
-    // Early game: focus on economy and scouting
+    // Early game: focus on economy and scouting, but attack if opportunity arises
     shouldExpand = true;
-    shouldAttack = false;
+    shouldAttack = armyStrength >= 2; // Attack with any combat units
   } else if (phase === 'mid') {
     // Mid game: build army and expand
     shouldExpand = drones.length < 3 || anthills.length < 2;
-    shouldAttack = armyStrength > enemyArmyStrength + 3; // Only attack if significant advantage
+    shouldAttack = armyStrength >= 2; // Attack with any combat units
   } else {
     // Late game: aggressive push
-    shouldAttack = armyStrength >= 5; // Attack with decent army
+    shouldAttack = armyStrength >= 1; // Attack with any combat units
     shouldExpand = economicPower < 8;
   }
 
@@ -522,8 +522,31 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
       }
     }
 
-    // Gather resources (mark as moved)
-    console.log(`Drone gathering resources (marking as moved)`);
+    // Gather resources - actually add resources to player
+    const droneType = AntTypes.DRONE;
+    const gatherAmount = droneType.resourceGatherRate || 5;
+    const playerState = state.players[aiPlayer];
+
+    if (resourceAtPos.type === 'food') {
+      state.players[aiPlayer] = {
+        ...playerState,
+        resources: {
+          ...playerState.resources,
+          food: playerState.resources.food + gatherAmount
+        }
+      };
+      console.log(`Drone gathered ${gatherAmount} food, now have ${state.players[aiPlayer].resources.food}`);
+    } else if (resourceAtPos.type === 'minerals') {
+      state.players[aiPlayer] = {
+        ...playerState,
+        resources: {
+          ...playerState.resources,
+          minerals: playerState.resources.minerals + gatherAmount
+        }
+      };
+      console.log(`Drone gathered ${gatherAmount} minerals, now have ${state.players[aiPlayer].resources.minerals}`);
+    }
+
     state.ants[drone.id] = { ...drone, hasMoved: true };
     return state;
   }
@@ -571,44 +594,39 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
     ant => ant.type === 'queen' && ant.owner === aiPlayer
   );
 
+  // Find nearest enemy to chase
+  const allEnemies = Object.values(state.ants).filter(ant => ant.owner !== aiPlayer);
+  const nearestEnemy = allEnemies.length > 0 ? allEnemies.reduce((nearest, enemy) => {
+    const dist = hexDistance(unit.position, enemy.position);
+    const nearestDist = hexDistance(unit.position, nearest.position);
+    return dist < nearestDist ? enemy : nearest;
+  }) : null;
+
   // Strategic movement based on game state
   if (strategy.shouldDefend && aiQueen) {
     // Defend mode: move toward our queen
     const distanceToQueen = hexDistance(unit.position, aiQueen.position);
     if (distanceToQueen > 3) {
       state = moveUnitToward(state, unit, aiQueen.position);
+    } else if (nearestEnemy) {
+      // In defensive range, chase nearby enemies
+      state = moveUnitToward(state, unit, nearestEnemy.position);
     } else {
-      // Already in defensive position, stay put
       state.ants[unit.id] = { ...unit, hasMoved: true };
     }
-  } else if (strategy.shouldAttack) {
-    // Attack mode: move toward enemy queen
-    const enemyQueen = Object.values(state.ants).find(
-      ant => ant.type === 'queen' && ant.owner !== aiPlayer
-    );
+  } else if (strategy.shouldAttack || nearestEnemy) {
+    // Attack mode: move toward nearest enemy (prioritize queen)
+    const enemyQueen = allEnemies.find(ant => ant.type === 'queen');
+    const target = enemyQueen || nearestEnemy;
 
-    if (enemyQueen) {
-      state = moveUnitToward(state, unit, enemyQueen.position);
+    if (target) {
+      state = moveUnitToward(state, unit, target.position);
+    } else {
+      state.ants[unit.id] = { ...unit, hasMoved: true };
     }
   } else {
-    // Build up army: stay near queen but not blocking spawning
-    if (aiQueen) {
-      const distanceToQueen = hexDistance(unit.position, aiQueen.position);
-      if (distanceToQueen <= 2) {
-        // Too close to queen, move away slightly
-        const awayfromQueen = {
-          q: unit.position.q + (unit.position.q - aiQueen.position.q),
-          r: unit.position.r + (unit.position.r - aiQueen.position.r)
-        };
-        state = moveUnitToward(state, unit, awayfromQueen);
-      } else if (distanceToQueen > 4) {
-        // Too far, move closer
-        state = moveUnitToward(state, unit, aiQueen.position);
-      } else {
-        // Good position, stay put
-        state.ants[unit.id] = { ...unit, hasMoved: true };
-      }
-    }
+    // No enemies visible, move toward center to find them
+    state = moveUnitToward(state, unit, { q: 0, r: 0 });
   }
 
   return state;

@@ -78,7 +78,8 @@ export function useSprites() {
     const anim = antAnimations[antId];
     const animation = anim?.animation || defaultAnimation;
     const frame = anim?.frame || 0;
-    const animPlayerColor = anim?.playerColor || playerColor;
+    // Always prefer the passed playerColor (most up-to-date) over stored one
+    const animPlayerColor = playerColor || anim?.playerColor;
 
     const spriteInfo = getSpriteInfo(antType, animation, animPlayerColor);
     if (!spriteInfo) {

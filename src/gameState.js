@@ -19,7 +19,7 @@ export function createInitialGameState(options = {}) {
   };
   const gridRadius = gridSizeMap[mapSize] || 6;
 
-  return {
+  const initialState = {
     turn: 1,
     currentPlayer: 'player1',
     mapSize,
@@ -144,6 +144,46 @@ export function createInitialGameState(options = {}) {
     gameOver: false,
     winner: null
   };
+
+  // Apply hero bonuses to starting ants
+  if (player1Hero || player2Hero) {
+    const { applyHeroBonuses } = require('./heroQueens');
+    Object.keys(initialState.ants).forEach(antId => {
+      const ant = initialState.ants[antId];
+      const heroId = ant.owner === 'player1' ? player1Hero : player2Hero;
+
+      if (heroId) {
+        const antType = AntTypes[ant.type.toUpperCase()];
+        const stats = {
+          health: ant.health,
+          maxHealth: ant.maxHealth,
+          attack: antType.attack
+        };
+        const bonusedStats = applyHeroBonuses(stats, ant.type, heroId);
+
+        console.log(`Applying hero bonuses to starting ${ant.type} (${ant.owner}):`, {
+          before: stats,
+          after: bonusedStats,
+          heroId
+        });
+
+        // Apply the bonused stats
+        initialState.ants[antId] = {
+          ...ant,
+          health: bonusedStats.health,
+          maxHealth: bonusedStats.maxHealth
+        };
+
+        // Store bonus attack if different from base
+        const attackDiff = bonusedStats.attack - antType.attack;
+        if (attackDiff !== 0) {
+          initialState.ants[antId].bonusAttack = attackDiff;
+        }
+      }
+    });
+  }
+
+  return initialState;
 }
 
 // Generate symmetrical resource nodes on the map (randomly placed but mirrored)
@@ -316,6 +356,10 @@ export function createAnt(type, owner, position, heroId = null) {
   if (heroId) {
     const { applyHeroBonuses } = require('./heroQueens');
     const bonusedStats = applyHeroBonuses({ health, maxHealth, attack }, type.toLowerCase(), heroId);
+    console.log(`Creating ${type} with heroId ${heroId}:`, {
+      before: { health, maxHealth, attack },
+      after: bonusedStats
+    });
     health = bonusedStats.health;
     maxHealth = bonusedStats.maxHealth;
     attack = bonusedStats.attack;

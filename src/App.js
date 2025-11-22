@@ -3453,7 +3453,7 @@ function App() {
         </div>
 
         {/* Game Board */}
-        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', minWidth: 0, gap: '10px' }}>
+        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', minWidth: 0 }}>
           <div style={{
             backgroundImage: `url(${forestFloorImage})`,
             backgroundSize: 'cover',
@@ -3462,7 +3462,7 @@ function App() {
             border: '2px solid #333',
             display: 'inline-block',
             maxWidth: '100%',
-            maxHeight: 'calc(100vh - 200px)'
+            maxHeight: 'calc(100vh - 80px)'
           }}>
             <svg
               width="1200"
@@ -3630,100 +3630,6 @@ function App() {
             </g>
           </svg>
           </div>
-
-          {/* Hero Portrait and Power Bar - Below Map */}
-          {gameState.players[gameState.currentPlayer]?.heroId && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '15px',
-              padding: '12px 20px',
-              backgroundColor: '#2c3e50',
-              borderRadius: '8px',
-              border: '2px solid #34495e',
-              maxWidth: '500px'
-            }}>
-              {/* Hero Portrait */}
-              <div style={{
-                width: '64px',
-                height: '64px',
-                border: '3px solid ' + (gameState.players[gameState.currentPlayer]?.color || '#fff'),
-                borderRadius: '8px',
-                overflow: 'hidden',
-                backgroundColor: '#1a252f',
-                flexShrink: 0
-              }}>
-                <img
-                  src={`${process.env.PUBLIC_URL}/sprites/hero_${(gameState.players[gameState.currentPlayer]?.color || 'red').toLowerCase()}.png`}
-                  alt="Hero"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </div>
-
-              {/* Hero Power Bar and Button */}
-              <div style={{ flex: 1, minWidth: '250px' }}>
-                <div style={{ marginBottom: '6px', color: '#ecf0f1', fontSize: '13px', fontWeight: 'bold' }}>
-                  {(() => {
-                    const { getHeroById } = require('./heroQueens');
-                    const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
-                    return hero ? hero.name : 'Hero';
-                  })()}
-                </div>
-                {/* Power Bar */}
-                <div style={{
-                  width: '100%',
-                  height: '22px',
-                  backgroundColor: '#34495e',
-                  borderRadius: '11px',
-                  overflow: 'hidden',
-                  border: '2px solid #1a252f',
-                  marginBottom: '6px',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: `${gameState.players[gameState.currentPlayer]?.heroPower || 0}%`,
-                    height: '100%',
-                    backgroundColor: gameState.players[gameState.currentPlayer]?.heroPower >= 100 ? '#f39c12' : '#3498db',
-                    transition: 'width 0.3s ease'
-                  }}>
-                  </div>
-                </div>
-                {/* Activate Button */}
-                <button
-                  onClick={() => {
-                    const { activateHeroAbility } = require('./gameState');
-                    const newState = activateHeroAbility(gameState, gameState.currentPlayer);
-                    updateGame(newState);
-                  }}
-                  disabled={
-                    !isMyTurn() ||
-                    (gameState.players[gameState.currentPlayer]?.heroPower || 0) < 100 ||
-                    gameState.players[gameState.currentPlayer]?.heroAbilityActive
-                  }
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    backgroundColor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '#f39c12' : '#95a5a6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? 'pointer' : 'not-allowed',
-                    width: '100%',
-                    opacity: isMyTurn() ? 1 : 0.6
-                  }}
-                  title={(() => {
-                    const { getHeroById } = require('./heroQueens');
-                    const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
-                    return hero?.heroAbility?.description || 'Hero Ability';
-                  })()}
-                >
-                  {gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '✓ ACTIVE' : '⚡ ACTIVATE ABILITY'}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Game Info Panel - Right Side */}
@@ -4571,13 +4477,147 @@ function App() {
         </div>
       </div>
 
-      {/* Help Button - Bottom left near left panel */}
+      {/* Hero Portrait and Power Bar - To the right of "How to Play" button */}
+      {gameState.players[gameState.currentPlayer]?.heroId && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: 'calc(300px + 40px + 130px + 15px)', // Left panel (300px) + gap (40px) + "How to Play" button width (130px) + gap (15px)
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px',
+          padding: '12px 20px',
+          backgroundColor: '#2c3e50',
+          borderRadius: '8px',
+          border: '2px solid #34495e',
+          zIndex: 1000,
+          boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
+        }}>
+          {/* Hero Portrait */}
+          <div style={{
+            width: '64px',
+            height: '64px',
+            border: '3px solid ' + (gameState.players[gameState.currentPlayer]?.color || '#fff'),
+            borderRadius: '8px',
+            overflow: 'hidden',
+            backgroundColor: '#1a252f',
+            flexShrink: 0
+          }}>
+            <img
+              src={`${process.env.PUBLIC_URL}/sprites/hero_${(() => {
+                const color = gameState.players[gameState.currentPlayer]?.color || '#FF0000';
+                // Map hex colors to sprite names
+                const colorMap = {
+                  '#FF0000': 'red',
+                  '#ff0000': 'red',
+                  '#0000FF': 'blue',
+                  '#0000ff': 'blue',
+                  '#00FFFF': 'blue',
+                  '#00ffff': 'blue',
+                  '#FFFF00': 'yellow',
+                  '#ffff00': 'yellow',
+                  '#00FF00': 'green',
+                  '#00ff00': 'green'
+                };
+                return colorMap[color] || 'red';
+              })()}.png`}
+              alt="Hero"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
+
+          {/* Hero Power Bar and Button */}
+          <div style={{ minWidth: '250px' }}>
+            <div style={{ marginBottom: '6px', color: '#ecf0f1', fontSize: '13px', fontWeight: 'bold' }}>
+              {(() => {
+                const { getHeroById } = require('./heroQueens');
+                const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+                return hero ? hero.name : 'Hero';
+              })()}
+            </div>
+            {/* Power Bar */}
+            <div style={{
+              width: '100%',
+              height: '22px',
+              backgroundColor: '#34495e',
+              borderRadius: '11px',
+              overflow: 'hidden',
+              border: '2px solid #1a252f',
+              marginBottom: '6px',
+              position: 'relative'
+            }}>
+              <div style={{
+                width: `${gameState.players[gameState.currentPlayer]?.heroPower || 0}%`,
+                height: '100%',
+                backgroundColor: gameState.players[gameState.currentPlayer]?.heroPower >= 100 ? '#f39c12' : '#3498db',
+                transition: 'width 0.3s ease'
+              }}>
+              </div>
+            </div>
+            {/* Activate Button */}
+            <button
+              onClick={() => {
+                const { activateHeroAbility } = require('./gameState');
+                const newState = activateHeroAbility(gameState, gameState.currentPlayer);
+                updateGame(newState);
+              }}
+              disabled={
+                !isMyTurn() ||
+                (gameState.players[gameState.currentPlayer]?.heroPower || 0) < 100 ||
+                gameState.players[gameState.currentPlayer]?.heroAbilityActive
+              }
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                backgroundColor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '#f39c12' : '#95a5a6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? 'pointer' : 'not-allowed',
+                width: '100%',
+                opacity: isMyTurn() ? 1 : 0.6
+              }}
+              title={(() => {
+                const { getHeroById } = require('./heroQueens');
+                const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+                return hero?.heroAbility?.description || 'Hero Ability';
+              })()}
+            >
+              {gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '✓ ACTIVE' : '⚡ ACTIVATE ABILITY'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Controls Info - Bottom left above "How to Play" button */}
+      <div style={{
+        position: 'fixed',
+        bottom: '65px', // Above the "How to Play" button
+        left: 'calc(300px + 40px)', // Left panel width (300px) + gap (40px)
+        padding: '8px 12px',
+        borderRadius: '8px',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        fontSize: '11px',
+        zIndex: 1000,
+        maxWidth: '180px'
+      }}>
+        <strong>Controls:</strong><br/>
+        Tab: Next Active Ant<br/>
+        Mouse Wheel: Zoom<br/>
+        Middle Click: Pan<br/>
+        WASD/Arrows: Pan<br/>
+        C: Center on Queen
+      </div>
+
+      {/* Help Button - Bottom left under controls */}
       <button
         onClick={() => setShowHelpGuide(true)}
         style={{
           position: 'fixed',
           bottom: '20px',
-          left: 'calc(300px + 40px)', // Left panel width (300px) + gap (40px)
+          left: 'calc(300px + 40px)', // Same position as controls
           padding: '10px 16px',
           borderRadius: '20px',
           backgroundColor: '#2196F3',
@@ -4597,27 +4637,6 @@ function App() {
       >
         how to play
       </button>
-
-      {/* Camera Controls Info - Bottom left near left panel */}
-      <div style={{
-        position: 'fixed',
-        bottom: '65px',
-        left: 'calc(300px + 40px)', // Left panel width (300px) + gap (40px)
-        padding: '8px 12px',
-        borderRadius: '8px',
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        fontSize: '11px',
-        zIndex: 1000,
-        maxWidth: '180px'
-      }}>
-        <strong>Controls:</strong><br/>
-        Tab: Next Active Ant<br/>
-        Mouse Wheel: Zoom<br/>
-        Middle Click: Pan<br/>
-        WASD/Arrows: Pan<br/>
-        C: Center on Queen
-      </div>
 
       {/* Upgrades Modal */}
       {showUpgradesModal && (

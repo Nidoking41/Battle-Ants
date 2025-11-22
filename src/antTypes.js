@@ -63,8 +63,8 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 0.5,
-    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
-    description: 'Slow and expensive, but incredibly durable. Requires Brood Queen.',
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    description: 'Slow and expensive, but incredibly durable. Requires Swarm Queen.',
     icon: '🛡️🐜'
   },
 
@@ -119,8 +119,8 @@ export const AntTypes = {
     hasDualAttackModes: true, // New property to indicate dual attack modes
     splashRadius: 1, // 3-hex area (center + adjacent hexes)
     resourceGatherRate: 0,
-    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
-    description: 'Long-range artillery with Focus Fire (15 dmg) or Splash (8 dmg, 3-hex area). Cannot attack adjacent enemies or move and shoot. Requires Brood Queen.',
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    description: 'Long-range artillery with Focus Fire (15 dmg) or Splash (8 dmg, 3-hex area). Cannot attack adjacent enemies or move and shoot. Requires Swarm Queen.',
     icon: '🎯🐜'
   },
 
@@ -153,7 +153,7 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 0, // No attack range
     resourceGatherRate: 0,
-    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
     // Energy system for abilities
     maxEnergy: 50,
     energyRegen: 10,
@@ -162,12 +162,37 @@ export const AntTypes = {
     healAmount: 20,
     healEnergyCost: 15,
     ensnareRange: 3,
-    ensnareDuration: 3, // turns
+    ensnareDuration: 2, // turns (changed from 3 to 2)
     ensnareEnergyCost: 20,
+    description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
+    icon: '✨🐜'
+  },
+
+  CORDYPHAGE: {
+    id: 'cordyphage',
+    name: 'Cordyphage',
+    cost: { food: 25, minerals: 20 },
+    hatchTime: 2,
+    maxHealth: 25,
+    attack: 0, // Cannot attack
+    defense: 1,
+    moveSpeed: 2,
+    moveRange: 2,
+    attackRange: 0, // No attack range
+    resourceGatherRate: 0,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    // Energy system for abilities
+    maxEnergy: 50,
+    energyRegen: 10,
+    // Abilities
     cordycepsRange: 2, // Range for mind control
     cordycepsEnergyCost: 35, // Expensive ability
-    description: 'Support unit that can heal allies, ensnare enemies, and mind control with Cordyceps Purge. Requires Swarm Queen.',
-    icon: '✨🐜'
+    plagueRange: 3, // Range for plague
+    plagueDuration: 3, // turns
+    plagueHealthLoss: 0.20, // 20% health per turn
+    plagueEnergyCost: 25,
+    description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
+    icon: '☠️🐜'
   }
 };
 
