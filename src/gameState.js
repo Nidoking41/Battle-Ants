@@ -613,17 +613,9 @@ export function endTurn(gameState) {
     }
   });
 
-  // Gain hero power at the start of each turn (10 points per turn)
-  const currentPlayerData = updatedPlayers[gameState.currentPlayer];
-  if (currentPlayerData && currentPlayerData.heroPower < 100) {
-    updatedPlayers[gameState.currentPlayer] = {
-      ...currentPlayerData,
-      heroPower: Math.min(100, currentPlayerData.heroPower + 10)
-    };
-  }
-
   // Deactivate hero ability if it was active only for one turn (Gorlak, Sorlorg, Vexxara, Skrazzit)
   // Thorgrim's ability lasts until next turn
+  const currentPlayerData = updatedPlayers[gameState.currentPlayer];
   if (currentPlayerData && currentPlayerData.heroAbilityActive) {
     const heroId = currentPlayerData.heroId;
     if (heroId !== 'thorgrim') {
@@ -856,6 +848,32 @@ export function getAntAttack(ant, player) {
     }
   }
 
+  // Apply active hero ability bonuses
+  if (player.heroAbilityActive && player.heroId) {
+    const { getHeroById } = require('./heroQueens');
+    const hero = getHeroById(player.heroId);
+    const ability = hero?.heroAbility;
+
+    if (ability) {
+      // Gorlak: +20% attack for all units
+      if (player.heroId === 'gorlak' && ability.attackBonus) {
+        attack = Math.floor(attack * (1 + ability.attackBonus));
+      }
+      // Sorlorg: +10% damage for ranged units
+      else if (player.heroId === 'sorlorg' && antType.attackRange > 1 && ability.rangedDamageBonus) {
+        attack = Math.floor(attack * (1 + ability.rangedDamageBonus));
+      }
+      // Thorgrim: +2 attack for all units
+      else if (player.heroId === 'thorgrim' && ability.attackBonus) {
+        attack += ability.attackBonus;
+      }
+      // Vexxara: +10% attack for all units
+      else if (player.heroId === 'vexxara' && ability.attackBonus) {
+        attack = Math.floor(attack * (1 + ability.attackBonus));
+      }
+    }
+  }
+
   return attack;
 }
 
@@ -879,6 +897,20 @@ export function getAntDefense(ant, player, gameState) {
 
     if (onAnthill) {
       defense += 2;
+    }
+  }
+
+  // Apply active hero ability bonuses
+  if (player.heroAbilityActive && player.heroId) {
+    const { getHeroById } = require('./heroQueens');
+    const hero = getHeroById(player.heroId);
+    const ability = hero?.heroAbility;
+
+    if (ability) {
+      // Thorgrim: +2 defense for all units
+      if (player.heroId === 'thorgrim' && ability.defenseBonus) {
+        defense += ability.defenseBonus;
+      }
     }
   }
 
@@ -1514,6 +1546,32 @@ export function getSpawningPoolHexes(queen, getNeighborsFunc) {
   return allNeighbors.slice(0, spawningSpots);
 }
 
+
+// Update hero power based on damage dealt or received
+export function updateHeroPower(gameState, playerId, damageAmount) {
+  if (!gameState.players[playerId]) return gameState;
+
+  const player = gameState.players[playerId];
+
+  // Don't add power if ability is already at 100% or active
+  if (player.heroPower >= 100) return gameState;
+
+  // Calculate new hero power: 150 total damage = 100% power
+  // So each point of damage = 100/150 = 0.6667% power
+  const powerGain = (damageAmount / 150) * 100;
+  const newPower = Math.min(100, (player.heroPower || 0) + powerGain);
+
+  return {
+    ...gameState,
+    players: {
+      ...gameState.players,
+      [playerId]: {
+        ...player,
+        heroPower: newPower
+      }
+    }
+  };
+}
 
 // Activate hero ability
 export function activateHeroAbility(gameState, playerId) {
