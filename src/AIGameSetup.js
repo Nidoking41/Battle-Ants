@@ -86,14 +86,14 @@ function AIGameSetup({ onStartGame, onBack }) {
         padding: '15px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-        maxWidth: '1400px',
+        maxWidth: '1000px',
         width: '100%',
         margin: '10px 0',
         marginBottom: '20px',
         border: '2px solid rgba(192, 192, 192, 0.3)'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '5px', fontSize: '24px', color: '#e0e0e0' }}>VS AI Setup</h1>
-        <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#b0b0b0', fontSize: '16px' }}>
+        <h3 style={{ textAlign: 'center', marginBottom: '15px', color: '#b0b0b0', fontSize: '14px' }}>
           Single Player
         </h3>
 
@@ -119,18 +119,18 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => setPlayerHero(hero.id)}
                       style={{
-                        width: '170px',
-                        padding: '8px',
+                        width: '110px',
+                        padding: '6px',
                         border: playerHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        backgroundColor: playerHero === hero.id ? '#e3f2fd' : 'white',
+                        backgroundColor: playerHero === hero.id ? 'rgba(52, 152, 219, 0.2)' : 'rgba(255, 255, 255, 0.1)',
                         textAlign: 'center',
                         transition: 'all 0.2s'
                       }}
@@ -138,10 +138,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '144px', height: '144px', marginBottom: '6px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
-                      <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '8px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>
@@ -288,18 +288,18 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#e0e0e0' }}>Choose AI Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => setAiHero(hero.id)}
                       style={{
-                        width: '170px',
-                        padding: '8px',
+                        width: '110px',
+                        padding: '6px',
                         border: aiHero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        backgroundColor: aiHero === hero.id ? '#ffebee' : 'white',
+                        backgroundColor: aiHero === hero.id ? 'rgba(231, 76, 60, 0.2)' : 'rgba(255, 255, 255, 0.1)',
                         textAlign: 'center',
                         transition: 'all 0.2s'
                       }}
@@ -307,10 +307,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '144px', height: '144px', marginBottom: '6px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
-                      <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '3px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '8px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>

@@ -239,10 +239,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     }}>
       <div style={{
         backgroundColor: 'white',
-        padding: '40px',
+        padding: '20px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '1200px',
+        maxWidth: '900px',
         width: '100%'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '10px' }}>🐜 Game Lobby</h1>
@@ -250,11 +250,11 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
           Room Code: <span style={{ color: '#2c3e50', fontFamily: 'monospace', fontSize: '28px', letterSpacing: '4px' }}>{roomCode}</span>
         </h3>
 
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
           {/* Player 1 Card */}
           <div style={{
             flex: 1,
-            padding: '20px',
+            padding: '12px',
             backgroundColor: lobbyState.player1.id ? '#ecf0f1' : '#bdc3c7',
             borderRadius: '8px',
             border: playerRole === 'player1' ? '3px solid #3498db' : 'none'
@@ -274,14 +274,14 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
               <>
                 <div style={{ marginBottom: '15px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                     {heroOptions.map(hero => (
                       <div
                         key={hero.id}
                         onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
                         style={{
-                          width: '220px',
-                          padding: '10px',
+                          width: '120px',
+                          padding: '6px',
                           border: lobbyState.player1.hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                           borderRadius: '8px',
                           cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
@@ -294,10 +294,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         <img
                           src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
-                          style={{ width: '192px', height: '192px', marginBottom: '8px', imageRendering: 'pixelated' }}
+                          style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>{hero.name}</div>
-                        <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.3' }}>{hero.description}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>{hero.name}</div>
+                        <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                       </div>
                     ))}
                   </div>
@@ -316,7 +316,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
           {/* Player 2 Card */}
           <div style={{
             flex: 1,
-            padding: '20px',
+            padding: '12px',
             backgroundColor: lobbyState.player2.id ? '#ecf0f1' : '#bdc3c7',
             borderRadius: '8px',
             border: playerRole === 'player2' ? '3px solid #3498db' : 'none'
@@ -335,14 +335,14 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
               <>
                 <div style={{ marginBottom: '15px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                     {heroOptions.map(hero => (
                       <div
                         key={hero.id}
                         onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
                         style={{
-                          width: '150px',
-                          padding: '8px',
+                          width: '120px',
+                          padding: '6px',
                           border: lobbyState.player2.hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                           borderRadius: '8px',
                           cursor: playerRole === 'player2' ? 'pointer' : 'not-allowed',
@@ -355,10 +355,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         <img
                           src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
-                          style={{ width: '128px', height: '128px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                          style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
-                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
-                        <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>{hero.name}</div>
+                        <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                       </div>
                     ))}
                   </div>
