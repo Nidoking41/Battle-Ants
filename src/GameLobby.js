@@ -228,7 +228,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         key={hero.id}
                         onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
                         style={{
-                          width: '100px',
+                          width: '150px',
                           padding: '8px',
                           border: lobbyState.player1.hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                           borderRadius: '8px',
@@ -242,7 +242,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         <img
                           src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
-                          style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                          style={{ width: '128px', height: '128px', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
                         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
                         <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
@@ -289,7 +289,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         key={hero.id}
                         onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
                         style={{
-                          width: '100px',
+                          width: '150px',
                           padding: '8px',
                           border: lobbyState.player2.hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                           borderRadius: '8px',
@@ -303,7 +303,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         <img
                           src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
-                          style={{ width: '64px', height: '64px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                          style={{ width: '128px', height: '128px', marginBottom: '4px', imageRendering: 'pixelated' }}
                         />
                         <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
                         <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>

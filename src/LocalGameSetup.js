@@ -89,7 +89,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
                     key={hero.id}
                     onClick={() => setPlayer1Hero(hero.id)}
                     style={{
-                      width: '80px',
+                      width: '120px',
                       padding: '6px',
                       border: player1Hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                       borderRadius: '8px',
@@ -102,7 +102,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
                     <img
                       src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                       alt={hero.name}
-                      style={{ width: '48px', height: '48px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                      style={{ width: '96px', height: '96px', marginBottom: '4px', imageRendering: 'pixelated' }}
                     />
                     <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
                     <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
