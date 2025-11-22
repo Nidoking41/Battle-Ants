@@ -5,11 +5,10 @@ export const HeroQueens = {
   GORLAK: {
     id: 'gorlak',
     name: 'Gorlak the Crusher',
-    description: 'Melee units gain +10% attack and +10 health',
+    description: 'Melee units gain +20% attack',
     icon: '🗡️',
     bonuses: {
-      meleeAttackBonus: 0.10,  // +10% attack for melee
-      meleeHealthBonus: 10     // +10 health for melee
+      meleeAttackBonus: 0.20  // +20% attack for melee (rounded up)
     },
     heroAbility: {
       name: 'Crushing Blow',
@@ -114,7 +113,7 @@ export function applyHeroBonuses(antStats, antType, heroId) {
 
   // Apply melee bonuses (Gorlak)
   if (isMelee && bonuses.meleeAttackBonus) {
-    modifiedStats.attack = Math.floor(modifiedStats.attack * (1 + bonuses.meleeAttackBonus));
+    modifiedStats.attack = Math.ceil(modifiedStats.attack * (1 + bonuses.meleeAttackBonus));
   }
   if (isMelee && bonuses.meleeHealthBonus) {
     modifiedStats.maxHealth = modifiedStats.maxHealth + bonuses.meleeHealthBonus;
