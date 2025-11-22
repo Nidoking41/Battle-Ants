@@ -388,6 +388,12 @@ function App() {
 
     let range = antType.moveRange;
 
+    // Apply Gorlak's hero ability: +1 move for melee units
+    const currentPlayer = gameState.players[ant.owner];
+    if (currentPlayer?.heroAbilityActive && currentPlayer?.heroId === 'gorlak' && antType.attackRange <= 1) {
+      range += 1;
+    }
+
     // Burrowed units have limited movement
     if (ant.isBurrowed) {
       // Only soldiers can move while burrowed (1 hex)
@@ -1179,7 +1185,13 @@ function App() {
 
   // Handle hex click
   const handleHexClick = (hex) => {
-    if (!isMyTurn()) {
+    const currentState = getGameStateForLogic();
+
+    // Allow viewing ant info even when not your turn
+    // But check turn for actual actions
+    const performingAction = selectedAction && selectedAction !== null;
+
+    if (performingAction && !isMyTurn()) {
       alert("It's not your turn!");
       return;
     }
@@ -1189,8 +1201,6 @@ function App() {
       handleDetonate();
       return;
     }
-
-    const currentState = getGameStateForLogic();
 
     // If attacking
     if (selectedAction === 'attack' && selectedAnt) {
@@ -1511,6 +1521,19 @@ function App() {
     // If moving ant
     if (selectedAction === 'move' && selectedAnt) {
       const ant = currentState.ants[selectedAnt];
+
+      // Check if clicked on a friendly ant - if so, select that ant instead of moving
+      const friendlyAtHex = Object.values(currentState.ants).find(
+        a => hexEquals(a.position, hex) && a.owner === ant.owner && a.id !== ant.id
+      );
+      if (friendlyAtHex) {
+        // Clicking on friendly ant - select it instead
+        setSelectedAnt(friendlyAtHex.id);
+        setSelectedAction(null);
+        setSelectedEgg(null);
+        setSelectedAnthill(null);
+        return;
+      }
 
       // Check if clicking on an enemy to attack
       const enemyAtHex = Object.values(currentState.ants).find(
@@ -2183,9 +2206,9 @@ function App() {
       }
     }
 
-    // Select ant and auto-select move action
+    // Select ant - allow selecting any ant for viewing info
     const clickedAnt = Object.values(currentState.ants).find(
-      a => hexEquals(a.position, hex) && a.owner === currentState.currentPlayer
+      a => hexEquals(a.position, hex)
     );
 
     if (clickedAnt) {
@@ -2197,33 +2220,43 @@ function App() {
         return;
       }
 
-      // If the ant has already moved and attacked, inform the user and don't select it
-      if (clickedAnt.hasMoved && clickedAnt.hasAttacked) {
-        alert('This unit has already completed all actions this turn!');
-        setSelectedAnt(null);
-        setSelectedAction(null);
-        setSelectedEgg(null);
-        return;
-      }
+      // Only allow actions on your own ants and only when it's your turn
+      const isOwnAnt = clickedAnt.owner === currentState.currentPlayer;
 
-      // If the ant has only attacked (can't move after attacking), inform the user
-      if (clickedAnt.hasAttacked && clickedAnt.type !== 'queen') {
-        alert('This unit has already attacked and cannot move!');
-        setSelectedAnt(null);
-        setSelectedAction(null);
-        setSelectedEgg(null);
-        return;
-      }
+      if (isOwnAnt && isMyTurn()) {
+        // If the ant has already moved and attacked, inform the user and don't select it
+        if (clickedAnt.hasMoved && clickedAnt.hasAttacked) {
+          alert('This unit has already completed all actions this turn!');
+          setSelectedAnt(null);
+          setSelectedAction(null);
+          setSelectedEgg(null);
+          return;
+        }
 
-      setSelectedAnt(clickedAnt.id);
-      // Auto-select action based on unit type:
-      // - Queens: lay egg
-      // - Others (including bombers): move
-      if (clickedAnt.type === 'queen') {
-        setSelectedAction('layEgg');
+        // If the ant has only attacked (can't move after attacking), inform the user
+        if (clickedAnt.hasAttacked && clickedAnt.type !== 'queen') {
+          alert('This unit has already attacked and cannot move!');
+          setSelectedAnt(null);
+          setSelectedAction(null);
+          setSelectedEgg(null);
+          return;
+        }
+
+        setSelectedAnt(clickedAnt.id);
+        // Auto-select action based on unit type:
+        // - Queens: lay egg
+        // - Others (including bombers): move
+        if (clickedAnt.type === 'queen') {
+          setSelectedAction('layEgg');
+        } else {
+          setSelectedAction('move');
+        }
       } else {
-        setSelectedAction('move');
+        // Enemy ant or not your turn - just select for viewing info, no actions
+        setSelectedAnt(clickedAnt.id);
+        setSelectedAction(null);
       }
+
       setSelectedEgg(null);
       setSelectedAnthill(null);
       return;
@@ -3420,7 +3453,7 @@ function App() {
         </div>
 
         {/* Game Board */}
-        <div style={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
+        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', minWidth: 0, gap: '10px' }}>
           <div style={{
             backgroundImage: `url(${forestFloorImage})`,
             backgroundSize: 'cover',
@@ -3429,7 +3462,7 @@ function App() {
             border: '2px solid #333',
             display: 'inline-block',
             maxWidth: '100%',
-            maxHeight: 'calc(100vh - 80px)'
+            maxHeight: 'calc(100vh - 200px)'
           }}>
             <svg
               width="1200"
@@ -3597,6 +3630,100 @@ function App() {
             </g>
           </svg>
           </div>
+
+          {/* Hero Portrait and Power Bar - Below Map */}
+          {gameState.players[gameState.currentPlayer]?.heroId && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '15px',
+              padding: '12px 20px',
+              backgroundColor: '#2c3e50',
+              borderRadius: '8px',
+              border: '2px solid #34495e',
+              maxWidth: '500px'
+            }}>
+              {/* Hero Portrait */}
+              <div style={{
+                width: '64px',
+                height: '64px',
+                border: '3px solid ' + (gameState.players[gameState.currentPlayer]?.color || '#fff'),
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: '#1a252f',
+                flexShrink: 0
+              }}>
+                <img
+                  src={`${process.env.PUBLIC_URL}/sprites/hero_${(gameState.players[gameState.currentPlayer]?.color || 'red').toLowerCase()}.png`}
+                  alt="Hero"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+
+              {/* Hero Power Bar and Button */}
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <div style={{ marginBottom: '6px', color: '#ecf0f1', fontSize: '13px', fontWeight: 'bold' }}>
+                  {(() => {
+                    const { getHeroById } = require('./heroQueens');
+                    const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+                    return hero ? hero.name : 'Hero';
+                  })()}
+                </div>
+                {/* Power Bar */}
+                <div style={{
+                  width: '100%',
+                  height: '22px',
+                  backgroundColor: '#34495e',
+                  borderRadius: '11px',
+                  overflow: 'hidden',
+                  border: '2px solid #1a252f',
+                  marginBottom: '6px',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    width: `${gameState.players[gameState.currentPlayer]?.heroPower || 0}%`,
+                    height: '100%',
+                    backgroundColor: gameState.players[gameState.currentPlayer]?.heroPower >= 100 ? '#f39c12' : '#3498db',
+                    transition: 'width 0.3s ease'
+                  }}>
+                  </div>
+                </div>
+                {/* Activate Button */}
+                <button
+                  onClick={() => {
+                    const { activateHeroAbility } = require('./gameState');
+                    const newState = activateHeroAbility(gameState, gameState.currentPlayer);
+                    updateGame(newState);
+                  }}
+                  disabled={
+                    !isMyTurn() ||
+                    (gameState.players[gameState.currentPlayer]?.heroPower || 0) < 100 ||
+                    gameState.players[gameState.currentPlayer]?.heroAbilityActive
+                  }
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    backgroundColor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '#f39c12' : '#95a5a6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? 'pointer' : 'not-allowed',
+                    width: '100%',
+                    opacity: isMyTurn() ? 1 : 0.6
+                  }}
+                  title={(() => {
+                    const { getHeroById } = require('./heroQueens');
+                    const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+                    return hero?.heroAbility?.description || 'Hero Ability';
+                  })()}
+                >
+                  {gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '✓ ACTIVE' : '⚡ ACTIVATE ABILITY'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Game Info Panel - Right Side */}
@@ -3795,11 +3922,38 @@ function App() {
               <h4>Selected Ant</h4>
               <p>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : AntTypes[gameState.ants[selectedAnt].type.toUpperCase()].name}</p>
               <p>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
-              {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer') && gameState.ants[selectedAnt].maxEnergy && (
+              {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer' || gameState.ants[selectedAnt].type === 'cordyphage') && gameState.ants[selectedAnt].maxEnergy && (
                 <p>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
               )}
+              {(() => {
+                const ant = gameState.ants[selectedAnt];
+                const antType = AntTypes[ant.type.toUpperCase()];
+                const owner = gameState.players[ant.owner];
+
+                // Use getAntAttack and getAntDefense to get actual stats with all bonuses
+                const { getAntAttack, getAntDefense } = require('./gameState');
+                const totalAttack = getAntAttack(ant, owner);
+                const totalDefense = getAntDefense(ant, owner, gameState);
+
+                const baseAttack = antType.attack || 0;
+                const baseDefense = antType.defense || 0;
+                const attackBonus = totalAttack - baseAttack;
+                const defenseBonus = totalDefense - baseDefense;
+
+                return (
+                  <>
+                    {baseAttack > 0 && (
+                      <p>Attack: {totalAttack} {attackBonus > 0 && <span style={{ color: '#27ae60' }}>(+{attackBonus})</span>}</p>
+                    )}
+                    <p>Defense: {totalDefense} {defenseBonus > 0 && <span style={{ color: '#27ae60' }}>(+{defenseBonus})</span>}</p>
+                  </>
+                );
+              })()}
               {gameState.ants[selectedAnt].ensnared && gameState.ants[selectedAnt].ensnared > 0 && (
                 <p style={{ color: '#f39c12', fontWeight: 'bold' }}>🕸️ Ensnared ({gameState.ants[selectedAnt].ensnared} turns)</p>
+              )}
+              {gameState.ants[selectedAnt].plagued && gameState.ants[selectedAnt].plagued > 0 && (
+                <p style={{ color: '#8e44ad', fontWeight: 'bold' }}>☠️ Plagued ({gameState.ants[selectedAnt].plagued} turns)</p>
               )}
 
               <>
