@@ -18,14 +18,17 @@ function AIGameSetup({ onStartGame, onBack }) {
     'vexxara': '#000000'    // Black
   };
 
-  // Available alternative colors if same hero is selected
-  const alternativeColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
+  // Available sprite colors (must match actual sprite files in /sprites/ants/)
+  const availableColors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#000000'];
 
   // Get actual color for player 2/AI, handling duplicate hero selection
   const getPlayer2Color = () => {
     if (playerHero === aiHero) {
-      // Same hero selected, use an alternative color
-      return alternativeColors[0]; // Use first alternative
+      // Same hero selected, use an alternative sprite color
+      const player1Color = heroColors[playerHero];
+      // Find first available color that's different from player 1
+      const alternativeColor = availableColors.find(color => color !== player1Color);
+      return alternativeColor || availableColors[0];
     }
     return heroColors[aiHero];
   };
