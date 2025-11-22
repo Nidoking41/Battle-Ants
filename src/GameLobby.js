@@ -190,7 +190,7 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
         padding: '40px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '800px',
+        maxWidth: '1200px',
         width: '100%'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '10px' }}>🐜 Game Lobby</h1>
@@ -228,8 +228,8 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         key={hero.id}
                         onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
                         style={{
-                          width: '150px',
-                          padding: '8px',
+                          width: '220px',
+                          padding: '10px',
                           border: lobbyState.player1.hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                           borderRadius: '8px',
                           cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
@@ -242,10 +242,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                         <img
                           src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                           alt={hero.name}
-                          style={{ width: '128px', height: '128px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                          style={{ width: '192px', height: '192px', marginBottom: '8px', imageRendering: 'pixelated' }}
                         />
-                        <div style={{ fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
-                        <div style={{ fontSize: '8px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>{hero.name}</div>
+                        <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.3' }}>{hero.description}</div>
                       </div>
                     ))}
                   </div>

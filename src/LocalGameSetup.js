@@ -54,7 +54,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
         padding: '40px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '800px',
+        maxWidth: '1100px',
         width: '100%'
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '10px' }}>🐜 Local Game Setup</h1>
@@ -89,8 +89,8 @@ function LocalGameSetup({ onStartGame, onBack }) {
                     key={hero.id}
                     onClick={() => setPlayer1Hero(hero.id)}
                     style={{
-                      width: '120px',
-                      padding: '6px',
+                      width: '170px',
+                      padding: '8px',
                       border: player1Hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                       borderRadius: '8px',
                       cursor: 'pointer',
@@ -102,10 +102,10 @@ function LocalGameSetup({ onStartGame, onBack }) {
                     <img
                       src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                       alt={hero.name}
-                      style={{ width: '96px', height: '96px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                      style={{ width: '144px', height: '144px', marginBottom: '6px', imageRendering: 'pixelated' }}
                     />
-                    <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
-                    <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
+                    <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                   </div>
                 ))}
               </div>

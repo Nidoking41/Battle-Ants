@@ -68,7 +68,7 @@ function AIGameSetup({ onStartGame, onBack }) {
         padding: '15px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '1100px',
+        maxWidth: '1400px',
         width: '100%',
         margin: '10px 0',
         marginBottom: '20px'
@@ -106,8 +106,8 @@ function AIGameSetup({ onStartGame, onBack }) {
                       key={hero.id}
                       onClick={() => setPlayerHero(hero.id)}
                       style={{
-                        width: '120px',
-                        padding: '6px',
+                        width: '170px',
+                        padding: '8px',
                         border: playerHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                         borderRadius: '8px',
                         cursor: 'pointer',
@@ -119,10 +119,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '96px', height: '96px', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        style={{ width: '144px', height: '144px', marginBottom: '6px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>{hero.name}</div>
-                      <div style={{ fontSize: '7px', color: '#666', lineHeight: '1.1' }}>{hero.description}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>{hero.name}</div>
+                      <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>
