@@ -4590,31 +4590,6 @@ function App() {
             </div>
           )}
 
-          {/* Turn Indicator - show for AI games */}
-          {gameMode?.isAI && (
-            <div style={{
-              width: '100%',
-              padding: '12px',
-              marginBottom: '10px',
-              backgroundColor: isAIThinking ? '#9b59b6' : (gameState.currentPlayer === 'player1' ? '#27ae60' : '#3498db'),
-              color: 'white',
-              borderRadius: '8px',
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              animation: isAIThinking ? 'pulse 1.5s infinite' : 'none'
-            }}>
-              {isAIThinking ? (
-                <>🤖 AI is thinking...</>
-              ) : gameState.currentPlayer === 'player1' ? (
-                <>👤 Your Turn</>
-              ) : (
-                <>🤖 AI's Turn</>
-              )}
-            </div>
-          )}
-
           {/* End Turn Button */}
           <button
             onClick={handleEndTurn}
