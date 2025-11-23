@@ -3,7 +3,7 @@ import { ref, onValue, update } from 'firebase/database';
 import { database } from './firebaseConfig';
 import { HeroQueens } from './heroQueens';
 
-function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
+function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack }) {
   const [lobbyState, setLobbyState] = useState({
     player1: {
       id: null,
@@ -48,7 +48,6 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
   // Hero options
   const heroOptions = Object.values(HeroQueens);
 
-  const isHost = playerRole === 'player1';
   const opponentJoined = playerRole === 'player1' ? lobbyState.player2.id : lobbyState.player1.id;
 
   // Map size options
@@ -215,6 +214,13 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
       return;
     }
 
+    // Check if opponent is ready
+    const opponentRole = playerRole === 'player1' ? 'player2' : 'player1';
+    if (!lobbyState[opponentRole]?.ready) {
+      alert('Waiting for opponent to be ready!');
+      return;
+    }
+
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
       gameStarted: true
@@ -330,9 +336,9 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                       padding: '8px',
                       fontSize: '13px',
                       fontWeight: 'bold',
-                      background: lobbyState.mapSize === size.value ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      background: lobbyState.mapSize === size.value ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
                       color: '#e0e0e0',
-                      border: '2px solid #666',
+                      border: lobbyState.mapSize === size.value ? '2px solid #aaa' : '2px solid #666',
                       borderRadius: '5px',
                       cursor: isHost ? 'pointer' : 'not-allowed',
                       opacity: !isHost ? 0.6 : 1,
@@ -370,9 +376,9 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
                     padding: '8px 16px',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    background: lobbyState.fogOfWar ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                    background: lobbyState.fogOfWar ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
                     color: '#e0e0e0',
-                    border: '2px solid #666',
+                    border: lobbyState.fogOfWar ? '2px solid #aaa' : '2px solid #666',
                     borderRadius: '5px',
                     cursor: isHost ? 'pointer' : 'not-allowed',
                     opacity: !isHost ? 0.6 : 1,
@@ -452,24 +458,24 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
 
           <button
             onClick={isHost ? handleStartGame : handleReady}
-            disabled={isHost && !opponentJoined}
+            disabled={isHost && (!opponentJoined || !lobbyState[playerRole === 'player1' ? 'player2' : 'player1']?.ready)}
             style={{
               flex: 2,
               padding: '12px',
               fontSize: '16px',
               fontWeight: 'bold',
-              background: (isHost && !opponentJoined) ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+              background: (isHost && (!opponentJoined || !lobbyState[playerRole === 'player1' ? 'player2' : 'player1']?.ready)) ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
               color: '#e0e0e0',
               border: '2px solid #666',
               borderRadius: '5px',
-              cursor: (isHost && !opponentJoined) ? 'not-allowed' : 'pointer',
-              opacity: (isHost && !opponentJoined) ? 0.6 : 1,
+              cursor: (isHost && (!opponentJoined || !lobbyState[playerRole === 'player1' ? 'player2' : 'player1']?.ready)) ? 'not-allowed' : 'pointer',
+              opacity: (isHost && (!opponentJoined || !lobbyState[playerRole === 'player1' ? 'player2' : 'player1']?.ready)) ? 0.6 : 1,
               boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
               transition: 'all 0.2s'
             }}
           >
             {isHost
-              ? (opponentJoined ? 'Start Game' : 'Waiting for opponent...')
+              ? (!opponentJoined ? 'Waiting for opponent...' : (!lobbyState[playerRole === 'player1' ? 'player2' : 'player1']?.ready ? 'Waiting for opponent ready...' : 'Start Game'))
               : (lobbyState[playerRole]?.ready ? 'Unready' : 'Ready')
             }
           </button>

@@ -204,6 +204,12 @@ function hatchEggsIfReady(gameState, aiPlayer) {
   let state = { ...gameState };
 
   for (const egg of eggs) {
+    // Skip eggs without a valid antType
+    if (!egg.antType) {
+      console.warn('Egg missing antType, skipping:', egg);
+      continue;
+    }
+
     // Create the ant
     const antId = `ant_ai_${Date.now()}_${Math.random()}`;
     const antType = AntTypes[egg.antType.toUpperCase()];
@@ -502,22 +508,38 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
               hill.owner === aiPlayer
     );
 
-    // Try to build anthill if config allows, no anthill exists, and it's a MINERAL node
-    if (config.buildAnthills && !anthillAtPos && resourceAtPos.type === 'minerals') {
-      console.log(`Attempting to build anthill at mineral node`);
-      // Find the resource ID
-      const resourceId = Object.keys(state.resources).find(
-        id => state.resources[id].position.q === resourceAtPos.position.q &&
-              state.resources[id].position.r === resourceAtPos.position.r
-      );
-      if (resourceId) {
-        const newState = buildAnthill(state, drone.id, resourceId);
-        // buildAnthill returns the new state directly, check if anthill was added
-        if (Object.keys(newState.anthills || {}).length > Object.keys(state.anthills || {}).length) {
-          console.log(`AI drone building anthill at mineral node (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
+    // Try to build/continue anthill if config allows and it's a MINERAL node
+    if (config.buildAnthills && resourceAtPos.type === 'minerals') {
+      // Check if there's an incomplete anthill that needs more building
+      if (anthillAtPos && !anthillAtPos.isComplete) {
+        console.log(`Continuing to build incomplete anthill (progress: ${anthillAtPos.buildProgress})`);
+        const resourceId = Object.keys(state.resources).find(
+          id => state.resources[id].position.q === resourceAtPos.position.q &&
+                state.resources[id].position.r === resourceAtPos.position.r
+        );
+        if (resourceId) {
+          const newState = buildAnthill(state, drone.id, resourceId);
+          console.log(`AI drone continuing anthill construction at (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
           return newState;
-        } else {
-          console.log(`Failed to build anthill - drone may have already built this turn`);
+        }
+      }
+      // If no anthill exists, start building one
+      else if (!anthillAtPos) {
+        console.log(`Attempting to build anthill at mineral node`);
+        // Find the resource ID
+        const resourceId = Object.keys(state.resources).find(
+          id => state.resources[id].position.q === resourceAtPos.position.q &&
+                state.resources[id].position.r === resourceAtPos.position.r
+        );
+        if (resourceId) {
+          const newState = buildAnthill(state, drone.id, resourceId);
+          // buildAnthill returns the new state directly, check if anthill was added
+          if (Object.keys(newState.anthills || {}).length > Object.keys(state.anthills || {}).length) {
+            console.log(`AI drone building anthill at mineral node (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
+            return newState;
+          } else {
+            console.log(`Failed to build anthill - drone may have already built this turn`);
+          }
         }
       }
     }

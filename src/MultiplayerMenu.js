@@ -1,9 +1,25 @@
-import React, { useState } from 'react';
-import { createOrJoinGameRoom } from './multiplayerUtils';
+import React, { useState, useEffect } from 'react';
+import { createOrJoinGameRoom, cleanupOldRooms } from './multiplayerUtils';
 
-function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup }) {
+function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup, onEnterOnlineMultiplayer }) {
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Clean up old rooms when component mounts
+  useEffect(() => {
+    const cleanup = async () => {
+      try {
+        // Clean up rooms older than 24 hours
+        const result = await cleanupOldRooms(24);
+        if (result.deleted > 0) {
+          console.log(`Cleaned up ${result.deleted} old rooms`);
+        }
+      } catch (error) {
+        console.error('Error cleaning up old rooms:', error);
+      }
+    };
+    cleanup();
+  }, []);
 
   // Generate a random 4-digit code
   const generateRoomCode = () => {
@@ -85,6 +101,11 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
     onEnterAISetup();
   };
 
+  const handleOnlineMultiplayer = () => {
+    // Navigate to online multiplayer lobby (host/join selection)
+    onEnterOnlineMultiplayer();
+  };
+
   return (
     <div style={{
       display: 'flex',
@@ -149,6 +170,35 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
           Versus AI
         </button>
 
+        {/* Online Multiplayer */}
+        <button
+          onClick={handleOnlineMultiplayer}
+          style={{
+            width: '100%',
+            padding: '15px',
+            fontSize: '18px',
+            marginBottom: '15px',
+            background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+            color: '#e0e0e0',
+            border: '2px solid #666',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.background = 'linear-gradient(145deg, #5a5a5a, #3a3a3a)';
+            e.target.style.borderColor = '#888';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = 'linear-gradient(145deg, #4a4a4a, #2a2a2a)';
+            e.target.style.borderColor = '#666';
+          }}
+        >
+          Online Multiplayer
+        </button>
+
         {/* Local Game */}
         <button
           onClick={handleLocalGame}
@@ -178,75 +228,8 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
           Local Game (Hot Seat)
         </button>
 
-        {/* Join with Code */}
-        <div style={{ marginTop: '10px' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '10px',
-            fontWeight: 'bold',
-            color: '#e0e0e0',
-            textAlign: 'center',
-            fontSize: '14px'
-          }}>
-            Join Room:
-          </label>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="0000"
-              maxLength="4"
-              style={{
-                flex: '1',
-                padding: '12px',
-                fontSize: '20px',
-                textAlign: 'center',
-                border: '2px solid #666',
-                borderRadius: '5px',
-                letterSpacing: '6px',
-                fontWeight: 'bold',
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
-              }}
-            />
-            <button
-              onClick={handleJoinWithCode}
-              disabled={loading || roomCode.length !== 4}
-              style={{
-                padding: '12px 20px',
-                fontSize: '16px',
-                background: (loading || roomCode.length !== 4) ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
-                color: '#e0e0e0',
-                border: '2px solid #666',
-                borderRadius: '5px',
-                cursor: (loading || roomCode.length !== 4) ? 'not-allowed' : 'pointer',
-                opacity: (loading || roomCode.length !== 4) ? 0.6 : 1,
-                fontWeight: 'bold',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseOver={(e) => {
-                if (!loading && roomCode.length === 4) {
-                  e.target.style.background = 'linear-gradient(145deg, #5a5a5a, #3a3a3a)';
-                  e.target.style.borderColor = '#888';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!loading && roomCode.length === 4) {
-                  e.target.style.background = 'linear-gradient(145deg, #4a4a4a, #2a2a2a)';
-                  e.target.style.borderColor = '#666';
-                }
-              }}
-            >
-              {loading ? 'Joining...' : 'Join'}
-            </button>
-          </div>
-        </div>
-
         <div style={{
-          marginTop: '20px',
+          marginTop: '5px',
           padding: '12px',
           backgroundColor: 'rgba(0, 0, 0, 0.4)',
           borderRadius: '5px',
@@ -255,7 +238,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
           border: '1px solid rgba(192, 192, 192, 0.2)',
           textAlign: 'center'
         }}>
-          Enter a 4-digit room code to join or create a multiplayer game
+          Choose your game mode to begin your ant empire!
         </div>
       </div>
     </div>

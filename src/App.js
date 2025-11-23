@@ -5,9 +5,11 @@ import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attac
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
+import OnlineMultiplayerLobby from './OnlineMultiplayerLobby';
 import GameLobby from './GameLobby';
 import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
+import GameSummary from './GameSummary';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
 import { executeAITurn } from './aiController';
 import forestFloorImage from './forestfloor.png';
@@ -35,6 +37,9 @@ function App() {
   const [attackAnimations, setAttackAnimations] = useState([]); // Array of {id, attackerId, targetPos, timestamp, isRanged}
   const [projectiles, setProjectiles] = useState([]); // Array of {id, startPos, endPos, timestamp}
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
+  const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
+  const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
+  const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
@@ -92,22 +97,6 @@ function App() {
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
 
-  // Track ant positions for smooth movement transitions
-  const [antPositions, setAntPositions] = useState({});
-  const previousPositionsRef = useRef({});
-  const [, setAnimationTick] = useState(0); // Force re-renders for smooth animation
-
-  // Continuous animation loop for smooth movement
-  useEffect(() => {
-    let animationFrameId;
-    const animate = () => {
-      setAnimationTick(tick => tick + 1); // Trigger re-render
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
@@ -116,51 +105,6 @@ function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
-
-  // Track ant position changes for smooth transitions
-  useEffect(() => {
-    const newPositions = {};
-    Object.values(gameState.ants).forEach(ant => {
-      const key = ant.id;
-      const currentPos = { q: ant.position.q, r: ant.position.r };
-      const previousPos = previousPositionsRef.current[key];
-
-      if (previousPos && (previousPos.q !== currentPos.q || previousPos.r !== currentPos.r)) {
-        // Ant moved - store transition data
-        newPositions[key] = {
-          startPos: previousPos,
-          endPos: currentPos,
-          startTime: Date.now()
-        };
-      }
-
-      previousPositionsRef.current[key] = currentPos;
-    });
-
-    if (Object.keys(newPositions).length > 0) {
-      setAntPositions(prev => ({ ...prev, ...newPositions }));
-    }
-  }, [gameState.ants]);
-
-  // Cleanup completed movement transitions
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setAntPositions(prev => {
-        const updated = { ...prev };
-        let changed = false;
-        Object.keys(updated).forEach(key => {
-          if (now - updated[key].startTime > 2000) { // 2000ms transition (2 seconds)
-            delete updated[key];
-            changed = true;
-          }
-        });
-        return changed ? updated : prev;
-      });
-    }, 50); // Check every 50ms
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Keyboard event listener for Shift key to rotate bombardier splash
   useEffect(() => {
@@ -282,6 +226,12 @@ function App() {
   // Keyboard controls for panning
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Ignore keypresses when user is typing in an input field
+      const target = e.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+
       const panSpeed = 50;
 
       // Check if it's my turn
@@ -369,25 +319,17 @@ function App() {
             }
             return;
           case 'q':
-            console.log('Lay egg hotkey triggered');
+            console.log('Q key - Select queen hotkey triggered');
             e.preventDefault();
-            // Lay egg action - auto-select queen if not selected
-            if (ant && ant.type === 'queen') {
-              setSelectedAction('layEgg');
+            // Q key selects the queen and centers on it
+            const currentState = getGameStateForLogic();
+            const queen = Object.values(currentState.ants).find(
+              a => a.type === 'queen' && a.owner === currentState.currentPlayer && !a.isDead
+            );
+            if (queen) {
+              setSelectedAnt(queen.id);
+              centerOnQueen();
               return;
-            }
-            // If no ant selected or wrong ant type, find and select the queen
-            if (!ant || ant.type !== 'queen') {
-              const currentState = getGameStateForLogic();
-              const queen = Object.values(currentState.ants).find(
-                a => a.type === 'queen' && a.owner === currentState.currentPlayer && !a.isDead
-              );
-              if (queen) {
-                setSelectedAnt(queen.id);
-                setSelectedAction('layEgg');
-                centerOnQueen();
-                return;
-              }
             }
             return;
           case 'd':
@@ -770,7 +712,7 @@ function App() {
           currentStep: nextStep
         };
       });
-    }, 150); // 150ms between each step (faster, smoother animation)
+    }, 800); // 800ms between each step (slow, smooth, visible movement)
 
     return () => clearTimeout(timer);
   }, [movingAnt]);
@@ -1143,6 +1085,10 @@ function App() {
     setGameMode('aiSetup');
   };
 
+  const handleEnterOnlineMultiplayer = () => {
+    setGameMode('onlineMultiplayer');
+  };
+
   const handleStartGame = (mode) => {
     // Mode includes lobby settings: mapSize, player1Color, player2Color, etc.
     const gameOptions = {};
@@ -1197,10 +1143,39 @@ function App() {
     setGameState(createInitialGameState());
   };
 
+  // Handle concede button
+  const handleConcede = () => {
+    setShowConcedeConfirm(true);
+  };
+
+  const confirmConcede = () => {
+    setShowConcedeConfirm(false);
+    const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+    const winner = currentPlayerId === 'player1' ? 'player2' : 'player1';
+
+    const updatedState = {
+      ...gameState,
+      gameOver: true,
+      winner: winner
+    };
+
+    updateGame(updatedState);
+    setShowVictoryModal(true);
+  };
+
+  const cancelConcede = () => {
+    setShowConcedeConfirm(false);
+  };
+
   // Handle end turn with AI support
   const handleEndTurn = async () => {
     const currentState = getGameStateForLogic();
     const { gameState: newState, resourceGains } = endTurn(currentState);
+
+    // Check if game is over and show victory modal
+    if (newState.gameOver && !showVictoryModal) {
+      setShowVictoryModal(true);
+    }
 
     // Show resource gain animations - only for owned anthills or visible anthills
     if (resourceGains && resourceGains.length > 0) {
@@ -1232,7 +1207,17 @@ function App() {
 
   // Show menu if game hasn't started
   if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} />;
+    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} />;
+  }
+
+  // Show online multiplayer lobby (host/join selection)
+  if (gameMode === 'onlineMultiplayer') {
+    return (
+      <OnlineMultiplayerLobby
+        onEnterGameLobby={handleEnterLobby}
+        onBack={handleBackToMenu}
+      />
+    );
   }
 
   // Show lobby if in lobby mode
@@ -1242,6 +1227,7 @@ function App() {
         roomCode={lobbySettings.gameId}
         playerId={lobbySettings.playerId}
         playerRole={lobbySettings.playerRole}
+        isHost={lobbySettings.isHost}
         onStartGame={handleStartGame}
         onBack={handleBackToMenu}
       />
@@ -1264,6 +1250,16 @@ function App() {
       <AIGameSetup
         onStartGame={handleStartGame}
         onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  // Show game summary if game is over and summary is requested
+  if (showGameSummary && gameState.gameOver) {
+    return (
+      <GameSummary
+        gameState={gameState}
+        onReturnToMenu={handleBackToMenu}
       />
     );
   }
@@ -2150,8 +2146,8 @@ function App() {
         setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
         // After animation completes, mark ant as moved and update final state
-        // Calculate total animation time (150ms per step)
-        const animationDuration = (path.length - 1) * 150;
+        // Calculate total animation time (800ms per step for smooth, visible movement)
+        const animationDuration = (path.length - 1) * 800;
         setTimeout(() => {
           const newState = moveAnt(currentState, selectedAnt, hex);
           const finalState = markAntMoved(newState, selectedAnt);
@@ -3176,289 +3172,8 @@ function App() {
                 </text>
               </g>
             )}
-            {ant && ant.type && (() => {
-              // Check if this ant is moving - if so, skip rendering it here (it's in the overlay layer)
-              const movement = antPositions[ant.id];
-              if (movement) {
-                return null; // Don't render moving ants in the hex grid
-              }
-
-              let movementOffset = '';
-
-              // Check if this ant is attacking
-              const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
-              let transformOffset = movementOffset; // Start with movement offset
-
-              // Check if ant has remaining actions
-              const hasActions = hasRemainingActions(ant);
-
-              if (attackAnim) {
-                const elapsed = Date.now() - attackAnim.timestamp;
-                const antType = AntTypes[ant.type.toUpperCase()];
-                const isRanged = antType?.attackRange > 1;
-                let attackOffset = '';
-
-                if (isRanged) {
-                  // Ranged: shake animation (0.2s)
-                  const shakeProgress = Math.min(elapsed / 200, 1);
-                  const shakeX = Math.sin(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
-                  const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
-                  attackOffset = `translate(${shakeX}, ${shakeY})`;
-                } else {
-                  // Melee: lunge animation (0.3s)
-                  const lungeProgress = Math.min(elapsed / 300, 1);
-                  // Ease in-out
-                  const eased = lungeProgress < 0.5
-                    ? 2 * lungeProgress * lungeProgress
-                    : 1 - Math.pow(-2 * lungeProgress + 2, 2) / 2;
-
-                  // Calculate direction to target
-                  const dx = attackAnim.targetPos.q - ant.position.q;
-                  const dy = attackAnim.targetPos.r - ant.position.r;
-                  const distance = Math.sqrt(dx * dx + dy * dy);
-                  const lungeDistance = 20; // pixels
-
-                  if (distance > 0) {
-                    const offsetX = (dx / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
-                    const offsetY = (dy / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
-                    attackOffset = `translate(${offsetX}, ${offsetY})`;
-                  }
-                }
-
-                // Combine movement and attack offsets
-                transformOffset = attackOffset ? `${movementOffset} ${attackOffset}` : movementOffset;
-              }
-
-              // Determine current animation state
-              let currentAnimation = 'idle';
-              if (attackAnim) {
-                currentAnimation = 'attack';
-              } else if ((movingAnt && movingAnt.antId === ant.id) || movement) {
-                currentAnimation = 'walk';
-              }
-
-              // Get sprite frame info
-              const playerColor = gameState.players[ant.owner]?.color;
-              const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
-
-              // Check if ant is on a resource or anthill
-              const onResourceOrAnthill = resource || anthill;
-              const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
-              const finalTransform = transformOffset ? `${baseTransform} ${transformOffset}` : baseTransform;
-
-              return (
-                <g transform={finalTransform}>
-                  {/* Render sprite if available, otherwise fall back to emoji */}
-                  {spriteFrame && !ant.isBurrowed ? (
-                    <g opacity={hasActions ? 1 : 0.5}>
-                      <image
-                        x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
-                        y={-40}
-                        width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
-                        height={spriteFrame.frameHeight * 2.5}
-                        href={spriteFrame.fullPath}
-                        clipPath={`url(#clip-${ant.id})`}
-                        style={{ pointerEvents: 'none' }}
-                        onLoad={() => console.log('Sprite loaded:', spriteFrame.fullPath)}
-                        onError={(e) => {
-                          console.error('Failed to load sprite:', spriteFrame.fullPath);
-                        }}
-                      />
-                    </g>
-                  ) : null}
-                  {/* Emoji fallback (shown if burrowed or if sprite doesn't exist) */}
-                  {(!spriteFrame || ant.isBurrowed) && (
-                    <text
-                      textAnchor="middle"
-                      dy="0.3em"
-                      fontSize="24"
-                      fill="white"
-                      style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
-                    >
-                      {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
-                    </text>
-                  )}
-                  {/* "No moves" indicator */}
-                  {!hasActions && (
-                    <text
-                      textAnchor="middle"
-                      x="12"
-                      y="-12"
-                      fontSize="14"
-                      fill="#666"
-                      style={{ pointerEvents: 'none', fontWeight: 'bold' }}
-                    >
-                      💤
-                    </text>
-                  )}
-                  {/* Defense buff indicator - ant on anthill */}
-                  {(() => {
-                    const onAnthill = Object.values(gameState.anthills || {}).some(anthill =>
-                      anthill.position.q === ant.position.q && anthill.position.r === ant.position.r
-                    );
-                    return onAnthill && (
-                      <text
-                        textAnchor="middle"
-                        x="-12"
-                        y="-12"
-                        fontSize="16"
-                        fill="#FFD700"
-                        style={{ pointerEvents: 'none', fontWeight: 'bold' }}
-                      >
-                        🛡️
-                      </text>
-                    );
-                  })()}
-                  {/* Ensnare indicator - animated sprite */}
-                  {ant.ensnared && ant.ensnared > 0 && (
-                    <g>
-                      <defs>
-                        <clipPath id={`ensnare-clip-${ant.id}`}>
-                          <rect x="-16" y="-16" width="32" height="32" />
-                        </clipPath>
-                      </defs>
-                      <image
-                        href={`${process.env.PUBLIC_URL}/sprites/ants/ensnare_effect.png`}
-                        x={-16 - (effectAnimationFrame * 32)}
-                        y="-16"
-                        width="256"
-                        height="32"
-                        clipPath={`url(#ensnare-clip-${ant.id})`}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      {/* Ensnare duration text */}
-                      <text
-                        textAnchor="middle"
-                        x="-8"
-                        y="20"
-                        fontSize="10"
-                        fill="#00FF00"
-                        fontWeight="bold"
-                        stroke="#000"
-                        strokeWidth="0.5"
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {ant.ensnared}
-                      </text>
-                    </g>
-                  )}
-                  {/* Plague indicator - animated sprite */}
-                  {ant.plagued && ant.plagued > 0 && (
-                    <g>
-                      <defs>
-                        <clipPath id={`plague-clip-${ant.id}`}>
-                          <rect x="-16" y="-16" width="32" height="32" />
-                        </clipPath>
-                      </defs>
-                      <image
-                        href={`${process.env.PUBLIC_URL}/sprites/ants/plague_effect.png`}
-                        x={-16 - (effectAnimationFrame * 32)}
-                        y="-16"
-                        width="256"
-                        height="32"
-                        clipPath={`url(#plague-clip-${ant.id})`}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      {/* Plague duration text */}
-                      <text
-                        textAnchor="middle"
-                        x="8"
-                        y="20"
-                        fontSize="10"
-                        fill="#8e44ad"
-                        fontWeight="bold"
-                        stroke="#000"
-                        strokeWidth="0.5"
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {ant.plagued}
-                      </text>
-                    </g>
-                  )}
-                  {/* Health bar */}
-                  <g transform="translate(0, 20)">
-                    {/* Background */}
-                    <rect
-                      x="-20"
-                      y="0"
-                      width="40"
-                      height="4"
-                      fill="#333"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                    {/* Health fill */}
-                    <rect
-                      x="-20"
-                      y="0"
-                      width={40 * (ant.health / ant.maxHealth)}
-                      height="4"
-                      fill={ant.health > ant.maxHealth * 0.5 ? '#2ecc71' : ant.health > ant.maxHealth * 0.25 ? '#f39c12' : '#e74c3c'}
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  </g>
-                  {/* Energy bar (queens only) */}
-                  {ant.type === 'queen' && ant.energy !== undefined && (
-                    <g transform="translate(0, 26)">
-                      {/* Background */}
-                      <rect
-                        x="-20"
-                        y="0"
-                        width="40"
-                        height="3"
-                        fill="#333"
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      {/* Energy fill */}
-                      <rect
-                        x="-20"
-                        y="0"
-                        width={40 * (ant.energy / ant.maxEnergy)}
-                        height="3"
-                        fill="#FFD700"
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    </g>
-                  )}
-                  {/* Damage preview when in attack mode */}
-                  {selectedAction === 'attack' && selectedAnt && isAttackable && (() => {
-                    const attacker = gameState.ants[selectedAnt];
-                    if (!attacker) return null;
-
-                    const damage = calculateDamage(attacker, ant, getGameStateForLogic());
-                    const damagePercent = Math.round((damage / ant.maxHealth) * 100);
-
-                    return (
-                      <g>
-                        {/* Damage background */}
-                        <rect
-                          x="-25"
-                          y="-40"
-                          width="50"
-                          height="18"
-                          fill="rgba(255, 50, 50, 0.9)"
-                          stroke="#fff"
-                          strokeWidth="2"
-                          rx="4"
-                          style={{ pointerEvents: 'none' }}
-                        />
-                        {/* Damage text */}
-                        <text
-                          textAnchor="middle"
-                          x="0"
-                          y="-28"
-                          fontSize="14"
-                          fill="#fff"
-                          fontWeight="bold"
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          -{damagePercent}%
-                        </text>
-                      </g>
-                    );
-                  })()}
-                </g>
-              );
-            })()}
+            {/* Ants are now rendered in a separate overlay layer above */}
+            {ant && ant.type && null}
             {/* Fog of War overlay - darken non-visible hexes */}
             {!isVisible && (
               <polygon
@@ -3637,6 +3352,247 @@ function App() {
         {pathVisualization}
       </>
     );
+  };
+
+  // Render all ants in a separate overlay layer (on top of all hexes)
+  const renderAntsOverlay = () => {
+    const ants = [];
+
+    Object.values(gameState.ants).forEach(ant => {
+      if (!ant || !ant.type) return;
+
+      const { x, y } = hexToPixel(ant.position, hexSize);
+
+      let movementOffset = '';
+
+      // Calculate smooth movement offset if ant is moving
+      if (movingAnt && movingAnt.antId === ant.id) {
+        const { path, currentStep } = movingAnt;
+        if (currentStep < path.length - 1) {
+          // Get current and next positions
+          const currentPos = path[currentStep];
+          const nextPos = path[currentStep + 1];
+
+          // Calculate pixel positions
+          const currentPixel = hexToPixel(currentPos, hexSize);
+          const nextPixel = hexToPixel(nextPos, hexSize);
+
+          // Calculate offset from current rendered position to next position
+          const offsetX = nextPixel.x - currentPixel.x;
+          const offsetY = nextPixel.y - currentPixel.y;
+
+          movementOffset = `translate(${offsetX}, ${offsetY})`;
+        }
+      }
+
+      // Check if this ant is attacking
+      const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
+      let transformOffset = movementOffset; // Start with movement offset
+
+      // Check if ant has remaining actions
+      const hasActions = hasRemainingActions(ant);
+
+      if (attackAnim) {
+        const elapsed = Date.now() - attackAnim.timestamp;
+        const antType = AntTypes[ant.type.toUpperCase()];
+        const isRanged = antType?.attackRange > 1;
+        let attackOffset = '';
+
+        if (isRanged) {
+          // Ranged: shake animation (0.2s)
+          const shakeProgress = Math.min(elapsed / 200, 1);
+          const shakeX = Math.sin(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
+          const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
+          attackOffset = `translate(${shakeX}, ${shakeY})`;
+        } else {
+          // Melee: lunge animation (0.3s)
+          const lungeProgress = Math.min(elapsed / 300, 1);
+          // Ease in-out
+          const eased = lungeProgress < 0.5
+            ? 2 * lungeProgress * lungeProgress
+            : 1 - Math.pow(-2 * lungeProgress + 2, 2) / 2;
+
+          // Calculate direction to target
+          const dx = attackAnim.targetPos.q - ant.position.q;
+          const dy = attackAnim.targetPos.r - ant.position.r;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const lungeDistance = 20; // pixels
+
+          if (distance > 0) {
+            const offsetX = (dx / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
+            const offsetY = (dy / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
+            attackOffset = `translate(${offsetX}, ${offsetY})`;
+          }
+        }
+
+        // Combine movement and attack offsets
+        transformOffset = attackOffset ? `${movementOffset} ${attackOffset}` : movementOffset;
+      }
+
+      // Determine current animation state
+      let currentAnimation = 'idle';
+      if (attackAnim) {
+        currentAnimation = 'attack';
+      } else if (movingAnt && movingAnt.antId === ant.id) {
+        currentAnimation = 'walk';
+      }
+
+      // Get sprite frame info
+      const playerColor = gameState.players[ant.owner]?.color;
+      const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
+
+      // Check if ant is on a resource or anthill
+      const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, ant.position));
+      const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, ant.position));
+      const onResourceOrAnthill = resource || anthill;
+      const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
+      const finalTransform = transformOffset ? `${baseTransform} ${transformOffset}` : baseTransform;
+
+      // Add transition for smooth movement
+      const isMoving = movingAnt && movingAnt.antId === ant.id;
+      const transitionStyle = isMoving ? 'transform 0.8s linear' : 'none';
+
+      // Check if selected or attackable for UI state
+      const isSelected = selectedAnt && selectedAnt === ant.id;
+      const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
+      const isAttackable = enemiesInRange.some(e => e.id === ant.id);
+
+      ants.push(
+        <g key={`ant-overlay-${ant.id}`} transform={`translate(${x}, ${y}) ${finalTransform}`} style={{ transition: transitionStyle }}>
+          {/* Render sprite if available, otherwise fall back to emoji */}
+          {spriteFrame && !ant.isBurrowed ? (
+            <g opacity={hasActions ? 1 : 0.5}>
+              <image
+                x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
+                y={-40}
+                width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
+                height={spriteFrame.frameHeight * 2.5}
+                href={spriteFrame.fullPath}
+                clipPath={`url(#clip-${ant.id})`}
+                style={{ pointerEvents: 'none' }}
+              />
+            </g>
+          ) : null}
+          {/* Emoji fallback (shown if burrowed or if sprite doesn't exist) */}
+          {(!spriteFrame || ant.isBurrowed) && (
+            <text
+              textAnchor="middle"
+              dy="0.3em"
+              fontSize="24"
+              fill="white"
+              style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
+            >
+              {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
+            </text>
+          )}
+          {/* "No moves" indicator */}
+          {!hasActions && (
+            <text
+              textAnchor="middle"
+              x="12"
+              y="-12"
+              fontSize="14"
+              fill="#666"
+              style={{ pointerEvents: 'none', fontWeight: 'bold' }}
+            >
+              💤
+            </text>
+          )}
+          {/* Ensnared web overlay */}
+          {ant.ensnared && ant.ensnared > 0 && (
+            <use
+              href="#spiderWebPattern"
+              x="0"
+              y="0"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+          {/* Health bar */}
+          <g transform="translate(0, 20)">
+            {/* Background */}
+            <rect
+              x="-20"
+              y="0"
+              width="40"
+              height="4"
+              fill="#333"
+              style={{ pointerEvents: 'none' }}
+            />
+            {/* Health fill */}
+            <rect
+              x="-20"
+              y="0"
+              width={40 * (ant.health / ant.maxHealth)}
+              height="4"
+              fill={ant.health > ant.maxHealth * 0.5 ? '#2ecc71' : ant.health > ant.maxHealth * 0.25 ? '#f39c12' : '#e74c3c'}
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
+          {/* Energy bar (queens only) */}
+          {ant.type === 'queen' && ant.energy !== undefined && (
+            <g transform="translate(0, 26)">
+              {/* Background */}
+              <rect
+                x="-20"
+                y="0"
+                width="40"
+                height="3"
+                fill="#333"
+                style={{ pointerEvents: 'none' }}
+              />
+              {/* Energy fill */}
+              <rect
+                x="-20"
+                y="0"
+                width={40 * (ant.energy / ant.maxEnergy)}
+                height="3"
+                fill="#FFD700"
+                style={{ pointerEvents: 'none' }}
+              />
+            </g>
+          )}
+          {/* Damage preview when in attack mode */}
+          {selectedAction === 'attack' && selectedAnt && isAttackable && (() => {
+            const attacker = gameState.ants[selectedAnt];
+            if (!attacker) return null;
+
+            const damage = calculateDamage(attacker, ant, getGameStateForLogic());
+            const damagePercent = Math.round((damage / ant.maxHealth) * 100);
+
+            return (
+              <g>
+                {/* Damage background */}
+                <rect
+                  x="-25"
+                  y="-40"
+                  width="50"
+                  height="18"
+                  fill="rgba(255, 50, 50, 0.9)"
+                  stroke="#fff"
+                  strokeWidth="2"
+                  rx="4"
+                  style={{ pointerEvents: 'none' }}
+                />
+                {/* Damage text */}
+                <text
+                  textAnchor="middle"
+                  x="0"
+                  y="-28"
+                  fontSize="14"
+                  fill="#fff"
+                  fontWeight="bold"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  -{damagePercent}%
+                </text>
+              </g>
+            );
+          })()}
+        </g>
+      );
+    });
+
+    return ants;
   };
 
   return (
@@ -3837,6 +3793,9 @@ function App() {
             <g transform={`translate(600, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
+            {/* Ants Overlay - rendered on top of all hexes */}
+            {renderAntsOverlay()}
+
             {/* Projectiles */}
             {projectiles.map(({ id, startPos, endPos, timestamp }) => {
               const start = hexToPixel(startPos, hexSize);
@@ -3979,66 +3938,6 @@ function App() {
               );
             })}
 
-            {/* Moving ants overlay - rendered on top so they don't get clipped by hex borders */}
-            {Object.values(gameState.ants).map(ant => {
-              const movement = antPositions[ant.id];
-              if (!movement) return null; // Only render ants that are currently moving
-
-              const elapsed = Date.now() - movement.startTime;
-              const progress = Math.min(elapsed / 2000, 1); // 2000ms = 2 seconds for smooth, visible movement
-
-              // Calculate interpolated position
-              const start = hexToPixel(movement.startPos, hexSize);
-              const end = hexToPixel(movement.endPos, hexSize);
-              const x = start.x + (end.x - start.x) * progress;
-              const y = start.y + (end.y - start.y) * progress;
-
-              // Get sprite info
-              const playerColor = gameState.players[ant.owner]?.color;
-              const spriteFrame = getAntFrame(ant.id, ant.type, 'walk', playerColor);
-              const hasActions = hasRemainingActions(ant);
-
-              // Check if ant is on a resource or anthill at destination
-              const destHex = movement.endPos;
-              const resource = gameState.resources && Object.values(gameState.resources).find(
-                r => r.position.q === destHex.q && r.position.r === destHex.r
-              );
-              const anthill = gameState.anthills && Object.values(gameState.anthills).find(
-                a => a.position.q === destHex.q && a.position.r === destHex.r
-              );
-              const onResourceOrAnthill = resource || anthill;
-              const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
-
-              return (
-                <g key={`moving-${ant.id}`} transform={`translate(${x}, ${y})`} style={{ pointerEvents: 'none' }}>
-                  <g transform={baseTransform}>
-                    {spriteFrame && !ant.isBurrowed ? (
-                      <g opacity={hasActions ? 1 : 0.5}>
-                        <image
-                          x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
-                          y={-40}
-                          width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
-                          height={spriteFrame.frameHeight * 2.5}
-                          href={spriteFrame.fullPath}
-                          clipPath={`url(#clip-${ant.id})`}
-                          style={{ imageRendering: 'pixelated' }}
-                        />
-                      </g>
-                    ) : (
-                      <text
-                        textAnchor="middle"
-                        dy="0.3em"
-                        fontSize="24"
-                        fill="white"
-                        style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
-                      >
-                        {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
-                      </text>
-                    )}
-                  </g>
-                </g>
-              );
-            })}
             </g>
           </svg>
           </div>
@@ -4274,21 +4173,24 @@ function App() {
               )}
 
               <>
-                <button
-                  onClick={() => setSelectedAction('move')}
-                  style={{
-                    marginRight: '5px',
-                    padding: '8px 12px',
-                    backgroundColor: selectedAction === 'move' ? '#3498db' : '#ecf0f1',
-                    color: selectedAction === 'move' ? 'white' : 'black',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: selectedAction === 'move' ? 'bold' : 'normal'
-                  }}
-                >
-                  Move
-                </button>
+                {/* Hide Move button for queens since they can't move */}
+                {gameState.ants[selectedAnt].type !== 'queen' && (
+                  <button
+                    onClick={() => setSelectedAction('move')}
+                    style={{
+                      marginRight: '5px',
+                      padding: '8px 12px',
+                      backgroundColor: selectedAction === 'move' ? '#3498db' : '#ecf0f1',
+                      color: selectedAction === 'move' ? 'white' : 'black',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: selectedAction === 'move' ? 'bold' : 'normal'
+                    }}
+                  >
+                    Move
+                  </button>
+                )}
 
                 {/* Teleport button (Connected Tunnels upgrade) */}
                 {(() => {
@@ -4485,7 +4387,7 @@ function App() {
                           fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal'
                         }}
                       >
-                        Lay Egg (Q)
+                        Lay Egg
                       </button>
                       <button
                         onClick={() => setSelectedAction('heal')}
@@ -4876,6 +4778,39 @@ function App() {
           {Math.round(zoomLevel * 100)}%
         </div>
       </div>
+
+      {/* Concede Button - Bottom Left */}
+      {!gameState.gameOver && (
+        <button
+          onClick={handleConcede}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '20px',
+            padding: '12px 20px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            backgroundColor: '#d32f2f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = '#b71c1c';
+            e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = '#d32f2f';
+            e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+          }}
+        >
+          Concede
+        </button>
+      )}
 
       {/* Hero Portrait and Power Bar - To the right of "How to Play" button */}
       {gameState.players[gameState.currentPlayer]?.heroId && (
@@ -5288,6 +5223,126 @@ function App() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Concede Confirmation Modal */}
+      {showConcedeConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '10px',
+            padding: '30px 40px',
+            textAlign: 'center',
+            maxWidth: '400px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          }}>
+            <h2 style={{ marginTop: 0, color: '#d32f2f', fontSize: '24px' }}>Concede Match?</h2>
+            <p style={{ fontSize: '16px', color: '#555', marginBottom: '25px' }}>
+              Are you sure you want to concede? This will end the game and declare your opponent the winner.
+            </p>
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+              <button
+                onClick={cancelConcede}
+                style={{
+                  padding: '12px 25px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  backgroundColor: '#757575',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmConcede}
+                style={{
+                  padding: '12px 25px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  backgroundColor: '#d32f2f',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Yes, Concede
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory/Defeat Modal */}
+      {showVictoryModal && gameState.gameOver && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '15px',
+            padding: '40px 50px',
+            textAlign: 'center',
+            maxWidth: '500px',
+            boxShadow: '0 15px 40px rgba(0,0,0,0.6)'
+          }}>
+            <h1 style={{
+              marginTop: 0,
+              fontSize: '36px',
+              color: gameState.winner === gameState.currentPlayer || (gameMode?.playerRole && gameState.winner === gameMode.playerRole) ? '#4CAF50' : '#d32f2f',
+              marginBottom: '15px'
+            }}>
+              {gameState.winner === gameState.currentPlayer || (gameMode?.playerRole && gameState.winner === gameMode.playerRole)
+                ? 'Victory!'
+                : 'Defeat'}
+            </h1>
+            <p style={{ fontSize: '20px', color: '#555', marginBottom: '30px' }}>
+              {gameState.players[gameState.winner]?.name || `Player ${gameState.winner === 'player1' ? '1' : '2'}`} wins!
+            </p>
+            <button
+              onClick={() => {
+                setShowVictoryModal(false);
+                setShowGameSummary(true);
+              }}
+              style={{
+                padding: '15px 40px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
+              }}
+            >
+              View Game Summary
+            </button>
           </div>
         </div>
       )}

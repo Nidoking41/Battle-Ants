@@ -153,6 +153,12 @@ export function detonateBomber(gameState, bomberId) {
   // Apply detonation damage to all adjacent ants (including friendly fire)
   const damageDealt = [];
   const { updateHeroPower } = require('./gameState');
+
+  // Initialize stats if needed
+  if (!updatedGameState.stats) {
+    updatedGameState.stats = { player1: {}, player2: {} };
+  }
+
   adjacentAnts.forEach(target => {
     const targetType = AntTypes[target.type.toUpperCase()];
     const defense = targetType.defense;
@@ -166,6 +172,10 @@ export function detonateBomber(gameState, bomberId) {
     updatedGameState = updateHeroPower(updatedGameState, bomber.owner, damage); // Bomber deals damage
     updatedGameState = updateHeroPower(updatedGameState, target.owner, damage); // Target receives damage
 
+    // Track bomber detonation damage stats
+    updatedGameState.stats[bomber.owner].damageDealt = (updatedGameState.stats[bomber.owner].damageDealt || 0) + damage;
+    updatedGameState.stats[target.owner].damageReceived = (updatedGameState.stats[target.owner].damageReceived || 0) + damage;
+
     if (newHealth <= 0) {
       // Target dies - create dead ant
       const deadAnt = createDeadAnt(target);
@@ -174,6 +184,10 @@ export function detonateBomber(gameState, bomberId) {
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[target.id];
+
+      // Track kills and losses stats
+      updatedGameState.stats[bomber.owner].antsKilled = (updatedGameState.stats[bomber.owner].antsKilled || 0) + 1;
+      updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
 
       // Check if bomber killed a queen
       if (target.type === 'queen') {
@@ -264,6 +278,13 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   // Update hero power for defender (damage received)
   updatedGameState = updateHeroPower(updatedGameState, defender.owner, damage);
 
+  // Track damage dealt and received stats
+  if (!updatedGameState.stats) {
+    updatedGameState.stats = { player1: {}, player2: {} };
+  }
+  updatedGameState.stats[attacker.owner].damageDealt = (updatedGameState.stats[attacker.owner].damageDealt || 0) + damage;
+  updatedGameState.stats[defender.owner].damageReceived = (updatedGameState.stats[defender.owner].damageReceived || 0) + damage;
+
   // Apply damage to primary target
   const newDefenderHealth = defender.health - damage;
 
@@ -275,6 +296,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       [deadAnt.id]: deadAnt
     };
     delete updatedAnts[defenderId];
+
+    // Track kills and losses stats
+    updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
+    updatedGameState.stats[defender.owner].antsLost = (updatedGameState.stats[defender.owner].antsLost || 0) + 1;
 
     // Grant cannibalism food if attacker is melee and player has the upgrade
     const attackerPlayer = updatedGameState.players[attacker.owner];
@@ -328,6 +353,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       updatedGameState = updateHeroPower(updatedGameState, attacker.owner, splashDamage); // Attacker deals splash damage
       updatedGameState = updateHeroPower(updatedGameState, target.owner, splashDamage); // Target receives splash damage
 
+      // Track splash damage stats
+      updatedGameState.stats[attacker.owner].damageDealt = (updatedGameState.stats[attacker.owner].damageDealt || 0) + splashDamage;
+      updatedGameState.stats[target.owner].damageReceived = (updatedGameState.stats[target.owner].damageReceived || 0) + splashDamage;
+
       const newHealth = target.health - splashDamage;
 
       if (newHealth <= 0) {
@@ -338,6 +367,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
           [deadAnt.id]: deadAnt
         };
         delete updatedAnts[target.id];
+
+        // Track kills and losses stats
+        updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
+        updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
 
         if (target.type === 'queen') {
           updatedGameState.gameOver = true;
@@ -368,6 +401,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     updatedGameState = updateHeroPower(updatedGameState, defender.owner, counterDamage); // Defender deals damage
     updatedGameState = updateHeroPower(updatedGameState, attacker.owner, counterDamage); // Attacker receives damage
 
+    // Track counter-attack damage stats
+    updatedGameState.stats[defender.owner].damageDealt = (updatedGameState.stats[defender.owner].damageDealt || 0) + counterDamage;
+    updatedGameState.stats[attacker.owner].damageReceived = (updatedGameState.stats[attacker.owner].damageReceived || 0) + counterDamage;
+
     const newAttackerHealth = attacker.health - counterDamage;
 
     if (newAttackerHealth <= 0) {
@@ -378,6 +415,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[attackerId];
+
+      // Track kills and losses stats
+      updatedGameState.stats[defender.owner].antsKilled = (updatedGameState.stats[defender.owner].antsKilled || 0) + 1;
+      updatedGameState.stats[attacker.owner].antsLost = (updatedGameState.stats[attacker.owner].antsLost || 0) + 1;
 
       // Grant cannibalism food to defender if they have the upgrade
       const defenderPlayer = updatedGameState.players[defender.owner];
@@ -546,6 +587,11 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
   let updatedGameState = { ...gameState };
   const { updateHeroPower } = require('./gameState');
 
+  // Initialize stats if needed
+  if (!updatedGameState.stats) {
+    updatedGameState.stats = { player1: {}, player2: {} };
+  }
+
   // Apply splash damage to all affected ants
   affectedAnts.forEach(target => {
     const targetType = AntTypes[target.type.toUpperCase()];
@@ -562,6 +608,10 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
     updatedGameState = updateHeroPower(updatedGameState, attacker.owner, damage); // Attacker deals damage
     updatedGameState = updateHeroPower(updatedGameState, target.owner, damage); // Target receives damage
 
+    // Track bombardier splash damage stats
+    updatedGameState.stats[attacker.owner].damageDealt = (updatedGameState.stats[attacker.owner].damageDealt || 0) + damage;
+    updatedGameState.stats[target.owner].damageReceived = (updatedGameState.stats[target.owner].damageReceived || 0) + damage;
+
     if (newHealth <= 0) {
       // Target dies - create dead ant
       const deadAnt = createDeadAnt(target);
@@ -570,6 +620,10 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[target.id];
+
+      // Track kills and losses stats
+      updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
+      updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
 
       // Grant cannibalism if applicable (bombardier is ranged, so no cannibalism)
 

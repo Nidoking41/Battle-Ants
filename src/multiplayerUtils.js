@@ -1,4 +1,4 @@
-import { ref, set, onValue, push, get, update } from 'firebase/database';
+import { ref, set, onValue, push, get, update, remove } from 'firebase/database';
 import { database } from './firebaseConfig';
 import { HexCoord, hexDistance } from './hexUtils';
 import { AntTypes } from './antTypes';
@@ -92,7 +92,134 @@ export function deserializeGameState(serialized) {
   return gameState;
 }
 
-// Create or join a game room with a room code
+// Create a lobby with metadata (name, password, etc.)
+export async function createLobbyWithMetadata(roomCode, playerId, metadata = {}) {
+  try {
+    const lobbyRef = ref(database, `lobbies/${roomCode}`);
+    const snapshot = await get(lobbyRef);
+
+    if (snapshot.exists()) {
+      throw new Error('Room code already exists. Please try again.');
+    }
+
+    // Create lobby with metadata
+    const lobbyData = {
+      roomCode: roomCode,
+      gameName: metadata.gameName || `Game ${roomCode}`,
+      hasPassword: !!metadata.password,
+      password: metadata.password || null,
+      hostId: playerId,
+      createdAt: Date.now(),
+      player1: {
+        id: playerId,
+        color: '#FF0000',
+        hero: 'gorlak',
+        ready: false
+      },
+      player2: {
+        id: null,
+        color: '#0000FF',
+        hero: 'sorlorg',
+        ready: false
+      },
+      mapSize: 'medium',
+      fogOfWar: true,
+      gameStarted: false
+    };
+
+    await set(lobbyRef, lobbyData);
+    return { success: true, roomCode };
+  } catch (error) {
+    console.error('Error creating lobby:', error);
+    throw error;
+  }
+}
+
+// Join a lobby with optional password
+export async function joinLobbyWithPassword(roomCode, playerId, password = null) {
+  try {
+    const lobbyRef = ref(database, `lobbies/${roomCode}`);
+    const snapshot = await get(lobbyRef);
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found');
+    }
+
+    const lobbyData = snapshot.val();
+
+    // Check password if required
+    if (lobbyData.hasPassword && lobbyData.password !== password) {
+      throw new Error('Incorrect password');
+    }
+
+    // Check if room is full
+    if (lobbyData.player2.id) {
+      throw new Error('Room is full');
+    }
+
+    // Check if player1 is this player (rejoining)
+    if (lobbyData.player1.id === playerId) {
+      return { playerRole: 'player1', isHost: true };
+    }
+
+    // Join as player 2
+    await update(lobbyRef, {
+      'player2/id': playerId
+    });
+
+    return { playerRole: 'player2', isHost: false };
+  } catch (error) {
+    console.error('Error joining lobby:', error);
+    throw error;
+  }
+}
+
+// Get list of available lobbies
+export async function getAvailableLobbies() {
+  try {
+    const lobbiesRef = ref(database, 'lobbies');
+    const snapshot = await get(lobbiesRef);
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const lobbies = [];
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+
+    snapshot.forEach((childSnapshot) => {
+      const lobby = childSnapshot.val();
+
+      // Only show lobbies that:
+      // 1. Haven't started yet
+      // 2. Have space (no player2)
+      // 3. Were created within the last hour
+      if (!lobby.gameStarted &&
+          !lobby.player2?.id &&
+          lobby.createdAt > oneHourAgo) {
+        lobbies.push({
+          roomCode: lobby.roomCode,
+          gameName: lobby.gameName,
+          hasPassword: lobby.hasPassword,
+          createdAt: lobby.createdAt,
+          mapSize: lobby.mapSize,
+          fogOfWar: lobby.fogOfWar
+        });
+      }
+    });
+
+    // Sort by creation time (newest first)
+    lobbies.sort((a, b) => b.createdAt - a.createdAt);
+
+    return lobbies;
+  } catch (error) {
+    console.error('Error getting available lobbies:', error);
+    throw error;
+  }
+}
+
+// Create or join a game room with a room code (legacy compatibility)
 export async function createOrJoinGameRoom(roomCode, initialGameState, playerId) {
   try {
     const gameRef = ref(database, `games/${roomCode}`);
@@ -435,4 +562,64 @@ export function applyFogOfWar(gameState, playerId) {
     anthills: filteredAnthills,
     deadAnts: filteredDeadAnts
   };
+}
+
+// Clean up old/stale game rooms
+// Rooms older than maxAgeHours will be deleted
+export async function cleanupOldRooms(maxAgeHours = 24) {
+  try {
+    const gamesRef = ref(database, 'games');
+    const snapshot = await get(gamesRef);
+
+    if (!snapshot.exists()) {
+      console.log('No rooms to clean up');
+      return { deleted: 0, errors: 0 };
+    }
+
+    const rooms = snapshot.val();
+    const now = Date.now();
+    const maxAge = maxAgeHours * 60 * 60 * 1000; // Convert hours to milliseconds
+
+    let deleted = 0;
+    let errors = 0;
+
+    for (const [roomCode, room] of Object.entries(rooms)) {
+      try {
+        // Delete if room has a createdAt timestamp and is too old
+        if (room.createdAt && (now - room.createdAt) > maxAge) {
+          await remove(ref(database, `games/${roomCode}`));
+          deleted++;
+          console.log(`Deleted old room: ${roomCode}`);
+        }
+        // Also delete if room has no createdAt (legacy rooms)
+        else if (!room.createdAt) {
+          await remove(ref(database, `games/${roomCode}`));
+          deleted++;
+          console.log(`Deleted legacy room (no timestamp): ${roomCode}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting room ${roomCode}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(`Cleanup complete: ${deleted} rooms deleted, ${errors} errors`);
+    return { deleted, errors };
+  } catch (error) {
+    console.error('Error during room cleanup:', error);
+    throw error;
+  }
+}
+
+// Delete all game rooms (use with caution!)
+export async function clearAllRooms() {
+  try {
+    const gamesRef = ref(database, 'games');
+    await remove(gamesRef);
+    console.log('All rooms cleared');
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing all rooms:', error);
+    throw error;
+  }
 }

@@ -1,6 +1,36 @@
 import { HexCoord } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers } from './antTypes';
 
+// Calculate army strength for a player
+// Formula: For each alive ant: (attack + defense) + (health / 10), with upgrade bonuses
+export function calculateArmyStrength(gameState, playerId) {
+  const player = gameState.players[playerId];
+  let totalStrength = 0;
+
+  Object.values(gameState.ants)
+    .filter(ant => ant.owner === playerId && !ant.isDead)
+    .forEach(ant => {
+      const antType = AntTypes[ant.type.toUpperCase()];
+      if (!antType) return; // Skip invalid ant types
+
+      // Base strength calculation
+      const attack = antType.attack || 0;
+      const defense = antType.defense || 0;
+      const health = ant.health || 0;
+      const baseStrength = attack + defense + (health / 10);
+
+      // Apply upgrade multipliers
+      const meleeBonus = antType.attackType === 'melee' ? player.upgrades.meleeAttack : 0;
+      const rangedBonus = antType.attackType === 'ranged' ? player.upgrades.rangedAttack : 0;
+      const defenseBonus = player.upgrades.defense;
+
+      const strength = baseStrength + meleeBonus + rangedBonus + defenseBonus;
+      totalStrength += strength;
+    });
+
+  return Math.round(totalStrength);
+}
+
 // Initialize a new game state
 export function createInitialGameState(options = {}) {
   const {
@@ -57,6 +87,32 @@ export function createInitialGameState(options = {}) {
         heroAbilityActive: false, // Whether hero ability is currently active
         heroAbilityEndsOnTurn: null // Track when hero ability ends (for Thorgrim)
       }
+    },
+    // Game statistics tracking
+    stats: {
+      player1: {
+        damageDealt: 0,
+        damageReceived: 0,
+        antsHatched: { scout: 0, drone: 0, soldier: 0, tank: 0, spitter: 0, bomber: 0, bombardier: 0, healer: 0, cordyphage: 0 },
+        antsKilled: 0,
+        antsLost: 0,
+        foodMined: 0,
+        mineralsMined: 0
+      },
+      player2: {
+        damageDealt: 0,
+        damageReceived: 0,
+        antsHatched: { scout: 0, drone: 0, soldier: 0, tank: 0, spitter: 0, bomber: 0, bombardier: 0, healer: 0, cordyphage: 0 },
+        antsKilled: 0,
+        antsLost: 0,
+        foodMined: 0,
+        mineralsMined: 0
+      }
+    },
+    // Army strength tracking per turn
+    armyStrengthHistory: {
+      player1: [],
+      player2: []
     },
     ants: {
       // Initial queens - Player 1 at South, Player 2 at North
@@ -496,6 +552,9 @@ export function endTurn(gameState) {
       const heroId = gameState.players[egg.owner]?.heroId || null;
       const newAnt = createAnt(egg.antType, egg.owner, egg.position, heroId);
       newAnts[newAnt.id] = newAnt;
+
+      // Track hatched ant stat (will be added to finalGameState later)
+      // Stats tracking will be handled in the final game state construction
     } else {
       remainingEggs[egg.id] = egg;
     }
@@ -516,6 +575,22 @@ export function endTurn(gameState) {
   let updatedResources = { ...gameState.resources };
   const depletedAnthills = []; // Track anthills that got depleted this turn
 
+  // Track stats for this turn
+  const updatedStats = {
+    player1: { ...gameState.stats.player1 },
+    player2: { ...gameState.stats.player2 }
+  };
+
+  // Track hatched ants stats
+  Object.values(gameState.eggs).forEach(egg => {
+    if (isNewRound && egg.hatchTurn <= gameState.turn) {
+      const antTypeLower = egg.antType.toLowerCase();
+      if (updatedStats[egg.owner].antsHatched[antTypeLower] !== undefined) {
+        updatedStats[egg.owner].antsHatched[antTypeLower]++;
+      }
+    }
+  });
+
   // Grant passive income from completed anthills at the start of each new round
   if (isNewRound) {
     Object.values(updatedAnthills).forEach(anthill => {
@@ -523,6 +598,13 @@ export function endTurn(gameState) {
       if (anthill.isComplete) {
         const income = GameConstants.ANTHILL_PASSIVE_INCOME[anthill.resourceType];
         updatedPlayers[anthill.owner].resources[anthill.resourceType] += income;
+
+        // Track stat for resources mined
+        if (anthill.resourceType === 'food') {
+          updatedStats[anthill.owner].foodMined = (updatedStats[anthill.owner].foodMined || 0) + income;
+        } else if (anthill.resourceType === 'minerals') {
+          updatedStats[anthill.owner].mineralsMined = (updatedStats[anthill.owner].mineralsMined || 0) + income;
+        }
 
         // Track resources gathered
         const newResourcesGathered = (anthill.resourcesGathered || 0) + income;
@@ -690,22 +772,37 @@ export function endTurn(gameState) {
     }
   }
 
-  return {
-    gameState: {
-      ...gameState,
-      turn: isNewRound ? gameState.turn + 1 : gameState.turn,
-      currentPlayer: nextPlayer,
-      players: updatedPlayers,
-      ants: {
-        ...updatedAnts,
-        ...newAnts
-      },
-      eggs: remainingEggs,
-      resources: updatedResources,
-      anthills: updatedAnthills,
-      selectedAnt: null,
-      selectedAction: null
+  // Calculate and record army strength for both players at end of turn
+  const finalGameState = {
+    ...gameState,
+    turn: isNewRound ? gameState.turn + 1 : gameState.turn,
+    currentPlayer: nextPlayer,
+    players: updatedPlayers,
+    ants: {
+      ...updatedAnts,
+      ...newAnts
     },
+    eggs: remainingEggs,
+    resources: updatedResources,
+    anthills: updatedAnthills,
+    stats: updatedStats,
+    selectedAnt: null,
+    selectedAction: null
+  };
+
+  // Track army strength history at the end of each complete round
+  if (isNewRound) {
+    const player1Strength = calculateArmyStrength(finalGameState, 'player1');
+    const player2Strength = calculateArmyStrength(finalGameState, 'player2');
+
+    finalGameState.armyStrengthHistory = {
+      player1: [...(finalGameState.armyStrengthHistory?.player1 || []), player1Strength],
+      player2: [...(finalGameState.armyStrengthHistory?.player2 || []), player2Strength]
+    };
+  }
+
+  return {
+    gameState: finalGameState,
     resourceGains // Return the gathered resources for animations
   };
 }
