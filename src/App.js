@@ -992,7 +992,10 @@ function App() {
     const now = Date.now();
     const deadAntsToRemove = [];
 
-    Object.values(gameState.deadAnts || {}).forEach(deadAnt => {
+    // Use fullGameState for AI games with fog of war to ensure we clean up all dead ants
+    const stateToCheck = (gameMode?.isAI && gameMode.fogOfWar !== false) ? fullGameState : gameState;
+
+    Object.values(stateToCheck.deadAnts || {}).forEach(deadAnt => {
       if (now - deadAnt.createdAt >= 2000) {
         deadAntsToRemove.push(deadAnt.id);
       }
@@ -1013,7 +1016,7 @@ function App() {
 
       return () => clearTimeout(timer);
     }
-  }, [gameState.deadAnts]);
+  }, [gameMode?.isAI, gameMode?.fogOfWar, fullGameState?.deadAnts, gameState.deadAnts]);
 
   // Get the game state to use for game logic (full state for multiplayer/AI with fog, filtered for display)
   const getGameStateForLogic = () => {
