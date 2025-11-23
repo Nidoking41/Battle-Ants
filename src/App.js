@@ -138,7 +138,7 @@ function App() {
         const updated = { ...prev };
         let changed = false;
         Object.keys(updated).forEach(key => {
-          if (now - updated[key].startTime > 300) { // 300ms transition
+          if (now - updated[key].startTime > 600) { // 600ms transition
             delete updated[key];
             changed = true;
           }
@@ -3165,29 +3165,13 @@ function App() {
               </g>
             )}
             {ant && ant.type && (() => {
-              // Check if this ant is moving (smooth transition)
+              // Check if this ant is moving - if so, skip rendering it here (it's in the overlay layer)
               const movement = antPositions[ant.id];
-              let movementOffset = '';
-
               if (movement) {
-                const elapsed = Date.now() - movement.startTime;
-                const progress = Math.min(elapsed / 300, 1); // 300ms transition
-                // Ease-out function for smooth deceleration
-                const eased = 1 - Math.pow(1 - progress, 3);
-
-                // Calculate pixel positions for start and end hexes
-                const start = hexToPixel(movement.startPos, hexSize);
-                const end = hexToPixel(movement.endPos, hexSize);
-                const current = hexToPixel({ q, r }, hexSize);
-
-                // Calculate offset from current hex to interpolated position
-                const interpX = start.x + (end.x - start.x) * eased;
-                const interpY = start.y + (end.y - start.y) * eased;
-                const offsetX = interpX - current.x;
-                const offsetY = interpY - current.y;
-
-                movementOffset = `translate(${offsetX}, ${offsetY})`;
+                return null; // Don't render moving ants in the hex grid
               }
+
+              let movementOffset = '';
 
               // Check if this ant is attacking
               const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
@@ -3979,6 +3963,67 @@ function App() {
                   >
                     +{amount}
                   </text>
+                </g>
+              );
+            })}
+
+            {/* Moving ants overlay - rendered on top so they don't get clipped by hex borders */}
+            {Object.values(gameState.ants).map(ant => {
+              const movement = antPositions[ant.id];
+              if (!movement) return null; // Only render ants that are currently moving
+
+              const elapsed = Date.now() - movement.startTime;
+              const progress = Math.min(elapsed / 600, 1);
+
+              // Calculate interpolated position
+              const start = hexToPixel(movement.startPos, hexSize);
+              const end = hexToPixel(movement.endPos, hexSize);
+              const x = start.x + (end.x - start.x) * progress;
+              const y = start.y + (end.y - start.y) * progress;
+
+              // Get sprite info
+              const playerColor = gameState.players[ant.owner]?.color;
+              const spriteFrame = getAntFrame(ant.id, ant.type, 'walk', playerColor);
+              const hasActions = hasRemainingActions(ant);
+
+              // Check if ant is on a resource or anthill at destination
+              const destHex = movement.endPos;
+              const resource = gameState.resources && Object.values(gameState.resources).find(
+                r => r.position.q === destHex.q && r.position.r === destHex.r
+              );
+              const anthill = gameState.anthills && Object.values(gameState.anthills).find(
+                a => a.position.q === destHex.q && a.position.r === destHex.r
+              );
+              const onResourceOrAnthill = resource || anthill;
+              const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
+
+              return (
+                <g key={`moving-${ant.id}`} transform={`translate(${x}, ${y})`} style={{ pointerEvents: 'none' }}>
+                  <g transform={baseTransform}>
+                    {spriteFrame && !ant.isBurrowed ? (
+                      <g opacity={hasActions ? 1 : 0.5}>
+                        <image
+                          x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
+                          y={-40}
+                          width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
+                          height={spriteFrame.frameHeight * 2.5}
+                          href={spriteFrame.fullPath}
+                          clipPath={`url(#clip-${ant.id})`}
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      </g>
+                    ) : (
+                      <text
+                        textAnchor="middle"
+                        dy="0.3em"
+                        fontSize="24"
+                        fill="white"
+                        style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
+                      >
+                        {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
+                      </text>
+                    )}
+                  </g>
                 </g>
               );
             })}
