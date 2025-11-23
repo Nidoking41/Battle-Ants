@@ -150,7 +150,7 @@ function App() {
         const updated = { ...prev };
         let changed = false;
         Object.keys(updated).forEach(key => {
-          if (now - updated[key].startTime > 600) { // 600ms transition
+          if (now - updated[key].startTime > 2000) { // 2000ms transition (2 seconds)
             delete updated[key];
             changed = true;
           }
@@ -3985,7 +3985,7 @@ function App() {
               if (!movement) return null; // Only render ants that are currently moving
 
               const elapsed = Date.now() - movement.startTime;
-              const progress = Math.min(elapsed / 600, 1);
+              const progress = Math.min(elapsed / 2000, 1); // 2000ms = 2 seconds for smooth, visible movement
 
               // Calculate interpolated position
               const start = hexToPixel(movement.startPos, hexSize);
