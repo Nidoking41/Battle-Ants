@@ -927,14 +927,15 @@ function App() {
           if (oldAnt && newAnt && !hexEquals(oldAnt.position, newAnt.position)) {
             // Ant moved - calculate path
             const enemyHexes = Object.values(aiState.ants)
-              .filter(a => a.id !== newAnt.id && a.owner !== newAnt.owner)
+              .filter(a => a && a.position && a.id !== newAnt.id && a.owner !== newAnt.owner)
               .map(a => new HexCoord(a.position.q, a.position.r));
 
             const friendlyHexes = Object.values(aiState.ants)
-              .filter(a => a.id !== newAnt.id && a.owner === newAnt.owner)
+              .filter(a => a && a.position && a.id !== newAnt.id && a.owner === newAnt.owner)
               .map(a => new HexCoord(a.position.q, a.position.r));
 
             const eggHexes = Object.values(aiState.eggs || {})
+              .filter(e => e && e.position)
               .map(e => new HexCoord(e.position.q, e.position.r));
 
             const antType = AntTypes[newAnt.type.toUpperCase()];
