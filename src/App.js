@@ -95,6 +95,18 @@ function App() {
   // Track ant positions for smooth movement transitions
   const [antPositions, setAntPositions] = useState({});
   const previousPositionsRef = useRef({});
+  const [, setAnimationTick] = useState(0); // Force re-renders for smooth animation
+
+  // Continuous animation loop for smooth movement
+  useEffect(() => {
+    let animationFrameId;
+    const animate = () => {
+      setAnimationTick(tick => tick + 1); // Trigger re-render
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
 
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
