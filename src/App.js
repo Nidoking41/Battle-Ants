@@ -92,6 +92,10 @@ function App() {
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
 
+  // Track ant positions for smooth movement transitions
+  const [antPositions, setAntPositions] = useState({});
+  const previousPositionsRef = useRef({});
+
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
@@ -100,6 +104,51 @@ function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
+
+  // Track ant position changes for smooth transitions
+  useEffect(() => {
+    const newPositions = {};
+    Object.values(gameState.ants).forEach(ant => {
+      const key = ant.id;
+      const currentPos = { q: ant.position.q, r: ant.position.r };
+      const previousPos = previousPositionsRef.current[key];
+
+      if (previousPos && (previousPos.q !== currentPos.q || previousPos.r !== currentPos.r)) {
+        // Ant moved - store transition data
+        newPositions[key] = {
+          startPos: previousPos,
+          endPos: currentPos,
+          startTime: Date.now()
+        };
+      }
+
+      previousPositionsRef.current[key] = currentPos;
+    });
+
+    if (Object.keys(newPositions).length > 0) {
+      setAntPositions(prev => ({ ...prev, ...newPositions }));
+    }
+  }, [gameState.ants]);
+
+  // Cleanup completed movement transitions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setAntPositions(prev => {
+        const updated = { ...prev };
+        let changed = false;
+        Object.keys(updated).forEach(key => {
+          if (now - updated[key].startTime > 300) { // 300ms transition
+            delete updated[key];
+            changed = true;
+          }
+        });
+        return changed ? updated : prev;
+      });
+    }, 50); // Check every 50ms
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Keyboard event listener for Shift key to rotate bombardier splash
   useEffect(() => {
@@ -3116,9 +3165,33 @@ function App() {
               </g>
             )}
             {ant && ant.type && (() => {
+              // Check if this ant is moving (smooth transition)
+              const movement = antPositions[ant.id];
+              let movementOffset = '';
+
+              if (movement) {
+                const elapsed = Date.now() - movement.startTime;
+                const progress = Math.min(elapsed / 300, 1); // 300ms transition
+                // Ease-out function for smooth deceleration
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                // Calculate pixel positions for start and end hexes
+                const start = hexToPixel(movement.startPos, hexSize);
+                const end = hexToPixel(movement.endPos, hexSize);
+                const current = hexToPixel({ q, r }, hexSize);
+
+                // Calculate offset from current hex to interpolated position
+                const interpX = start.x + (end.x - start.x) * eased;
+                const interpY = start.y + (end.y - start.y) * eased;
+                const offsetX = interpX - current.x;
+                const offsetY = interpY - current.y;
+
+                movementOffset = `translate(${offsetX}, ${offsetY})`;
+              }
+
               // Check if this ant is attacking
               const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
-              let transformOffset = '';
+              let transformOffset = movementOffset; // Start with movement offset
 
               // Check if ant has remaining actions
               const hasActions = hasRemainingActions(ant);
@@ -3127,13 +3200,14 @@ function App() {
                 const elapsed = Date.now() - attackAnim.timestamp;
                 const antType = AntTypes[ant.type.toUpperCase()];
                 const isRanged = antType?.attackRange > 1;
+                let attackOffset = '';
 
                 if (isRanged) {
                   // Ranged: shake animation (0.2s)
                   const shakeProgress = Math.min(elapsed / 200, 1);
                   const shakeX = Math.sin(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
                   const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
-                  transformOffset = `translate(${shakeX}, ${shakeY})`;
+                  attackOffset = `translate(${shakeX}, ${shakeY})`;
                 } else {
                   // Melee: lunge animation (0.3s)
                   const lungeProgress = Math.min(elapsed / 300, 1);
@@ -3151,16 +3225,19 @@ function App() {
                   if (distance > 0) {
                     const offsetX = (dx / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
                     const offsetY = (dy / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
-                    transformOffset = `translate(${offsetX}, ${offsetY})`;
+                    attackOffset = `translate(${offsetX}, ${offsetY})`;
                   }
                 }
+
+                // Combine movement and attack offsets
+                transformOffset = attackOffset ? `${movementOffset} ${attackOffset}` : movementOffset;
               }
 
               // Determine current animation state
               let currentAnimation = 'idle';
               if (attackAnim) {
                 currentAnimation = 'attack';
-              } else if (movingAnt && movingAnt.antId === ant.id) {
+              } else if ((movingAnt && movingAnt.antId === ant.id) || movement) {
                 currentAnimation = 'walk';
               }
 
