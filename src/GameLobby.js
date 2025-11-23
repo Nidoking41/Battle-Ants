@@ -49,9 +49,6 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
   const heroOptions = Object.values(HeroQueens);
 
   const isHost = playerRole === 'player1';
-  const myColor = heroColors[playerRole === 'player1' ? lobbyState.player1.hero : lobbyState.player2.hero];
-  const opponentColor = heroColors[playerRole === 'player1' ? lobbyState.player2.hero : lobbyState.player1.hero];
-  const opponentReady = playerRole === 'player1' ? lobbyState.player2.ready : lobbyState.player1.ready;
   const opponentJoined = playerRole === 'player1' ? lobbyState.player2.id : lobbyState.player1.id;
 
   // Map size options
@@ -224,6 +221,10 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
     });
   };
 
+  const myHero = lobbyState[playerRole]?.hero || 'gorlak';
+  const myColor = heroColors[myHero];
+  const opponentHero = playerRole === 'player1' ? lobbyState.player2?.hero : lobbyState.player1?.hero;
+
   return (
     <div style={{
       display: 'flex',
@@ -235,286 +236,256 @@ function GameLobby({ roomCode, playerId, playerRole, onStartGame, onBack }) {
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
-      padding: '20px'
+      padding: '15px',
+      boxSizing: 'border-box'
     }}>
       <div style={{
-        backgroundColor: 'white',
-        padding: '20px',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        padding: '12px',
         borderRadius: '10px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '900px',
-        width: '100%'
+        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+        maxWidth: '1200px',
+        width: '100%',
+        maxHeight: '95vh',
+        display: 'flex',
+        flexDirection: 'column',
+        border: '2px solid rgba(192, 192, 192, 0.3)',
+        boxSizing: 'border-box'
       }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '10px' }}>🐜 Game Lobby</h1>
-        <h3 style={{ textAlign: 'center', marginBottom: '30px', color: '#7f8c8d' }}>
-          Room Code: <span style={{ color: '#2c3e50', fontFamily: 'monospace', fontSize: '28px', letterSpacing: '4px' }}>{roomCode}</span>
+        <h1 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '22px', color: '#e0e0e0' }}>Multiplayer Lobby</h1>
+        <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#b0b0b0', fontSize: '13px' }}>
+          Room Code: <span style={{ color: '#e0e0e0', fontFamily: 'monospace', fontSize: '18px', letterSpacing: '3px' }}>{roomCode}</span>
         </h3>
 
-        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-          {/* Player 1 Card */}
-          <div style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: lobbyState.player1.id ? '#ecf0f1' : '#bdc3c7',
-            borderRadius: '8px',
-            border: playerRole === 'player1' ? '3px solid #3498db' : 'none'
-          }}>
-            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              👤 Player 1 {playerRole === 'player1' && '(You)'}
-              {isHost && ' 👑'}
-              <div style={{
-                width: '20px',
-                height: '20px',
-                backgroundColor: heroColors[lobbyState.player1.hero],
-                border: '2px solid #2c3e50',
-                borderRadius: '50%'
-              }} title={`Color: ${heroColors[lobbyState.player1.hero]}`} />
-            </h3>
-            {lobbyState.player1.id ? (
-              <>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
-                    {heroOptions.map(hero => (
-                      <div
-                        key={hero.id}
-                        onClick={() => playerRole === 'player1' && handleHeroChange(hero.id)}
-                        style={{
-                          width: '120px',
-                          padding: '6px',
-                          border: lobbyState.player1.hero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
-                          borderRadius: '8px',
-                          cursor: playerRole === 'player1' ? 'pointer' : 'not-allowed',
-                          opacity: playerRole !== 'player1' ? 0.7 : 1,
-                          backgroundColor: lobbyState.player1.hero === hero.id ? '#e3f2fd' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <img
-                          src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
-                          alt={hero.name}
-                          style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
-                        />
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>{hero.name}</div>
-                        <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {lobbyState.player1.ready && (
-                  <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>
-                    ✓ Ready!
-                  </div>
-                )}
-              </>
-            ) : (
-              <p style={{ color: '#95a5a6', fontStyle: 'italic' }}>Waiting for player...</p>
-            )}
-          </div>
-
-          {/* Player 2 Card */}
-          <div style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: lobbyState.player2.id ? '#ecf0f1' : '#bdc3c7',
-            borderRadius: '8px',
-            border: playerRole === 'player2' ? '3px solid #3498db' : 'none'
-          }}>
-            <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              👤 Player 2 {playerRole === 'player2' && '(You)'}
-              <div style={{
-                width: '20px',
-                height: '20px',
-                backgroundColor: getPlayer2Color(),
-                border: '2px solid #2c3e50',
-                borderRadius: '50%'
-              }} title={`Color: ${getPlayer2Color()}`} />
-            </h3>
-            {lobbyState.player2.id ? (
-              <>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Choose Your Hero:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
-                    {heroOptions.map(hero => (
-                      <div
-                        key={hero.id}
-                        onClick={() => playerRole === 'player2' && handleHeroChange(hero.id)}
-                        style={{
-                          width: '120px',
-                          padding: '6px',
-                          border: lobbyState.player2.hero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
-                          borderRadius: '8px',
-                          cursor: playerRole === 'player2' ? 'pointer' : 'not-allowed',
-                          opacity: playerRole !== 'player2' ? 0.7 : 1,
-                          backgroundColor: lobbyState.player2.hero === hero.id ? '#ffebee' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <img
-                          src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
-                          alt={hero.name}
-                          style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
-                        />
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>{hero.name}</div>
-                        <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>{hero.description}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {lobbyState.player2.ready && (
-                  <div style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '18px' }}>
-                    ✓ Ready!
-                  </div>
-                )}
-              </>
-            ) : (
-              <p style={{ color: '#95a5a6', fontStyle: 'italic' }}>Waiting for player...</p>
-            )}
-          </div>
-        </div>
-
-        {/* Map Size Selection (Host Only) */}
-        <div style={{
-          padding: '20px',
-          backgroundColor: '#ecf0f1',
-          borderRadius: '8px',
-          marginBottom: '15px'
-        }}>
-          <h3 style={{ marginBottom: '15px' }}>
-            🗺️ Map Size {!isHost && '(Host decides)'}
-          </h3>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {mapSizeOptions.map(size => (
-              <button
-                key={size.value}
-                onClick={() => handleMapSizeChange(size.value)}
-                disabled={!isHost}
-                style={{
-                  flex: 1,
-                  padding: '15px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  backgroundColor: lobbyState.mapSize === size.value ? '#3498db' : 'white',
-                  color: lobbyState.mapSize === size.value ? 'white' : '#2c3e50',
-                  border: '2px solid #3498db',
-                  borderRadius: '5px',
-                  cursor: isHost ? 'pointer' : 'not-allowed',
-                  opacity: !isHost ? 0.6 : 1
-                }}
-              >
-                {size.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Fog of War Toggle (Host Only) */}
-        <div style={{
-          padding: '20px',
-          backgroundColor: '#ecf0f1',
-          borderRadius: '8px',
-          marginBottom: '30px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ marginBottom: '5px', fontSize: '18px' }}>
-                🌫️ Fog of War {!isHost && '(Host decides)'}
+        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '10px' }}>
+          {/* Your Hero Selection */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px',
+              border: '3px solid #3498db'
+            }}>
+              <h3 style={{ marginBottom: '6px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e0e0e0' }}>
+                You {playerRole === 'player1' ? '(South)' : '(North)'} {isHost && '👑'}
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: myColor,
+                  border: '2px solid #2c3e50',
+                  borderRadius: '50%'
+                }} title={`Color: ${myColor}`} />
               </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#7f8c8d' }}>
-                {lobbyState.fogOfWar
-                  ? 'You can only see areas near your units'
-                  : 'Full map visibility (easier)'}
-              </p>
+              <div style={{ marginTop: '6px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Your Hero:</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                  {heroOptions.map(hero => (
+                    <div
+                      key={hero.id}
+                      onClick={() => handleHeroChange(hero.id)}
+                      style={{
+                        width: '120px',
+                        padding: '6px',
+                        border: myHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        backgroundColor: myHero === hero.id ? 'rgba(52, 152, 219, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                        textAlign: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <img
+                        src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
+                        alt={hero.name}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
+                      />
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '10px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <button
-              onClick={handleFogOfWarToggle}
-              disabled={!isHost}
-              style={{
-                padding: '12px 24px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                backgroundColor: lobbyState.fogOfWar ? '#27ae60' : '#95a5a6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: isHost ? 'pointer' : 'not-allowed',
-                minWidth: '90px',
-                opacity: !isHost ? 0.6 : 1
-              }}
-            >
-              {lobbyState.fogOfWar ? 'ON' : 'OFF'}
-            </button>
+          </div>
+
+          {/* Middle Column - Game Settings */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Map Size Selection */}
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+                Map Size {!isHost && '(Host chooses)'}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {mapSizeOptions.map(size => (
+                  <button
+                    key={size.value}
+                    onClick={() => handleMapSizeChange(size.value)}
+                    disabled={!isHost}
+                    style={{
+                      padding: '8px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      background: lobbyState.mapSize === size.value ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      color: '#e0e0e0',
+                      border: '2px solid #666',
+                      borderRadius: '5px',
+                      cursor: isHost ? 'pointer' : 'not-allowed',
+                      opacity: !isHost ? 0.6 : 1,
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {size.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fog of War Toggle */}
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ marginBottom: '2px', fontSize: '15px', color: '#e0e0e0' }}>
+                    Fog of War {!isHost && '(Host)'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#b0b0b0' }}>
+                    {lobbyState.fogOfWar
+                      ? 'Limited visibility'
+                      : 'Full map visibility'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleFogOfWarToggle}
+                  disabled={!isHost}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    background: lobbyState.fogOfWar ? 'linear-gradient(145deg, #5a5a5a, #3a3a3a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                    color: '#e0e0e0',
+                    border: '2px solid #666',
+                    borderRadius: '5px',
+                    cursor: isHost ? 'pointer' : 'not-allowed',
+                    opacity: !isHost ? 0.6 : 1,
+                    minWidth: '70px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {lobbyState.fogOfWar ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+
+            {/* Opponent Status */}
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+                Opponent
+              </h3>
+              <div style={{ fontSize: '13px', color: '#b0b0b0' }}>
+                {opponentJoined ? (
+                  <div style={{ color: '#27ae60', fontWeight: 'bold' }}>✓ Opponent Connected</div>
+                ) : (
+                  <div style={{ color: '#e67e22' }}>Waiting for opponent...</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Info */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px',
+              border: '3px solid #e74c3c'
+            }}>
+              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+                How to Play
+              </h3>
+              <div style={{ fontSize: '11px', color: '#b0b0b0', lineHeight: '1.4' }}>
+                <p style={{ margin: '0 0 6px 0' }}>1. Choose your hero</p>
+                <p style={{ margin: '0 0 6px 0' }}>2. Wait for opponent to join</p>
+                <p style={{ margin: '0 0 6px 0' }}>3. {isHost ? 'Start the game!' : 'Wait for host to start'}</p>
+                <p style={{ margin: '0', marginTop: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px', fontSize: '10px' }}>
+                  Share room code <strong style={{ color: '#e0e0e0' }}>{roomCode}</strong> with your friend!
+                </p>
+              </div>
+            </div>
+          </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={onBack}
             style={{
               flex: 1,
-              padding: '15px',
-              fontSize: '18px',
+              padding: '12px',
+              fontSize: '16px',
               fontWeight: 'bold',
-              backgroundColor: '#95a5a6',
-              color: 'white',
-              border: 'none',
+              background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+              color: '#e0e0e0',
+              border: '2px solid #666',
               borderRadius: '5px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+              transition: 'all 0.2s'
             }}
           >
-            ← Back
+            Back
           </button>
 
-          {isHost ? (
-            <button
-              onClick={handleStartGame}
-              disabled={!opponentJoined}
-              style={{
-                flex: 2,
-                padding: '15px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                backgroundColor: opponentJoined ? '#27ae60' : '#95a5a6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: opponentJoined ? 'pointer' : 'not-allowed'
-              }}
-            >
-              {opponentJoined ? '🚀 Start Game!' : 'Waiting for opponent...'}
-            </button>
-          ) : (
-            <button
-              onClick={handleReady}
-              style={{
-                flex: 2,
-                padding: '15px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                backgroundColor: lobbyState[playerRole].ready ? '#e67e22' : '#27ae60',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer'
-              }}
-            >
-              {lobbyState[playerRole].ready ? '❌ Not Ready' : '✓ Ready!'}
-            </button>
-          )}
+          <button
+            onClick={isHost ? handleStartGame : handleReady}
+            disabled={isHost && !opponentJoined}
+            style={{
+              flex: 2,
+              padding: '12px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              background: (isHost && !opponentJoined) ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+              color: '#e0e0e0',
+              border: '2px solid #666',
+              borderRadius: '5px',
+              cursor: (isHost && !opponentJoined) ? 'not-allowed' : 'pointer',
+              opacity: (isHost && !opponentJoined) ? 0.6 : 1,
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isHost
+              ? (opponentJoined ? 'Start Game' : 'Waiting for opponent...')
+              : (lobbyState[playerRole]?.ready ? 'Unready' : 'Ready')
+            }
+          </button>
         </div>
 
         <div style={{
-          marginTop: '20px',
-          padding: '15px',
-          backgroundColor: '#fff3cd',
+          marginTop: '6px',
+          padding: '6px',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
           borderRadius: '5px',
-          fontSize: '13px',
-          color: '#856404'
+          fontSize: '10px',
+          color: '#ccc',
+          border: '1px solid rgba(192, 192, 192, 0.2)',
+          textAlign: 'center'
         }}>
-          <strong>💡 Tip:</strong> Choose your color and map size. The host can start the game when both players have joined!
+          <strong>Multiplayer Mode:</strong> Share your room code with a friend to play together!
         </div>
       </div>
     </div>

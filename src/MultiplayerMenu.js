@@ -106,7 +106,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
           maxWidth: '500px',
           width: '90%',
           marginBottom: '40px',
-          marginTop: '-20px',
+          marginTop: '-60px',
           filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
         }}
       />
