@@ -37,13 +37,13 @@ export const HeroQueens = {
   SKRAZZIT: {
     id: 'skrazzit',
     name: 'Skrazzit the Swarm',
-    description: 'Units are 25% cheaper but 30% weaker. Start with 3 spawning spots',
+    description: 'Units are 25% cheaper but 20% weaker attack, 10% weaker health. Start with 3 spawning spots',
     icon: '🐜',
     portraitImage: 'hero_blue.png',
     bonuses: {
       costMultiplier: 0.75,     // 25% cheaper (0.75x cost)
-      attackMultiplier: 0.70,   // 30% weaker attack (0.70x attack)
-      healthMultiplier: 0.70,   // 30% weaker health (0.70x health)
+      attackMultiplier: 0.80,   // 20% weaker attack (0.80x attack)
+      healthMultiplier: 0.90,   // 10% weaker health (0.90x health)
       spawningSpotBonus: 1      // +1 spawning spot (starts with 3 instead of 2)
     },
     heroAbility: {
