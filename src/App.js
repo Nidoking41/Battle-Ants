@@ -27,6 +27,7 @@ function App() {
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
   const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
   const [lastAntClickTime, setLastAntClickTime] = useState({ antId: null, time: 0 }); // Track double-click for drones
+  const [lastDeselectedAnt, setLastDeselectedAnt] = useState({ antId: null, time: 0 }); // Prevent immediate reselection
   const [movementPaths, setMovementPaths] = useState(new Map()); // Map of hex -> path
   const [pathWaypoint, setPathWaypoint] = useState(null); // Intermediate waypoint for pathfinding
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
@@ -1336,6 +1337,10 @@ function App() {
 
     updateGame(detonationResult.gameState);
     setSelectedAction(null);
+    // Track deselection to prevent immediate reselection
+    if (selectedAnt) {
+      setLastDeselectedAnt({ antId: selectedAnt, time: Date.now() });
+    }
     setSelectedAnt(null);
   };
 
@@ -2568,7 +2573,16 @@ function App() {
         setSelectedAnt(null);
         setSelectedAction(null);
         setSelectedEgg(null);
+        // Track that this ant was just deselected to prevent immediate reselection
+        setLastDeselectedAnt({ antId: clickedAnt.id, time: now });
         return;
+      }
+
+      // Prevent immediate reselection of an ant that was just deselected (within 300ms)
+      const wasJustDeselected = lastDeselectedAnt.antId === clickedAnt.id &&
+                                (now - lastDeselectedAnt.time) < 300;
+      if (wasJustDeselected) {
+        return; // Ignore this click to prevent reselection loop
       }
 
       // Only allow actions on your own ants and only when it's your turn
