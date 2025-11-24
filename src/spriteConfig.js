@@ -70,6 +70,9 @@ export const SpriteConfig = {
       idle: { path: 'dead_ant.png', frames: 1 },
       walk: { path: 'dead_ant.png', frames: 1 },
       attack: { path: 'dead_ant.png', frames: 1 }
+    },
+    egg: {
+      idle: { path: 'egg_idle.png', frames: 8 }
     }
   }
 };
@@ -84,7 +87,7 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage'];
+const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
@@ -97,7 +100,8 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
   'healer': 'weaver',
   'bomber': 'exploding',
   'bombardier': 'bombardier',
-  'cordyphage': 'cordyphage'
+  'cordyphage': 'cordyphage',
+  'egg': 'egg'
 };
 
 // Helper function to get sprite info for an ant

@@ -93,9 +93,53 @@ export function useSprites() {
     };
   };
 
+  // Set animation for an egg (same as ant but with type 'egg')
+  const setEggAnimation = (eggId, playerColor = null) => {
+    setAntAnimations(prev => ({
+      ...prev,
+      [eggId]: {
+        antType: 'egg',
+        animation: 'idle',
+        playerColor,
+        frame: 0,
+        timestamp: Date.now()
+      }
+    }));
+  };
+
+  // Remove egg animation when egg is deleted/hatched
+  const removeEggAnimation = (eggId) => {
+    setAntAnimations(prev => {
+      const updated = { ...prev };
+      delete updated[eggId];
+      return updated;
+    });
+  };
+
+  // Get current frame info for an egg
+  const getEggFrame = (eggId, playerColor = null) => {
+    const anim = antAnimations[eggId];
+    const frame = anim?.frame || 0;
+    const animPlayerColor = playerColor || anim?.playerColor;
+
+    const spriteInfo = getSpriteInfo('egg', 'idle', animPlayerColor);
+    if (!spriteInfo) {
+      return null;
+    }
+
+    return {
+      ...spriteInfo,
+      currentFrame: frame,
+      animation: 'idle'
+    };
+  };
+
   return {
     setAntAnimation,
     removeAntAnimation,
-    getAntFrame
+    getAntFrame,
+    setEggAnimation,
+    removeEggAnimation,
+    getEggFrame
   };
 }

@@ -26,6 +26,7 @@ function App() {
   const [selectedAnt, setSelectedAnt] = useState(null);
   const [selectedAction, setSelectedAction] = useState(null); // 'move', 'layEgg', or 'detonate'
   const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
+  const [lastAntClickTime, setLastAntClickTime] = useState({ antId: null, time: 0 }); // Track double-click for drones
   const [movementPaths, setMovementPaths] = useState(new Map()); // Map of hex -> path
   const [pathWaypoint, setPathWaypoint] = useState(null); // Intermediate waypoint for pathfinding
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
@@ -33,6 +34,7 @@ function App() {
   const [pendingEggType, setPendingEggType] = useState(null); // Store egg type when using Q+key hotkeys
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
   const [selectedAnthill, setSelectedAnthill] = useState(null); // Store selected anthill for viewing info
+  const [feedbackMessage, setFeedbackMessage] = useState(''); // Feedback message to show instead of alerts
   const [damageNumbers, setDamageNumbers] = useState([]); // Array of {id, damage, position, timestamp}
   const [attackAnimations, setAttackAnimations] = useState([]); // Array of {id, attackerId, targetPos, timestamp, isRanged}
   const [projectiles, setProjectiles] = useState([]); // Array of {id, startPos, endPos, timestamp}
@@ -92,7 +94,7 @@ function App() {
   });
 
   // Sprite animation system
-  const { setAntAnimation, removeAntAnimation, getAntFrame } = useSprites();
+  const { setAntAnimation, removeAntAnimation, getAntFrame, setEggAnimation, removeEggAnimation, getEggFrame } = useSprites();
 
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
@@ -105,6 +107,15 @@ function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
+
+  // Initialize all eggs with idle animation
+  useEffect(() => {
+    Object.values(gameState.eggs || {}).forEach(egg => {
+      const playerColor = gameState.players[egg.owner]?.color;
+      setEggAnimation(egg.id, playerColor);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.eggs, gameState.players?.player1?.color, gameState.players?.player2?.color]);
 
   // Keyboard event listener for Shift key to rotate bombardier splash
   useEffect(() => {
@@ -264,7 +275,8 @@ function App() {
                 });
 
                 if (enemiesInRange.length > 0) {
-                  setSelectedAction('attack');
+                  // Toggle attack action - if already selected, deselect it
+                  setSelectedAction(prev => prev === 'attack' ? null : 'attack');
                   return;
                 }
               }
@@ -315,20 +327,6 @@ function App() {
             // Plague action (for cordyphage only)
             if (ant && ant.type === 'cordyphage') {
               setSelectedAction('plague');
-              return;
-            }
-            return;
-          case 'q':
-            console.log('Q key - Select queen hotkey triggered');
-            e.preventDefault();
-            // Q key selects the queen and centers on it
-            const currentState = getGameStateForLogic();
-            const queen = Object.values(currentState.ants).find(
-              a => a.type === 'queen' && a.owner === currentState.currentPlayer && !a.isDead
-            );
-            if (queen) {
-              setSelectedAnt(queen.id);
-              centerOnQueen();
               return;
             }
             return;
@@ -491,6 +489,29 @@ function App() {
 
       // Global hotkeys
       switch(e.key) {
+        case 'q':
+        case 'Q':
+          if (myTurn) {
+            console.log('Q key - Select queen hotkey triggered (global)');
+            e.preventDefault();
+            // Q key selects the queen and sets layEgg action (without moving camera)
+            const currentState = getGameStateForLogic();
+            const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
+            const queen = Object.values(currentState.ants).find(
+              a => a.type === 'queen' && a.owner === currentPlayerId && !a.isDead
+            );
+            if (queen) {
+              setSelectedAnt(queen.id);
+              // Auto-select layEgg action if queen has energy (can lay eggs even after attacking/healing)
+              const energyCost = getEggLayCost(queen);
+              if (hasEnoughEnergy(queen, energyCost)) {
+                setSelectedAction('layEgg');
+              } else {
+                setSelectedAction(null);
+              }
+            }
+          }
+          break;
         case 'Tab':
           if (myTurn) {
             cycleToNextActiveAnt();
@@ -712,7 +733,7 @@ function App() {
           currentStep: nextStep
         };
       });
-    }, 800); // 800ms between each step (slow, smooth, visible movement)
+    }, 600); // 600ms between each step (25% faster movement)
 
     return () => clearTimeout(timer);
   }, [movingAnt]);
@@ -1264,10 +1285,16 @@ function App() {
     );
   }
 
+  // Show feedback message that auto-clears after 3 seconds
+  const showFeedback = (message) => {
+    setFeedbackMessage(message);
+    setTimeout(() => setFeedbackMessage(''), 3000);
+  };
+
   // Handle detonating a bomber
   const handleDetonate = () => {
     if (!isMyTurn()) {
-      alert("It's not your turn!");
+      showFeedback("It's not your turn!");
       return;
     }
 
@@ -1276,12 +1303,12 @@ function App() {
     const ant = currentState.ants[selectedAnt];
 
     if (ant.type !== 'bomber') {
-      alert('Only bombers can detonate!');
+      showFeedback('Only bombers can detonate!');
       return;
     }
 
     if (ant.hasAttacked) {
-      alert('This bomber has already detonated this turn!');
+      showFeedback('This bomber has already detonated this turn!');
       return;
     }
 
@@ -1415,7 +1442,7 @@ function App() {
 
     // Only drones can build anthills
     if (drone.type !== 'drone') {
-      alert('Only drones can build anthills!');
+      showFeedback('Only drones can build anthills!');
       return;
     }
 
@@ -1425,7 +1452,7 @@ function App() {
     );
 
     if (!resourceAtDrone) {
-      alert('You must move your drone onto a resource node to build an anthill!');
+      showFeedback('You must move your drone onto a resource node to build an anthill!');
       return;
     }
 
@@ -1438,12 +1465,12 @@ function App() {
     const resourceLabel = String.fromCharCode(65 + resourceAtDrone.position.q + 6) + (resourceAtDrone.position.r + 7);
 
     if (existingAnthill && existingAnthill.isComplete && existingAnthill.owner === drone.owner) {
-      alert(`There is already a completed ${existingAnthill.resourceType} anthill at ${resourceLabel}!`);
+      showFeedback(`There is already a completed ${existingAnthill.resourceType} anthill at ${resourceLabel}!`);
       return;
     }
 
     if (existingAnthill && existingAnthill.owner !== drone.owner) {
-      alert(`Cannot build on enemy anthill at ${resourceLabel}! Destroy it first.`);
+      showFeedback(`Cannot build on enemy anthill at ${resourceLabel}! Destroy it first.`);
       return;
     }
 
@@ -1451,7 +1478,7 @@ function App() {
     if (!existingAnthill) {
       const player = currentState.players[drone.owner];
       if (player.resources.food < GameConstants.ANTHILL_BUILD_COST) {
-        alert(`Not enough food to start building an anthill! Cost: ${GameConstants.ANTHILL_BUILD_COST} food`);
+        showFeedback(`Not enough food to start building an anthill! Cost: ${GameConstants.ANTHILL_BUILD_COST} food`);
         return;
       }
     }
@@ -1471,7 +1498,7 @@ function App() {
     const performingAction = selectedAction && selectedAction !== null;
 
     if (performingAction && !isMyTurn()) {
-      alert("It's not your turn!");
+      showFeedback("It's not your turn!");
       return;
     }
 
@@ -1487,7 +1514,7 @@ function App() {
 
       // Check if ant has already attacked
       if (ant.hasAttacked) {
-        alert('This unit has already attacked this turn!');
+        showFeedback('This unit has already attacked this turn!');
         return;
       }
 
@@ -1559,7 +1586,7 @@ function App() {
           }, isRanged ? 500 : 400); // Ranged: wait for projectile, Melee: wait for lunge
           return;
         } else {
-          alert('Enemy is out of attack range!');
+          showFeedback('Enemy is out of attack range!');
           return;
         }
       }
@@ -1574,13 +1601,13 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          alert('Egg is out of attack range!');
+          showFeedback('Egg is out of attack range!');
           return;
         }
 
         // Check minimum attack range
         if (antType.minAttackRange && distance < antType.minAttackRange) {
-          alert('Too close! This unit cannot attack at this range.');
+          showFeedback('Too close! This unit cannot attack at this range.');
           return;
         }
 
@@ -1634,13 +1661,13 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          alert('Anthill is out of attack range!');
+          showFeedback('Anthill is out of attack range!');
           return;
         }
 
         // Check minimum attack range
         if (antType.minAttackRange && distance < antType.minAttackRange) {
-          alert('Too close! This unit cannot attack at this range.');
+          showFeedback('Too close! This unit cannot attack at this range.');
           return;
         }
 
@@ -1685,7 +1712,7 @@ function App() {
       }
       // No valid target
       else {
-        alert('No enemy at that location!');
+        showFeedback('No enemy at that location!');
         return;
       }
     }
@@ -1696,14 +1723,14 @@ function App() {
 
       // Check if it's a queen or healer
       if (healer.type !== 'queen' && healer.type !== 'healer') {
-        alert('Only queens and healers can heal!');
+        showFeedback('Only queens and healers can heal!');
         setSelectedAction(null);
         return;
       }
 
       // Check if unit has already attacked (healing is a terminal action)
       if (healer.hasAttacked) {
-        alert('This unit has already used a terminal action this turn!');
+        showFeedback('This unit has already used a terminal action this turn!');
         return;
       }
 
@@ -1714,7 +1741,7 @@ function App() {
 
       // Check energy
       if (!hasEnoughEnergy(healer, healEnergyCost)) {
-        alert(`Not enough energy! Need ${healEnergyCost} energy to heal.`);
+        showFeedback(`Not enough energy! Need ${healEnergyCost} energy to heal.`);
         return;
       }
 
@@ -1724,13 +1751,13 @@ function App() {
       );
 
       if (!friendlyAtHex) {
-        alert('No friendly unit at that location!');
+        showFeedback('No friendly unit at that location!');
         return;
       }
 
       // Check if unit is already at full health
       if (friendlyAtHex.health >= friendlyAtHex.maxHealth) {
-        alert('That unit is already at full health!');
+        showFeedback('That unit is already at full health!');
         return;
       }
 
@@ -1744,7 +1771,7 @@ function App() {
       );
 
       if (distance > healRange) {
-        alert('Target is out of heal range!');
+        showFeedback('Target is out of heal range!');
         return;
       }
 
@@ -1769,7 +1796,7 @@ function App() {
 
       // Only queens can lay eggs
       if (ant.type !== 'queen') {
-        alert('Only queens can lay eggs!');
+        showFeedback('Only queens can lay eggs!');
         setSelectedAction(null);
         return;
       }
@@ -1780,7 +1807,7 @@ function App() {
 
       if (!isInSpawningPool) {
         const queenTier = QueenTiers[ant.queenTier || 'queen'];
-        alert(`Can only lay eggs in the ${queenTier.spawningSpots} spawning pool hexes adjacent to your queen!`);
+        showFeedback(`Can only lay eggs in the ${queenTier.spawningSpots} spawning pool hexes adjacent to your queen!`);
         return;
       }
 
@@ -1789,7 +1816,7 @@ function App() {
                        Object.values(currentState.eggs).some(e => hexEquals(e.position, hex));
 
       if (occupied) {
-        alert('Space is occupied!');
+        showFeedback('Space is occupied!');
         return;
       }
 
@@ -1806,9 +1833,8 @@ function App() {
         return;
       }
 
-      // Otherwise, show ant type selector
+      // Store the selected egg hex (selector is always visible now)
       setSelectedEggHex(hex);
-      setShowAntTypeSelector(true);
       return;
     }
 
@@ -1848,7 +1874,7 @@ function App() {
       if (enemyAtHex) {
         // Check if ant has already attacked
         if (ant.hasAttacked) {
-          alert('This unit has already attacked this turn!');
+          showFeedback('This unit has already attacked this turn!');
           return;
         }
 
@@ -1895,7 +1921,7 @@ function App() {
           }, isRanged ? 500 : 400);
           return;
         } else {
-          alert('Enemy is out of attack range!');
+          showFeedback('Enemy is out of attack range!');
           return;
         }
       }
@@ -1903,7 +1929,7 @@ function App() {
       else if (eggAtHex) {
         // Check if ant has already attacked
         if (ant.hasAttacked) {
-          alert('This unit has already attacked this turn!');
+          showFeedback('This unit has already attacked this turn!');
           return;
         }
 
@@ -1916,13 +1942,13 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          alert('Egg is out of attack range!');
+          showFeedback('Egg is out of attack range!');
           return;
         }
 
         // Check minimum attack range
         if (antType.minAttackRange && distance < antType.minAttackRange) {
-          alert('Too close! This unit cannot attack at this range.');
+          showFeedback('Too close! This unit cannot attack at this range.');
           return;
         }
 
@@ -1970,7 +1996,7 @@ function App() {
       else if (anthillAtHex) {
         // Check if ant has already attacked
         if (ant.hasAttacked) {
-          alert('This unit has already attacked this turn!');
+          showFeedback('This unit has already attacked this turn!');
           return;
         }
 
@@ -1983,13 +2009,13 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          alert('Anthill is out of attack range!');
+          showFeedback('Anthill is out of attack range!');
           return;
         }
 
         // Check minimum attack range
         if (antType.minAttackRange && distance < antType.minAttackRange) {
-          alert('Too close! This unit cannot attack at this range.');
+          showFeedback('Too close! This unit cannot attack at this range.');
           return;
         }
 
@@ -2036,19 +2062,19 @@ function App() {
 
       // Check if ant has already attacked (can't move after attacking)
       if (ant.hasAttacked) {
-        alert('This unit has already attacked and cannot move!');
+        showFeedback('This unit has already attacked and cannot move!');
         return;
       }
 
       // Check if ant has already moved
       if (ant.hasMoved) {
-        alert('This unit has already moved this turn!');
+        showFeedback('This unit has already moved this turn!');
         return;
       }
 
       // Queens cannot move
       if (ant.type === 'queen') {
-        alert('Queens cannot move! They stay on their throne.');
+        showFeedback('Queens cannot move! They stay on their throne.');
         return;
       }
 
@@ -2105,7 +2131,7 @@ function App() {
         }
 
         if (!path || path.length === 0) {
-          alert('No valid path to that destination!');
+          showFeedback('No valid path to that destination!');
           return;
         }
 
@@ -2119,7 +2145,7 @@ function App() {
           );
 
           if (enemyAtPathHex) {
-            alert('Path is blocked by an enemy ant!');
+            showFeedback('Path is blocked by an enemy ant!');
             return;
           }
 
@@ -2128,7 +2154,7 @@ function App() {
             e => hexEquals(e.position, pathHex) && e.owner !== ant.owner
           );
           if (enemyEggAtPathHex) {
-            alert('Path is blocked by an enemy egg!');
+            showFeedback('Path is blocked by an enemy egg!');
             return;
           }
         }
@@ -2146,8 +2172,8 @@ function App() {
         setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
         // After animation completes, mark ant as moved and update final state
-        // Calculate total animation time (800ms per step for smooth, visible movement)
-        const animationDuration = (path.length - 1) * 800;
+        // Calculate total animation time (600ms per step - 25% faster movement)
+        const animationDuration = (path.length - 1) * 600;
         setTimeout(() => {
           const newState = moveAnt(currentState, selectedAnt, hex);
           const finalState = markAntMoved(newState, selectedAnt);
@@ -2166,7 +2192,7 @@ function App() {
           }
         }, animationDuration);
       } else {
-        alert('Invalid move!');
+        showFeedback('Invalid move!');
       }
       return;
     }
@@ -2187,7 +2213,7 @@ function App() {
         setSelectedAction(null);
         setSelectedAnt(null);
       } else {
-        alert('Invalid teleport destination! Must click on a friendly anthill.');
+        showFeedback('Invalid teleport destination! Must click on a friendly anthill.');
       }
       return;
     }
@@ -2208,7 +2234,7 @@ function App() {
         setSelectedAction(null);
         setSelectedAnt(null);
       } else {
-        alert('Invalid heal target! Must click on a wounded ally.');
+        showFeedback('Invalid heal target! Must click on a wounded ally.');
       }
       return;
     }
@@ -2229,7 +2255,7 @@ function App() {
         setSelectedAction(null);
         setSelectedAnt(null);
       } else {
-        alert('Invalid ensnare target! Must click on an enemy unit.');
+        showFeedback('Invalid ensnare target! Must click on an enemy unit.');
       }
       return;
     }
@@ -2246,7 +2272,7 @@ function App() {
 
       if (enemyAtHex) {
         if (enemyAtHex.type === 'queen') {
-          alert('Cannot mind control queens!');
+          showFeedback('Cannot mind control queens!');
           return;
         }
         const newState = cordycepsPurge(currentState, selectedAnt, enemyAtHex.id);
@@ -2254,7 +2280,7 @@ function App() {
         setSelectedAction(null);
         setSelectedAnt(null);
       } else {
-        alert('Invalid Cordyceps target! Must click on an enemy unit (not queen).');
+        showFeedback('Invalid Cordyceps target! Must click on an enemy unit (not queen).');
       }
       return;
     }
@@ -2272,14 +2298,14 @@ function App() {
       if (enemyAtHex) {
         const newState = plagueEnemy(currentState, selectedAnt, enemyAtHex.id);
         if (newState === currentState) {
-          alert('Cannot plague this target! Already plagued or out of energy.');
+          showFeedback('Cannot plague this target! Already plagued or out of energy.');
           return;
         }
         updateGame(newState);
         setSelectedAction(null);
         setSelectedAnt(null);
       } else {
-        alert('Invalid plague target! Must click on an enemy unit.');
+        showFeedback('Invalid plague target! Must click on an enemy unit.');
       }
       return;
     }
@@ -2292,7 +2318,7 @@ function App() {
       // Reveal the area
       const newState = revealArea(currentState, selectedAnt, hex);
       if (newState === currentState) {
-        alert('Cannot use Reveal! Check energy and upgrade requirements.');
+        showFeedback('Cannot use Reveal! Check energy and upgrade requirements.');
         return;
       }
       updateGame(newState);
@@ -2315,7 +2341,7 @@ function App() {
 
       // Check range
       if (distance < bombardierType.minAttackRange || distance > bombardierType.attackRange) {
-        alert('Target is out of range! Must be 2-3 hexes away.');
+        showFeedback('Target is out of range! Must be 2-3 hexes away.');
         return;
       }
 
@@ -2399,7 +2425,7 @@ function App() {
 
         // Check if ant has already moved
         if (ant.hasMoved) {
-          alert('This unit has already moved and cannot reach the enemy!');
+          showFeedback('This unit has already moved and cannot reach the enemy!');
           return;
         }
 
@@ -2424,7 +2450,7 @@ function App() {
         });
 
         if (attackablePositions.length === 0) {
-          alert('Cannot reach enemy to attack!');
+          showFeedback('Cannot reach enemy to attack!');
           return;
         } else if (attackablePositions.length === 1) {
           // Only one position - auto-move there
@@ -2441,7 +2467,7 @@ function App() {
           // Multiple positions - let user choose
           setAttackTarget(clickedEnemy);
           setAttackPositions(attackablePositions);
-          alert('Click on a hex to attack from (highlighted in red)');
+          showFeedback('Click on a hex to attack from (highlighted in red)');
           return;
         }
       }
@@ -2506,8 +2532,39 @@ function App() {
     );
 
     if (clickedAnt) {
-      // If clicking on the already-selected ant, deselect it
+      // Check for double-click on drone to auto-select build action
+      const now = Date.now();
+      const isDoubleClick = selectedAnt === clickedAnt.id &&
+                           lastAntClickTime.antId === clickedAnt.id &&
+                           (now - lastAntClickTime.time) < 500; // 500ms double-click threshold
+
+      // Update last click time
+      setLastAntClickTime({ antId: clickedAnt.id, time: now });
+
+      // If clicking on the already-selected ant
       if (selectedAnt === clickedAnt.id) {
+        // Check if it's a drone on a resource or half-built anthill for double-click build
+        if (isDoubleClick && clickedAnt.type === 'drone' && clickedAnt.owner === currentState.currentPlayer && isMyTurn()) {
+          // Check if drone is on a resource
+          const resourceAtPos = Object.values(currentState.resources).find(
+            r => r.position.q === clickedAnt.position.q && r.position.r === clickedAnt.position.r
+          );
+
+          // Check if there's an incomplete anthill at this position
+          const anthillAtPos = Object.values(currentState.anthills || {}).find(
+            hill => hill.position.q === clickedAnt.position.q &&
+                    hill.position.r === clickedAnt.position.r &&
+                    !hill.isComplete
+          );
+
+          if (resourceAtPos || anthillAtPos) {
+            // Auto-select build action
+            setSelectedAction('build');
+            return;
+          }
+        }
+
+        // Otherwise, deselect the ant
         setSelectedAnt(null);
         setSelectedAction(null);
         setSelectedEgg(null);
@@ -2522,10 +2579,15 @@ function App() {
 
         // Only auto-select action if the unit can still perform actions
         // Auto-select action based on unit type and available actions:
-        // - Queens: lay egg (if hasn't attacked)
+        // - Queens: lay egg (if has energy, can lay even after attacking/healing)
         // - Others: move (if hasn't moved or attacked)
-        if (clickedAnt.type === 'queen' && !clickedAnt.hasAttacked) {
-          setSelectedAction('layEgg');
+        if (clickedAnt.type === 'queen') {
+          const energyCost = getEggLayCost(clickedAnt);
+          if (hasEnoughEnergy(clickedAnt, energyCost)) {
+            setSelectedAction('layEgg');
+          } else {
+            setSelectedAction(null);
+          }
         } else if (!clickedAnt.hasMoved && !clickedAnt.hasAttacked) {
           setSelectedAction('move');
         } else {
@@ -2565,19 +2627,19 @@ function App() {
     );
 
     if (!queen) {
-      alert('No queen found!');
+      showFeedback('No queen found!');
       return;
     }
 
     // Check energy cost
     const energyCost = getEggLayCost(queen);
     if (!hasEnoughEnergy(queen, energyCost)) {
-      alert(`Not enough energy! Need ${energyCost} energy to lay an egg.`);
+      showFeedback(`Not enough energy! Need ${energyCost} energy to lay an egg.`);
       return;
     }
 
     if (!canAfford(currentPlayer, type)) {
-      alert('Not enough resources!');
+      showFeedback('Not enough resources!');
       return;
     }
 
@@ -2585,7 +2647,7 @@ function App() {
     const eggPosition = hexPosition || (selectedEggHex && !selectedEggHex.antType ? selectedEggHex : null);
 
     if (!eggPosition) {
-      alert('Select a tile next to your queen to lay the egg!');
+      showFeedback('Select a tile next to your queen to lay the egg!');
       return;
     }
 
@@ -2627,7 +2689,7 @@ function App() {
     );
 
     if (antsWithActions.length === 0) {
-      alert('No ants with available actions!');
+      showFeedback('No ants with available actions!');
       return;
     }
 
@@ -2668,6 +2730,12 @@ function App() {
     if (ant.owner !== currentState.currentPlayer) return false;
 
     const antType = AntTypes[ant.type.toUpperCase()];
+
+    // Queens can lay eggs even if they've attacked, as long as they have energy
+    if (ant.type === 'queen') {
+      const energyCost = getEggLayCost(ant);
+      return hasEnoughEnergy(ant, energyCost);
+    }
 
     // If already attacked, no more actions
     if (ant.hasAttacked) return false;
@@ -3140,16 +3208,29 @@ function App() {
                 )}
               </g>
             )}
-            {egg && (
-              <text
-                textAnchor="middle"
-                dy="0.3em"
-                fontSize="20"
-                style={{ pointerEvents: 'none' }}
-              >
-                🥚
-              </text>
-            )}
+            {egg && (() => {
+              const playerColor = gameState.players[egg.owner]?.color;
+              const eggFrame = getEggFrame(egg.id, playerColor);
+
+              return eggFrame ? (
+                <g>
+                  <defs>
+                    <clipPath id={`egg-clip-${egg.id}`}>
+                      <rect x="-20" y="-20" width="40" height="40" />
+                    </clipPath>
+                  </defs>
+                  <image
+                    href={eggFrame.fullPath}
+                    x={-20 - (eggFrame.currentFrame * eggFrame.frameWidth * 1.25)}
+                    y="-20"
+                    width={eggFrame.frameWidth * eggFrame.frames * 1.25}
+                    height={eggFrame.frameHeight * 1.25}
+                    clipPath={`url(#egg-clip-${egg.id})`}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </g>
+              ) : null;
+            })()}
             {resource && !anthill && isVisible && (
               <g transform={ant ? "translate(15, -15)" : ""}>
                 {/* Colored circle background for resource */}
@@ -3597,7 +3678,22 @@ function App() {
 
   return (
     <div className="App" style={{ padding: '10px', backgroundColor: '#f0f0f0', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <h1 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Ant Wars</h1>
+      {/* Feedback Message Area */}
+      <div style={{
+        margin: '0 0 10px 0',
+        fontSize: '20px',
+        fontWeight: 'bold',
+        minHeight: '30px',
+        color: feedbackMessage ? '#d32f2f' : 'transparent',
+        backgroundColor: feedbackMessage ? 'rgba(211, 47, 47, 0.1)' : 'transparent',
+        padding: '5px 15px',
+        borderRadius: '8px',
+        border: feedbackMessage ? '2px solid #d32f2f' : '2px solid transparent',
+        transition: 'all 0.3s ease',
+        textAlign: 'center'
+      }}>
+        {feedbackMessage || '\u00A0'}
+      </div>
 
       <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'flex-start', width: '100%' }}>
         {/* Ant Types Panel - Left Side */}
@@ -3681,16 +3777,16 @@ function App() {
                       onClick={() => {
                         // Check if player has a queen to lay eggs
                         if (!queen) {
-                          alert('You need a queen to lay eggs!');
+                          showFeedback('You need a queen to lay eggs!');
                           return;
                         }
                         if (isLocked && ant.requiresQueenTier) {
                           const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
-                          alert(`This unit requires ${requiredTierName}!`);
+                          showFeedback(`This unit requires ${requiredTierName}!`);
                           return;
                         }
                         if (!affordable) {
-                          alert('Not enough resources!');
+                          showFeedback('Not enough resources!');
                           return;
                         }
                         // Set selected action to lay egg with this ant type
@@ -4025,7 +4121,7 @@ function App() {
                 <button
                   onClick={() => {
                     if (!affordable) {
-                      alert('Not enough resources!');
+                      showFeedback('Not enough resources!');
                       return;
                     }
                     const currentState = getGameStateForLogic();
@@ -4527,109 +4623,6 @@ function App() {
             </div>
           )}
 
-          {/* Ant Type Selector */}
-          {showAntTypeSelector && (
-            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
-              <h4>Select Ant Type to Lay</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'healer', 'tank', 'cordyphage']
-                  .map(id => AntTypes[id.toUpperCase()])
-                  .filter(ant => ant) // Remove any undefined
-                  .map(ant => {
-                  const currentPlayer = gameState.players[gameState.currentPlayer];
-                  const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
-
-                  // Check if unit requires a specific queen tier
-                  const queen = Object.values(gameState.ants).find(
-                    a => a.type === 'queen' && a.owner === gameState.currentPlayer
-                  );
-                  const queenTier = queen?.queenTier || 'queen';
-
-                  // Check if locked: requires a specific tier and player doesn't have it yet
-                  let isLocked = false;
-                  if (ant.requiresQueenTier) {
-                    if (ant.requiresQueenTier === 'broodQueen') {
-                      isLocked = queenTier === 'queen'; // Locked if still base queen
-                    } else if (ant.requiresQueenTier === 'swarmQueen') {
-                      isLocked = queenTier !== 'swarmQueen'; // Locked unless swarm queen
-                    }
-                  }
-
-                  // Build tooltip message
-                  let tooltipMessage = ant.description;
-                  if (isLocked && ant.requiresQueenTier) {
-                    const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
-                    tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
-                  }
-
-                  // Hotkey mapping for each ant type
-                  const hotkeyMap = {
-                    'drone': 'D',
-                    'scout': 'S',
-                    'soldier': 'O',
-                    'tank': 'T',
-                    'spitter': 'I',
-                    'bomber': 'X',
-                    'bombardier': 'R',
-                    'healer': 'W',
-                    'cordyphage': 'C'
-                  };
-                  const hotkey = hotkeyMap[ant.id];
-
-                  return (
-                    <button
-                      key={ant.id}
-                      onClick={() => {
-                        if (isLocked && ant.requiresQueenTier) {
-                          const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
-                          alert(`This unit requires ${requiredTierName}!`);
-                          return;
-                        }
-                        handleLayEgg(ant.id);
-                      }}
-                      disabled={!affordable || isLocked}
-                      title={tooltipMessage}
-                      style={{
-                        padding: '8px',
-                        fontSize: '12px',
-                        backgroundColor: isLocked ? '#999' : (affordable ? '#4CAF50' : '#ccc'),
-                        color: (isLocked || !affordable) ? '#666' : 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: (affordable && !isLocked) ? 'pointer' : 'not-allowed',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <div>{ant.icon} {ant.name} {hotkey && `(${hotkey})`}</div>
-                      <div style={{ fontSize: '10px' }}>
-                        Cost: {ant.cost.food}🍃 {ant.cost.minerals}💎
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => {
-                  setShowAntTypeSelector(false);
-                  setSelectedEggHex(null);
-                  setSelectedAction(null);
-                }}
-                style={{
-                  marginTop: '10px',
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
           {/* End Turn Button */}
           <button
             onClick={handleEndTurn}
@@ -4779,16 +4772,16 @@ function App() {
         </div>
       </div>
 
-      {/* Concede Button - Bottom Left */}
+      {/* Concede Button - Top Right above turn counter */}
       {!gameState.gameOver && (
         <button
           onClick={handleConcede}
           style={{
             position: 'fixed',
-            bottom: '20px',
-            left: '20px',
-            padding: '12px 20px',
-            fontSize: '16px',
+            top: '20px',
+            right: '20px',
+            padding: '10px 18px',
+            fontSize: '14px',
             fontWeight: 'bold',
             backgroundColor: '#d32f2f',
             color: 'white',
@@ -5044,7 +5037,7 @@ function App() {
                     key={upgrade.id}
                     onClick={() => {
                       if (!affordable) {
-                        alert(isMaxed ? 'Already purchased!' : 'Not enough resources!');
+                        showFeedback(isMaxed ? 'Already purchased!' : 'Not enough resources!');
                         return;
                       }
                       const currentState = getGameStateForLogic();
