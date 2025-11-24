@@ -479,6 +479,10 @@ function App() {
             console.log('Escape hotkey triggered');
             e.preventDefault();
             // Deselect ant and clear egg laying mode
+            // Track deselection to prevent immediate reselection
+            if (selectedAnt) {
+              setLastDeselectedAnt({ antId: selectedAnt, time: Date.now() });
+            }
             setSelectedAnt(null);
             setSelectedAction(null);
             setPendingEggType(null);
@@ -2578,10 +2582,11 @@ function App() {
         return;
       }
 
-      // Prevent immediate reselection of an ant that was just deselected (within 300ms)
+      // Prevent immediate reselection of an ant that was just deselected (within 500ms)
       const wasJustDeselected = lastDeselectedAnt.antId === clickedAnt.id &&
-                                (now - lastDeselectedAnt.time) < 300;
+                                (now - lastDeselectedAnt.time) < 500;
       if (wasJustDeselected) {
+        console.log('Preventing reselection of ant that was just deselected:', clickedAnt.id);
         return; // Ignore this click to prevent reselection loop
       }
 
