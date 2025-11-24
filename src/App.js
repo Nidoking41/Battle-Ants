@@ -3211,20 +3211,21 @@ function App() {
             {egg && (() => {
               const playerColor = gameState.players[egg.owner]?.color;
               const eggFrame = getEggFrame(egg.id, playerColor);
+              const eggScale = 1.875; // 50% bigger than original 1.25 scale
 
               return eggFrame ? (
                 <g>
                   <defs>
                     <clipPath id={`egg-clip-${egg.id}`}>
-                      <rect x="-20" y="-20" width="40" height="40" />
+                      <rect x="-30" y="-30" width="60" height="60" />
                     </clipPath>
                   </defs>
                   <image
                     href={eggFrame.fullPath}
-                    x={-20 - (eggFrame.currentFrame * eggFrame.frameWidth * 1.25)}
-                    y="-20"
-                    width={eggFrame.frameWidth * eggFrame.frames * 1.25}
-                    height={eggFrame.frameHeight * 1.25}
+                    x={-30 - (eggFrame.currentFrame * eggFrame.frameWidth * eggScale)}
+                    y="-30"
+                    width={eggFrame.frameWidth * eggFrame.frames * eggScale}
+                    height={eggFrame.frameHeight * eggScale}
                     clipPath={`url(#egg-clip-${egg.id})`}
                     style={{ pointerEvents: 'none' }}
                   />
@@ -3543,6 +3544,11 @@ function App() {
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (
             <g opacity={hasActions ? 1 : 0.5}>
+              <defs>
+                <clipPath id={`clip-${ant.id}`}>
+                  <rect x="-40" y="-40" width="80" height="80" />
+                </clipPath>
+              </defs>
               <image
                 x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
                 y={-40}
