@@ -296,29 +296,26 @@ function App() {
             }
             return;
           case 'm':
-            // Uppercase M = Marauder (soldier), lowercase m = Move
-            if (e.key === 'M') {
-              // Soldier (marauder)
-              if (showAntTypeSelector && selectedEggHex) {
-                console.log('Soldier hotkey - hatching soldier');
-                e.preventDefault();
-                handleLayEgg('soldier');
-                return;
-              }
-              if (selectedAction === 'layEgg') {
-                console.log('Soldier egg type selected');
-                e.preventDefault();
-                setPendingEggType('soldier');
-                return;
-              }
-              return;
-            }
-            // lowercase m = Move
             console.log('Move hotkey triggered');
             e.preventDefault();
             // Move action
             if (ant && !ant.hasMoved) {
               setSelectedAction('move');
+              return;
+            }
+            return;
+          case 'o':
+            // Soldier (marauder)
+            if (showAntTypeSelector && selectedEggHex) {
+              console.log('Soldier hotkey - hatching soldier');
+              e.preventDefault();
+              handleLayEgg('soldier');
+              return;
+            }
+            if (selectedAction === 'layEgg') {
+              console.log('Soldier egg type selected');
+              e.preventDefault();
+              setPendingEggType('soldier');
               return;
             }
             return;
