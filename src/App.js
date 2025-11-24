@@ -296,6 +296,24 @@ function App() {
             }
             return;
           case 'm':
+            // Uppercase M = Marauder (soldier), lowercase m = Move
+            if (e.key === 'M') {
+              // Soldier (marauder)
+              if (showAntTypeSelector && selectedEggHex) {
+                console.log('Soldier hotkey - hatching soldier');
+                e.preventDefault();
+                handleLayEgg('soldier');
+                return;
+              }
+              if (selectedAction === 'layEgg') {
+                console.log('Soldier egg type selected');
+                e.preventDefault();
+                setPendingEggType('soldier');
+                return;
+              }
+              return;
+            }
+            // lowercase m = Move
             console.log('Move hotkey triggered');
             e.preventDefault();
             // Move action
@@ -367,21 +385,6 @@ function App() {
               console.log('Scout egg type selected');
               e.preventDefault();
               setPendingEggType('scout');
-              return;
-            }
-            return;
-          case 'o':
-            // Soldier (marauder) - changed from 'm' to avoid conflict with move
-            if (showAntTypeSelector && selectedEggHex) {
-              console.log('Soldier hotkey - hatching soldier');
-              e.preventDefault();
-              handleLayEgg('soldier');
-              return;
-            }
-            if (selectedAction === 'layEgg') {
-              console.log('Soldier egg type selected');
-              e.preventDefault();
-              setPendingEggType('soldier');
               return;
             }
             return;
