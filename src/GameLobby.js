@@ -263,15 +263,18 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
           Room Code: <span style={{ color: '#e0e0e0', fontFamily: 'monospace', fontSize: '18px', letterSpacing: '3px' }}>{roomCode}</span>
         </h3>
 
-        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '10px' }}>
+        <div style={{ flex: 1, marginBottom: '10px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ display: 'flex', gap: '12px', flex: 1, minHeight: 0 }}>
           {/* Your Hero Selection */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
             <div style={{
               padding: '8px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
-              border: '3px solid #3498db'
+              border: '3px solid #3498db',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
             }}>
               <h3 style={{ marginBottom: '6px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e0e0e0' }}>
                 You {playerRole === 'player1' ? '(South)' : '(North)'} {isHost && '👑'}
@@ -283,31 +286,32 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                   borderRadius: '50%'
                 }} title={`Color: ${myColor}`} />
               </h3>
-              <div style={{ marginTop: '6px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '6px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => handleHeroChange(hero.id)}
                       style={{
-                        width: '120px',
-                        padding: '6px',
+                        padding: '4px',
                         border: myHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                         borderRadius: '6px',
                         cursor: 'pointer',
                         backgroundColor: myHero === hero.id ? 'rgba(52, 152, 219, 0.2)' : 'rgba(255, 255, 255, 0.1)',
                         textAlign: 'center',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column'
                       }}
                     >
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '3px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
-                      <div style={{ fontSize: '10px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '9px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>

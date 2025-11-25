@@ -14,8 +14,8 @@ function GameSummary({ gameState, onReturnToMenu }) {
   const winnerName = gameState.players[winner]?.name || `Player ${winner === 'player1' ? '1' : '2'}`;
 
   // SVG Graph dimensions
-  const graphWidth = 700;
-  const graphHeight = 300;
+  const graphWidth = 600;
+  const graphHeight = 220;
   const padding = 40;
   const plotWidth = graphWidth - 2 * padding;
   const plotHeight = graphHeight - 2 * padding;
@@ -60,29 +60,33 @@ function GameSummary({ gameState, onReturnToMenu }) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '100vh',
+      height: '100vh',
       backgroundImage: `url(${process.env.PUBLIC_URL}/sprites/antwars_background.png)`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
-      padding: '20px',
-      boxSizing: 'border-box'
+      padding: '15px',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
     }}>
       <div style={{
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        padding: '30px',
+        padding: '20px',
         borderRadius: '15px',
         boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
-        maxWidth: '1200px',
+        maxWidth: '1100px',
         width: '100%',
-        border: '3px solid rgba(192, 192, 192, 0.4)'
+        border: '3px solid rgba(192, 192, 192, 0.4)',
+        maxHeight: '95vh',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         {/* Title */}
         <h1 style={{
           textAlign: 'center',
           marginTop: 0,
-          marginBottom: '10px',
-          fontSize: '32px',
+          marginBottom: '5px',
+          fontSize: '28px',
           color: '#e0e0e0'
         }}>
           Game Summary
@@ -90,8 +94,8 @@ function GameSummary({ gameState, onReturnToMenu }) {
         <h2 style={{
           textAlign: 'center',
           marginTop: 0,
-          marginBottom: '30px',
-          fontSize: '24px',
+          marginBottom: '15px',
+          fontSize: '20px',
           color: winner === 'player1' ? '#4CAF50' : '#f44336'
         }}>
           {winnerName} Wins!
@@ -101,19 +105,20 @@ function GameSummary({ gameState, onReturnToMenu }) {
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           borderRadius: '10px',
-          padding: '20px',
-          marginBottom: '30px'
+          padding: '15px',
+          marginBottom: '15px',
+          flex: '0 0 auto'
         }}>
           <h3 style={{
             textAlign: 'center',
             marginTop: 0,
-            marginBottom: '15px',
+            marginBottom: '10px',
             color: '#333',
-            fontSize: '20px'
+            fontSize: '18px'
           }}>
             Army Strength Over Time
           </h3>
-          <svg width={graphWidth} height={graphHeight} style={{ display: 'block', margin: '0 auto' }}>
+          <svg width={600} height={220} style={{ display: 'block', margin: '0 auto' }}>
             {/* Background */}
             <rect x={padding} y={padding} width={plotWidth} height={plotHeight} fill="#f5f5f5" stroke="#ccc" strokeWidth="1" />
 
@@ -179,17 +184,17 @@ function GameSummary({ gameState, onReturnToMenu }) {
         </div>
 
         {/* Stats Tables Side-by-Side */}
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', flex: '1 1 auto', minHeight: 0 }}>
           {/* Player 1 Stats */}
           <div style={{ flex: 1 }}>
             <h3 style={{
               textAlign: 'center',
               marginTop: 0,
-              marginBottom: '15px',
-              fontSize: '20px',
+              marginBottom: '8px',
+              fontSize: '16px',
               color: '#2196F3',
               backgroundColor: 'rgba(33, 150, 243, 0.2)',
-              padding: '10px',
+              padding: '6px',
               borderRadius: '8px'
             }}>
               {gameState.players.player1?.name || 'Player 1'}
@@ -197,38 +202,38 @@ function GameSummary({ gameState, onReturnToMenu }) {
             <div style={{
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
               borderRadius: '8px',
-              padding: '15px',
+              padding: '10px',
               border: '2px solid rgba(33, 150, 243, 0.4)'
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Damage Dealt</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.damageDealt}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Damage Dealt</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.damageDealt}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Damage Received</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.damageReceived}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Damage Received</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.damageReceived}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Hatched</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{getTotalAntsHatched(player1Stats.antsHatched)}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Hatched</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{getTotalAntsHatched(player1Stats.antsHatched)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Killed</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.antsKilled}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Killed</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.antsKilled}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Lost</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.antsLost}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Lost</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.antsLost}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Food Mined</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.foodMined}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Food Mined</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.foodMined}</td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Minerals Mined</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player1Stats.mineralsMined}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Minerals Mined</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.mineralsMined}</td>
                   </tr>
                 </tbody>
               </table>
@@ -240,11 +245,11 @@ function GameSummary({ gameState, onReturnToMenu }) {
             <h3 style={{
               textAlign: 'center',
               marginTop: 0,
-              marginBottom: '15px',
-              fontSize: '20px',
+              marginBottom: '8px',
+              fontSize: '16px',
               color: '#f44336',
               backgroundColor: 'rgba(244, 67, 54, 0.2)',
-              padding: '10px',
+              padding: '6px',
               borderRadius: '8px'
             }}>
               {gameState.players.player2?.name || 'Player 2'}
@@ -252,38 +257,38 @@ function GameSummary({ gameState, onReturnToMenu }) {
             <div style={{
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
               borderRadius: '8px',
-              padding: '15px',
+              padding: '10px',
               border: '2px solid rgba(244, 67, 54, 0.4)'
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Damage Dealt</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.damageDealt}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Damage Dealt</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.damageDealt}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Damage Received</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.damageReceived}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Damage Received</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.damageReceived}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Hatched</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{getTotalAntsHatched(player2Stats.antsHatched)}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Hatched</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{getTotalAntsHatched(player2Stats.antsHatched)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Killed</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.antsKilled}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Killed</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.antsKilled}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Ants Lost</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.antsLost}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Ants Lost</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.antsLost}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Food Mined</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.foodMined}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Food Mined</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.foodMined}</td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '8px', color: '#e0e0e0', fontWeight: 'bold' }}>Minerals Mined</td>
-                    <td style={{ padding: '8px', color: '#e0e0e0', textAlign: 'right' }}>{player2Stats.mineralsMined}</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Minerals Mined</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.mineralsMined}</td>
                   </tr>
                 </tbody>
               </table>
@@ -292,12 +297,12 @@ function GameSummary({ gameState, onReturnToMenu }) {
         </div>
 
         {/* Return Button */}
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', flex: '0 0 auto' }}>
           <button
             onClick={onReturnToMenu}
             style={{
-              padding: '15px 50px',
-              fontSize: '18px',
+              padding: '10px 40px',
+              fontSize: '16px',
               fontWeight: 'bold',
               backgroundColor: '#2196F3',
               color: 'white',

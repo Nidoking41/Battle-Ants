@@ -144,11 +144,12 @@ const AI_CONFIG = {
  * @param {Object} gameState - Current game state
  * @param {string} aiPlayer - AI player ID ('player1' or 'player2')
  * @param {string} difficulty - 'easy', 'medium', or 'hard'
- * @returns {Object} Updated game state after AI turn
+ * @returns {Object} Object with gameState and movements array for animation
  */
 export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
   const config = AI_CONFIG[difficulty];
   let state = { ...gameState };
+  let movements = []; // Track all movements for animation
 
   console.log(`AI (${aiPlayer}, ${difficulty}) starting turn ${state.turn}`);
 
@@ -178,7 +179,9 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
   state = hatchEggsIfReady(state, aiPlayer);
 
   // Phase 2: Move and use units (do this BEFORE laying eggs to free up spawn spots)
-  state = performUnitActions(state, aiPlayer, config, strategy);
+  const unitActionResult = performUnitActions(state, aiPlayer, config, strategy);
+  state = unitActionResult.state;
+  movements = unitActionResult.movements;
 
   // Phase 3: Queen actions (lay eggs, heal) - now spawn spots are free
   state = performQueenActions(state, aiPlayer, config, strategy);
@@ -188,9 +191,9 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
     state = considerUpgrades(state, aiPlayer);
   }
 
-  console.log(`AI (${aiPlayer}) ending turn`);
+  console.log(`AI (${aiPlayer}) ending turn with ${movements.length} movements`);
 
-  return state;
+  return { gameState: state, movements };
 }
 
 /**
@@ -441,6 +444,7 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
  */
 function performUnitActions(gameState, aiPlayer, config, strategy) {
   let state = { ...gameState };
+  let movements = []; // Track movements for animation
 
   // Get all AI units
   const aiUnits = Object.values(state.ants)
@@ -461,29 +465,37 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
   // Handle drones (gathering and building)
   for (const drone of drones) {
     console.log(`Handling drone at (${drone.position.q}, ${drone.position.r})`);
-    state = handleDroneUnit(state, drone, aiPlayer, config);
+    const result = handleDroneUnit(state, drone, aiPlayer, config);
+    state = result.state;
+    if (result.movement) movements.push(result.movement);
   }
 
   // Handle scouts (exploration)
   for (const scout of scouts) {
     console.log(`Handling scout at (${scout.position.q}, ${scout.position.r})`);
-    state = handleScoutUnit(state, scout, aiPlayer, strategy);
+    const result = handleScoutUnit(state, scout, aiPlayer, strategy);
+    state = result.state;
+    if (result.movement) movements.push(result.movement);
   }
 
   // Handle combat units with strategy
   for (const unit of combatUnits) {
     console.log(`Handling ${unit.type} at (${unit.position.q}, ${unit.position.r})`);
-    state = handleCombatUnit(state, unit, aiPlayer, config, strategy);
+    const result = handleCombatUnit(state, unit, aiPlayer, config, strategy);
+    state = result.state;
+    if (result.movement) movements.push(result.movement);
   }
 
   // Handle healers
   for (const healer of healers) {
     console.log(`Handling healer at (${healer.position.q}, ${healer.position.r})`);
-    state = handleHealerUnit(state, healer, aiPlayer);
+    const result = handleHealerUnit(state, healer, aiPlayer);
+    state = result.state;
+    if (result.movement) movements.push(result.movement);
   }
 
   console.log('Unit actions complete');
-  return state;
+  return { state, movements };
 }
 
 /**
@@ -520,7 +532,7 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
         if (resourceId) {
           const newState = buildAnthill(state, drone.id, resourceId);
           console.log(`AI drone continuing anthill construction at (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
-          return newState;
+          return { state: newState, movement: null };
         }
       }
       // If no anthill exists, start building one
@@ -536,7 +548,7 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
           // buildAnthill returns the new state directly, check if anthill was added
           if (Object.keys(newState.anthills || {}).length > Object.keys(state.anthills || {}).length) {
             console.log(`AI drone building anthill at mineral node (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
-            return newState;
+            return { state: newState, movement: null };
           } else {
             console.log(`Failed to build anthill - drone may have already built this turn`);
           }
@@ -570,7 +582,7 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
     }
 
     state.ants[drone.id] = { ...drone, hasMoved: true };
-    return state;
+    return { state, movement: null };
   }
 
   // Find nearest MINERAL resource node for building anthills (prioritize minerals over food)
@@ -580,12 +592,12 @@ function handleDroneUnit(gameState, drone, aiPlayer, config) {
   if (targetResource) {
     console.log(`Drone moving toward resource at (${targetResource.position.q}, ${targetResource.position.r})`);
     // Move toward resource
-    state = moveUnitToward(state, drone, targetResource.position);
+    return moveUnitToward(state, drone, targetResource.position);
   } else {
     console.log(`Drone found no target resource`);
   }
 
-  return state;
+  return { state, movement: null };
 }
 
 /**
@@ -614,7 +626,7 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
       state = attackResult.gameState;
       // Mark unit as having attacked
       state.ants[unit.id] = { ...state.ants[unit.id], hasAttacked: true };
-      return state;
+      return { state, movement: null };
     }
   }
 
@@ -635,10 +647,10 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
     // Defend mode: move toward our queen
     const distanceToQueen = hexDistance(unit.position, aiQueen.position);
     if (distanceToQueen > 3) {
-      state = moveUnitToward(state, unit, aiQueen.position);
+      return moveUnitToward(state, unit, aiQueen.position);
     } else if (nearestEnemy) {
       // In defensive range, chase nearby enemies
-      state = moveUnitToward(state, unit, nearestEnemy.position);
+      return moveUnitToward(state, unit, nearestEnemy.position);
     } else {
       state.ants[unit.id] = { ...unit, hasMoved: true };
     }
@@ -648,16 +660,16 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
     const target = enemyQueen || nearestEnemy;
 
     if (target) {
-      state = moveUnitToward(state, unit, target.position);
+      return moveUnitToward(state, unit, target.position);
     } else {
       state.ants[unit.id] = { ...unit, hasMoved: true };
     }
   } else {
     // No enemies visible, move toward center to find them
-    state = moveUnitToward(state, unit, { q: 0, r: 0 });
+    return moveUnitToward(state, unit, { q: 0, r: 0 });
   }
 
-  return state;
+  return { state, movement: null };
 }
 
 /**
@@ -679,7 +691,7 @@ function handleScoutUnit(gameState, scout, aiPlayer, strategy) {
       state = attackResult.gameState;
       // Mark scout as having attacked
       state.ants[scout.id] = { ...state.ants[scout.id], hasAttacked: true };
-      return state;
+      return { state, movement: null };
     }
   }
 
@@ -689,13 +701,11 @@ function handleScoutUnit(gameState, scout, aiPlayer, strategy) {
   );
 
   if (enemyQueen) {
-    state = moveUnitToward(state, scout, enemyQueen.position);
+    return moveUnitToward(state, scout, enemyQueen.position);
   } else {
     // Move toward center of map if haven't found enemy
-    state = moveUnitToward(state, scout, { q: 0, r: 0 });
+    return moveUnitToward(state, scout, { q: 0, r: 0 });
   }
-
-  return state;
 }
 
 /**
@@ -721,7 +731,7 @@ function handleHealerUnit(gameState, healer, aiPlayer) {
     // TODO: Implement heal action (would need to import from gameState)
     // For now, just mark as moved
     state.ants[healer.id] = { ...healer, hasMoved: true };
-    return state;
+    return { state, movement: null };
   }
 
   // No injured allies, follow the army (move toward combat units)
@@ -731,10 +741,10 @@ function handleHealerUnit(gameState, healer, aiPlayer) {
 
   if (combatUnits.length > 0) {
     const targetUnit = combatUnits[0];
-    state = moveUnitToward(state, healer, targetUnit.position);
+    return moveUnitToward(state, healer, targetUnit.position);
   }
 
-  return state;
+  return { state, movement: null };
 }
 
 /**
@@ -809,6 +819,7 @@ function findEnemiesInRange(gameState, unit, aiPlayer) {
 
 /**
  * Move a unit toward a target position
+ * @returns {Object} Object with state and optional movement data for animation
  */
 function moveUnitToward(gameState, unit, targetPos) {
   let state = { ...gameState };
@@ -819,7 +830,7 @@ function moveUnitToward(gameState, unit, targetPos) {
   if (unit.ensnared && unit.ensnared > 0) {
     console.log(`Unit ${unit.id} is ensnared (${unit.ensnared} turns remaining), cannot move`);
     state.ants[unit.id] = { ...unit, hasMoved: true };
-    return state;
+    return { state, movement: null };
   }
 
   // Get valid movement range with paths (all ants and eggs block movement)
@@ -845,33 +856,41 @@ function moveUnitToward(gameState, unit, targetPos) {
     // Can't move, mark as moved
     console.log(`No valid moves, marking as moved`);
     state.ants[unit.id] = { ...unit, hasMoved: true };
-    return state;
+    return { state, movement: null };
   }
 
   // Find the hex in movement range that's closest to target
-  const bestMove = movesWithPaths.reduce((best, item) => {
+  const bestMoveData = movesWithPaths.reduce((best, item) => {
     const distToTarget = hexDistance(item.hex, targetPos);
     const bestDistToTarget = hexDistance(best.hex, targetPos);
     return distToTarget < bestDistToTarget ? item : best;
-  }).hex;
+  });
 
-  console.log(`Best move: (${bestMove.q}, ${bestMove.r})`);
+  console.log(`Best move: (${bestMoveData.hex.q}, ${bestMoveData.hex.r})`);
 
   // Move to that position (moveAnt returns the updated game state directly)
-  const newState = moveAnt(state, unit.id, bestMove);
+  const newState = moveAnt(state, unit.id, bestMoveData.hex);
 
   // Verify the move succeeded by checking if position changed
   if (newState.ants[unit.id] &&
       (newState.ants[unit.id].position.q !== unit.position.q ||
        newState.ants[unit.id].position.r !== unit.position.r)) {
     console.log(`Unit moved successfully to (${newState.ants[unit.id].position.q}, ${newState.ants[unit.id].position.r})`);
-    return newState;
+
+    // Return state with movement data for animation
+    return {
+      state: newState,
+      movement: {
+        antId: unit.id,
+        path: bestMoveData.path // This is the path array from getMovementRangeWithPaths
+      }
+    };
   }
 
   // Failed to move, mark as moved
   console.log(`Move failed, marking as moved`);
   state.ants[unit.id] = { ...unit, hasMoved: true };
-  return state;
+  return { state, movement: null };
 }
 
 /**

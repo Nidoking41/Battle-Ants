@@ -99,16 +99,19 @@ function AIGameSetup({ onStartGame, onBack }) {
           Single Player
         </h3>
 
-        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '10px' }}>
+        <div style={{ flex: 1, marginBottom: '10px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ display: 'flex', gap: '12px', flex: 1, minHeight: 0 }}>
           {/* Left Column - You */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0 }}>
             {/* Player Card */}
             <div style={{
               padding: '8px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
-              border: '3px solid #3498db'
+              border: '3px solid #3498db',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
             }}>
               <h3 style={{ marginBottom: '6px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e0e0e0' }}>
                 You (South)
@@ -120,16 +123,15 @@ function AIGameSetup({ onStartGame, onBack }) {
                   borderRadius: '50%'
                 }} title={`Color: ${heroColors[playerHero]}`} />
               </h3>
-              <div style={{ marginTop: '6px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '6px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => setPlayerHero(hero.id)}
                       style={{
-                        width: '120px',
-                        padding: '6px',
+                        padding: '4px',
                         border: playerHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
                         borderRadius: '6px',
                         cursor: 'pointer',
@@ -141,10 +143,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '3px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
-                      <div style={{ fontSize: '10px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '9px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>
@@ -271,13 +273,16 @@ function AIGameSetup({ onStartGame, onBack }) {
           </div>
 
           {/* Right Column - AI */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
             {/* AI Card */}
             <div style={{
               padding: '8px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
-              border: '3px solid #e74c3c'
+              border: '3px solid #e74c3c',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
             }}>
               <h3 style={{ marginBottom: '6px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', color: '#e0e0e0' }}>
                 AI (North)
@@ -289,16 +294,15 @@ function AIGameSetup({ onStartGame, onBack }) {
                   borderRadius: '50%'
                 }} title={`Color: ${getPlayer2Color()}`} />
               </h3>
-              <div style={{ marginTop: '6px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose AI Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '6px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => setAiHero(hero.id)}
                       style={{
-                        width: '120px',
-                        padding: '6px',
+                        padding: '4px',
                         border: aiHero === hero.id ? '3px solid #e74c3c' : '2px solid #95a5a6',
                         borderRadius: '6px',
                         cursor: 'pointer',
@@ -310,10 +314,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '4px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '3px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
-                      <div style={{ fontSize: '10px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '9px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>

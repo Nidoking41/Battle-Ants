@@ -53,6 +53,7 @@ function App() {
   const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
   const [showHeroInfo, setShowHeroInfo] = useState(false); // Show hero info modal
   const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
+  const [showTurnPopup, setShowTurnPopup] = useState(false); // Show "Your Turn!" popup
 
   // Store random hex colors for earthy terrain
   const [hexColors] = useState(() => {
@@ -944,50 +945,13 @@ function App() {
         // Small delay so player can see turn changed
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Execute AI turn
-        const aiState = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+        // Execute AI turn (returns { gameState, movements })
+        const { gameState: aiState, movements } = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
 
-        // Detect movements by comparing states
-        const movements = [];
-        Object.keys(aiState.ants || {}).forEach(antId => {
-          const oldAnt = currentState.ants?.[antId];
-          const newAnt = aiState.ants[antId];
+        // Animate movements sequentially with rhythm
+        for (let i = 0; i < movements.length; i++) {
+          const movement = movements[i];
 
-          if (oldAnt && newAnt && !hexEquals(oldAnt.position, newAnt.position)) {
-            // Ant moved - calculate path
-            const enemyHexes = Object.values(aiState.ants)
-              .filter(a => a && a.position && a.id !== newAnt.id && a.owner !== newAnt.owner)
-              .map(a => new HexCoord(a.position.q, a.position.r));
-
-            const friendlyHexes = Object.values(aiState.ants)
-              .filter(a => a && a.position && a.id !== newAnt.id && a.owner === newAnt.owner)
-              .map(a => new HexCoord(a.position.q, a.position.r));
-
-            const eggHexes = Object.values(aiState.eggs || {})
-              .filter(e => e && e.position)
-              .map(e => new HexCoord(e.position.q, e.position.r));
-
-            const antType = AntTypes[newAnt.type.toUpperCase()];
-            const pathsWithRange = getMovementRangeWithPaths(
-              oldAnt.position,
-              antType.moveRange,
-              gridRadius,
-              enemyHexes,
-              [...friendlyHexes, ...eggHexes]
-            );
-
-            const pathData = pathsWithRange.find(({hex}) => hexEquals(hex, newAnt.position));
-            if (pathData) {
-              movements.push({
-                antId,
-                path: pathData.path
-              });
-            }
-          }
-        });
-
-        // Animate movements sequentially
-        for (const movement of movements) {
           // Add starting position to path if not already there
           const oldAnt = currentState.ants?.[movement.antId];
           const fullPath = oldAnt ? [oldAnt.position, ...movement.path] : movement.path;
@@ -1003,18 +967,41 @@ function App() {
             const animationDuration = (fullPath.length - 1) * 150;
             setTimeout(resolve, animationDuration + 100);
           });
+
+          // Small pause between units for rhythm (except after the last unit)
+          if (i < movements.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         }
 
         // End AI turn to switch back to player
         const { gameState: finalState } = endTurn(aiState);
         updateGame(finalState);
+
+        // Wait a tiny bit to ensure game state is updated before showing popup
+        await new Promise(resolve => setTimeout(resolve, 100));
       } finally {
+        // Only set isAIThinking to false AFTER all animations are complete
         setIsAIThinking(false);
       }
     };
 
     executeAITurnAutomatically();
   }, [gameState.currentPlayer, gameState.turn, gameMode?.isAI, isAIThinking, pendingCombat]);
+
+  // Show turn popup when it becomes player's turn
+  useEffect(() => {
+    // Don't show on first turn or if game hasn't started
+    if (gameState.turn <= 1 || !gameMode) return;
+
+    // Check if it's player's turn
+    const isPlayerTurn = isMyTurn();
+
+    // Show popup when it becomes player's turn (but not if AI is thinking)
+    if (isPlayerTurn && !isAIThinking && !showTurnPopup) {
+      setShowTurnPopup(true);
+    }
+  }, [gameState.currentPlayer, gameState.turn, isAIThinking]);
 
   // Clean up dead ants after 2 seconds
   useEffect(() => {
@@ -1496,6 +1483,7 @@ function App() {
     const newState = buildAnthill(currentState, selectedAnt, resourceAtDrone.id);
     updateGame(newState);
     setSelectedAction(null);
+    setSelectedAnt(null);
   };
 
   // Handle hex click
@@ -4293,8 +4281,8 @@ function App() {
                 <p style={{ color: '#8e44ad', fontWeight: 'bold' }}>☠️ Plagued ({gameState.ants[selectedAnt].plagued} turns)</p>
               )}
 
-              {/* Only show action buttons if this ant belongs to the current player */}
-              {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && (
+              {/* Only show action buttons if this ant belongs to the current player AND it's your turn */}
+              {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
               <>
                 {/* Hide Move button for queens since they can't move */}
                 {gameState.ants[selectedAnt].type !== 'queen' && (
@@ -4628,26 +4616,25 @@ function App() {
                       ⬆️ UNBURROW
                     </button>
                   )}
-                </>
 
-                {/* Bombardier Splash Instructions */}
-                {selectedAction === 'bombardier_splash' && bombardierTargetHex && (
-                  <div style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                    backgroundColor: '#fff3cd',
-                    borderRadius: '5px',
-                    border: '2px solid #ffc107',
-                    fontSize: '13px',
-                    textAlign: 'center'
-                  }}>
-                    <strong>⌨️ Press SHIFT to rotate</strong><br />
-                    <span style={{ fontSize: '11px', color: '#856404' }}>
-                      Click the same hex again to confirm attack
-                    </span>
-                  </div>
-                )}
-              </>
+                  {/* Bombardier Splash Instructions */}
+                  {selectedAction === 'bombardier_splash' && bombardierTargetHex && (
+                    <div style={{
+                      marginTop: '10px',
+                      padding: '10px',
+                      backgroundColor: '#fff3cd',
+                      borderRadius: '5px',
+                      border: '2px solid #ffc107',
+                      fontSize: '13px',
+                      textAlign: 'center'
+                    }}>
+                      <strong>⌨️ Press SHIFT to rotate</strong><br />
+                      <span style={{ fontSize: '11px', color: '#856404' }}>
+                        Click the same hex again to confirm attack
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -5307,6 +5294,55 @@ function App() {
                 Yes, Concede
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Your Turn Popup */}
+      {showTurnPopup && (
+        <div
+          onClick={() => setShowTurnPopup(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 4000,
+            cursor: 'pointer'
+          }}>
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            border: '4px solid #FFD700',
+            borderRadius: '20px',
+            padding: '40px 60px',
+            textAlign: 'center',
+            boxShadow: '0 0 40px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.2)',
+            animation: 'turnPopupPulse 0.5s ease-in-out',
+            minWidth: '300px'
+          }}>
+            <h1 style={{
+              margin: 0,
+              fontSize: '48px',
+              color: '#FFD700',
+              textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5)',
+              fontWeight: 'bold',
+              letterSpacing: '2px'
+            }}>
+              YOUR TURN!
+            </h1>
+            <p style={{
+              margin: '15px 0 0 0',
+              fontSize: '16px',
+              color: '#e0e0e0',
+              fontStyle: 'italic'
+            }}>
+              Click anywhere to continue
+            </p>
           </div>
         </div>
       )}
