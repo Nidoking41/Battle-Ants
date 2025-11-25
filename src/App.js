@@ -1772,8 +1772,9 @@ function App() {
         return;
       }
 
-      // Perform heal
-      const newState = healAnt(currentState, selectedAnt, friendlyAtHex.id);
+      // Perform heal - get fresh state for multiplayer consistency
+      const freshState = getGameStateForLogic();
+      const newState = healAnt(freshState, selectedAnt, friendlyAtHex.id);
 
       // Show heal animation (green +HP number)
       const healAmount = healer.type === 'healer'
