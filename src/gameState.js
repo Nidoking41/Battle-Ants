@@ -1125,11 +1125,13 @@ export function healAnt(gameState, healerId, targetId) {
   if (doubleHealAllowed && hasHealedTwice) return gameState;
 
   // Healing removes plague and ensnare conditions
-  const { plagued, ensnared, ...targetWithoutDebuffs } = target;
   const cleansedTarget = {
-    ...targetWithoutDebuffs,
+    ...target,
     health: newHealth
   };
+  // Remove debuff properties entirely (don't set to undefined)
+  delete cleansedTarget.plagued;
+  delete cleansedTarget.ensnared;
 
   // Update game state
   return {
@@ -1441,11 +1443,13 @@ export function healAlly(gameState, healerId, targetId) {
   const newHealth = Math.min(target.maxHealth, target.health + healerType.healAmount);
 
   // Healing removes plague and ensnare conditions
-  const { plagued, ensnared, ...targetWithoutDebuffs } = target;
   const cleansedTarget = {
-    ...targetWithoutDebuffs,
+    ...target,
     health: newHealth
   };
+  // Remove debuff properties entirely (don't set to undefined)
+  delete cleansedTarget.plagued;
+  delete cleansedTarget.ensnared;
 
   return {
     ...gameState,
