@@ -752,18 +752,12 @@ export function endTurn(gameState) {
   });
 
   // Deactivate hero ability if it was active only for one turn (Gorlak, Sorlorg, Vexxara, Skrazzit)
-  // Thorgrim's ability lasts until next turn
+  // Check if hero ability should expire at start of player's turn
   const currentPlayerData = updatedPlayers[gameState.currentPlayer];
   if (currentPlayerData && currentPlayerData.heroAbilityActive) {
-    const heroId = currentPlayerData.heroId;
-    if (heroId !== 'thorgrim') {
-      // Deactivate for non-Thorgrim heroes
-      updatedPlayers[gameState.currentPlayer] = {
-        ...updatedPlayers[gameState.currentPlayer],
-        heroAbilityActive: false
-      };
-    } else if (currentPlayerData.heroAbilityEndsOnTurn === gameState.turn) {
-      // Deactivate Thorgrim's ability when it expires
+    // Check if ability should expire based on turn counter
+    if (currentPlayerData.heroAbilityEndsOnTurn && currentPlayerData.heroAbilityEndsOnTurn <= gameState.turn) {
+      // Deactivate ability when it expires
       updatedPlayers[gameState.currentPlayer] = {
         ...updatedPlayers[gameState.currentPlayer],
         heroAbilityActive: false,
@@ -1016,6 +1010,10 @@ export function getAntAttack(ant, player) {
       else if (player.heroId === 'sorlorg' && antType.attackRange > 1 && ability.rangedDamageBonus) {
         attack = Math.floor(attack * (1 + ability.rangedDamageBonus));
       }
+      // Skrazzit: +10% attack for all units
+      else if (player.heroId === 'skrazzit' && ability.attackBonus) {
+        attack = Math.floor(attack * (1 + ability.attackBonus));
+      }
       // Thorgrim: +2 attack for all units
       else if (player.heroId === 'thorgrim' && ability.attackBonus) {
         attack += ability.attackBonus;
@@ -1127,11 +1125,10 @@ export function healAnt(gameState, healerId, targetId) {
   if (doubleHealAllowed && hasHealedTwice) return gameState;
 
   // Healing removes plague and ensnare conditions
+  const { plagued, ensnared, ...targetWithoutDebuffs } = target;
   const cleansedTarget = {
-    ...target,
-    health: newHealth,
-    plagued: undefined,
-    ensnared: undefined
+    ...targetWithoutDebuffs,
+    health: newHealth
   };
 
   // Update game state
@@ -1444,11 +1441,10 @@ export function healAlly(gameState, healerId, targetId) {
   const newHealth = Math.min(target.maxHealth, target.health + healerType.healAmount);
 
   // Healing removes plague and ensnare conditions
+  const { plagued, ensnared, ...targetWithoutDebuffs } = target;
   const cleansedTarget = {
-    ...target,
-    health: newHealth,
-    plagued: undefined,
-    ensnared: undefined
+    ...targetWithoutDebuffs,
+    health: newHealth
   };
 
   return {
@@ -1764,21 +1760,30 @@ export function activateHeroAbility(gameState, playerId) {
     case "gorlak":
       // Melee units can move one more space this turn (temporary buff)
       // Attack boost is passive, handled in combat calculations
+      updatedPlayers[playerId] = {
+        ...updatedPlayers[playerId],
+        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+      };
       break;
 
     case "sorlorg":
       // Ranged units gain +1 range (temporary buff)
       // Damage boost is passive, handled in combat calculations
+      updatedPlayers[playerId] = {
+        ...updatedPlayers[playerId],
+        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+      };
       break;
 
     case "skrazzit":
-      // Multiply resources by 1.5
+      // Multiply resources by 1.5 and grant attack boost
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
         resources: {
           food: Math.floor(player.resources.food * 1.5),
           minerals: Math.floor(player.resources.minerals * 1.5)
-        }
+        },
+        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
       };
       break;
 
@@ -1799,6 +1804,10 @@ export function activateHeroAbility(gameState, playerId) {
           energy: ant.maxEnergy || ant.energy
         };
       });
+      updatedPlayers[playerId] = {
+        ...updatedPlayers[playerId],
+        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+      };
       break;
 
     default:

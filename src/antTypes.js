@@ -351,7 +351,7 @@ export const QueenTiers = {
     maxEnergy: 150,
     energyRegen: 25,
     foodIncome: 11,
-    cost: { food: 40, minerals: 30 },
+    cost: { food: 30, minerals: 20 },
     icon: '👑👑👑🐜'
   }
 };

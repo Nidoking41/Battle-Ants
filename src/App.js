@@ -2863,6 +2863,17 @@ function App() {
 
       let range = antType.moveRange;
 
+      // Apply Gorlak's hero ability movement bonus for melee units
+      const currentState = getGameStateForLogic();
+      const player = currentState.players[ant.owner];
+      if (player?.heroAbilityActive && player.heroId === 'gorlak' && antType.attackRange <= 1) {
+        const { getHeroById } = require('./heroQueens');
+        const hero = getHeroById(player.heroId);
+        if (hero?.heroAbility?.meleeMoveBonus) {
+          range += hero.heroAbility.meleeMoveBonus;
+        }
+      }
+
       // Burrowed units have limited movement
       if (ant.isBurrowed) {
         // Only soldiers can move while burrowed (1 hex)
@@ -4957,7 +4968,9 @@ function App() {
             <button
               onClick={() => {
                 const { activateHeroAbility } = require('./gameState');
-                const newState = activateHeroAbility(gameState, gameState.currentPlayer);
+                // Get fresh state for multiplayer consistency
+                const currentState = getGameStateForLogic();
+                const newState = activateHeroAbility(currentState, currentState.currentPlayer);
                 updateGame(newState);
               }}
               disabled={
