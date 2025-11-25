@@ -4293,6 +4293,8 @@ function App() {
                 <p style={{ color: '#8e44ad', fontWeight: 'bold' }}>☠️ Plagued ({gameState.ants[selectedAnt].plagued} turns)</p>
               )}
 
+              {/* Only show action buttons if this ant belongs to the current player */}
+              {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && (
               <>
                 {/* Hide Move button for queens since they can't move */}
                 {gameState.ants[selectedAnt].type !== 'queen' && (
@@ -4645,6 +4647,8 @@ function App() {
                     </span>
                   </div>
                 )}
+              </>
+              )}
             </div>
           )}
 
