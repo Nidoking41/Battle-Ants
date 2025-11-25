@@ -247,10 +247,10 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
     }}>
       <div style={{
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        padding: '12px',
+        padding: '20px',
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-        maxWidth: '1200px',
+        maxWidth: '1400px',
         width: '100%',
         maxHeight: '95vh',
         display: 'flex',
@@ -287,16 +287,16 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                 }} title={`Color: ${myColor}`} />
               </h3>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '6px', flex: 1, alignContent: 'start' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '15px', color: '#e0e0e0' }}>Choose Your Hero:</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
                       onClick={() => handleHeroChange(hero.id)}
                       style={{
-                        padding: '4px',
+                        padding: '8px',
                         border: myHero === hero.id ? '3px solid #3498db' : '2px solid #95a5a6',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         cursor: 'pointer',
                         backgroundColor: myHero === hero.id ? 'rgba(52, 152, 219, 0.2)' : 'rgba(255, 255, 255, 0.1)',
                         textAlign: 'center',
@@ -308,10 +308,10 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                       <img
                         src={`${process.env.PUBLIC_URL}/sprites/${hero.portraitImage}`}
                         alt={hero.name}
-                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '3px', imageRendering: 'pixelated' }}
+                        style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '6px', imageRendering: 'pixelated' }}
                       />
-                      <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '2px', color: '#e0e0e0' }}>{hero.name}</div>
-                      <div style={{ fontSize: '9px', color: '#b0b0b0', lineHeight: '1.2' }}>{hero.description}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '3px', color: '#e0e0e0' }}>{hero.name}</div>
+                      <div style={{ fontSize: '11px', color: '#b0b0b0', lineHeight: '1.3' }}>{hero.description}</div>
                     </div>
                   ))}
                 </div>
@@ -320,25 +320,25 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
           </div>
 
           {/* Middle Column - Game Settings */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* Map Size Selection */}
             <div style={{
-              padding: '8px',
+              padding: '12px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
-              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '17px', color: '#e0e0e0' }}>
                 Map Size {!isHost && '(Host chooses)'}
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {mapSizeOptions.map(size => (
                   <button
                     key={size.value}
                     onClick={() => handleMapSizeChange(size.value)}
                     disabled={!isHost}
                     style={{
-                      padding: '8px',
-                      fontSize: '13px',
+                      padding: '12px',
+                      fontSize: '15px',
                       fontWeight: 'bold',
                       background: lobbyState.mapSize === size.value ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
                       color: '#e0e0e0',
@@ -358,16 +358,16 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
 
             {/* Fog of War Toggle */}
             <div style={{
-              padding: '8px',
+              padding: '12px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ marginBottom: '2px', fontSize: '15px', color: '#e0e0e0' }}>
+                  <h3 style={{ marginBottom: '4px', fontSize: '17px', color: '#e0e0e0' }}>
                     Fog of War {!isHost && '(Host)'}
                   </h3>
-                  <p style={{ margin: 0, fontSize: '11px', color: '#b0b0b0' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#b0b0b0' }}>
                     {lobbyState.fogOfWar
                       ? 'Limited visibility'
                       : 'Full map visibility'}
@@ -377,8 +377,8 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                   onClick={handleFogOfWarToggle}
                   disabled={!isHost}
                   style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
+                    padding: '12px 20px',
+                    fontSize: '16px',
                     fontWeight: 'bold',
                     background: lobbyState.fogOfWar ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
                     color: '#e0e0e0',
@@ -386,7 +386,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                     borderRadius: '5px',
                     cursor: isHost ? 'pointer' : 'not-allowed',
                     opacity: !isHost ? 0.6 : 1,
-                    minWidth: '70px',
+                    minWidth: '80px',
                     boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
                     transition: 'all 0.2s'
                   }}
@@ -398,14 +398,14 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
 
             {/* Opponent Status */}
             <div style={{
-              padding: '8px',
+              padding: '12px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px'
             }}>
-              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+              <h3 style={{ marginBottom: '8px', fontSize: '17px', color: '#e0e0e0' }}>
                 Opponent
               </h3>
-              <div style={{ fontSize: '13px', color: '#b0b0b0' }}>
+              <div style={{ fontSize: '15px', color: '#b0b0b0' }}>
                 {opponentJoined ? (
                   <div style={{ color: '#27ae60', fontWeight: 'bold' }}>✓ Opponent Connected</div>
                 ) : (
@@ -416,21 +416,21 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
           </div>
 
           {/* Right Column - Info */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{
-              padding: '8px',
+              padding: '12px',
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               borderRadius: '8px',
               border: '3px solid #e74c3c'
             }}>
-              <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
+              <h3 style={{ marginBottom: '10px', fontSize: '17px', color: '#e0e0e0' }}>
                 How to Play
               </h3>
-              <div style={{ fontSize: '11px', color: '#b0b0b0', lineHeight: '1.4' }}>
-                <p style={{ margin: '0 0 6px 0' }}>1. Choose your hero</p>
-                <p style={{ margin: '0 0 6px 0' }}>2. Wait for opponent to join</p>
-                <p style={{ margin: '0 0 6px 0' }}>3. {isHost ? 'Start the game!' : 'Wait for host to start'}</p>
-                <p style={{ margin: '0', marginTop: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px', fontSize: '10px' }}>
+              <div style={{ fontSize: '13px', color: '#b0b0b0', lineHeight: '1.5' }}>
+                <p style={{ margin: '0 0 8px 0' }}>1. Choose your hero</p>
+                <p style={{ margin: '0 0 8px 0' }}>2. Wait for opponent to join</p>
+                <p style={{ margin: '0 0 8px 0' }}>3. {isHost ? 'Start the game!' : 'Wait for host to start'}</p>
+                <p style={{ margin: '0', marginTop: '12px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px', fontSize: '12px' }}>
                   Share room code <strong style={{ color: '#e0e0e0' }}>{roomCode}</strong> with your friend!
                 </p>
               </div>
