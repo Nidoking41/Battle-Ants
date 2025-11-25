@@ -28,6 +28,7 @@ function App() {
   const [hoveredHex, setHoveredHex] = useState(null); // Track which hex is being hovered
   const [lastAntClickTime, setLastAntClickTime] = useState({ antId: null, time: 0 }); // Track double-click for drones
   const [lastDeselectedAnt, setLastDeselectedAnt] = useState({ antId: null, time: 0 }); // Prevent immediate reselection
+  const [escapePressed, setEscapePressed] = useState(false); // Track when Escape was pressed to prevent reselection
   const [movementPaths, setMovementPaths] = useState(new Map()); // Map of hex -> path
   const [pathWaypoint, setPathWaypoint] = useState(null); // Intermediate waypoint for pathfinding
   const [selectedEggHex, setSelectedEggHex] = useState(null); // Store hex for egg laying
@@ -509,41 +510,46 @@ function App() {
             setSelectedAnt(null);
             setSelectedAction(null);
             setPendingEggType(null);
+            // Set flag to prevent immediate reselection
+            setEscapePressed(true);
+            // Clear the flag after a short delay
+            setTimeout(() => setEscapePressed(false), 300);
             return;
           default:
             break;
         }
       }
 
-      // Global hotkeys
-      switch(e.key) {
-        case 'q':
-        case 'Q':
-          if (myTurn) {
-            console.log('Q key - Select queen hotkey triggered (global)');
-            e.preventDefault();
-            // Q key selects the queen and sets layEgg action (without moving camera)
-            const currentState = getGameStateForLogic();
-            const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
-            const queen = Object.values(currentState.ants).find(
-              a => a.type === 'queen' && a.owner === currentPlayerId && !a.isDead
-            );
-            if (queen) {
-              setSelectedAnt(queen.id);
-              // Auto-select layEgg action if queen has energy (can lay eggs even after attacking/healing)
-              const energyCost = getEggLayCost(queen);
-              if (hasEnoughEnergy(queen, energyCost)) {
-                setSelectedAction('layEgg');
-              } else {
-                setSelectedAction(null);
+      // Global hotkeys (but not if Escape was just pressed)
+      if (!escapePressed) {
+        switch(e.key) {
+          case 'q':
+          case 'Q':
+            if (myTurn) {
+              console.log('Q key - Select queen hotkey triggered (global)');
+              e.preventDefault();
+              // Q key selects the queen and sets layEgg action (without moving camera)
+              const currentState = getGameStateForLogic();
+              const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
+              const queen = Object.values(currentState.ants).find(
+                a => a.type === 'queen' && a.owner === currentPlayerId && !a.isDead
+              );
+              if (queen) {
+                setSelectedAnt(queen.id);
+                // Auto-select layEgg action if queen has energy (can lay eggs even after attacking/healing)
+                const energyCost = getEggLayCost(queen);
+                if (hasEnoughEnergy(queen, energyCost)) {
+                  setSelectedAction('layEgg');
+                } else {
+                  setSelectedAction(null);
+                }
               }
             }
-          }
-          break;
-        case 'Tab':
-          if (myTurn) {
-            cycleToNextActiveAnt();
-            e.preventDefault();
+            break;
+          case 'Tab':
+            if (myTurn) {
+              cycleToNextActiveAnt();
+              e.preventDefault();
           }
           break;
         case 'ArrowUp':
@@ -600,12 +606,13 @@ function App() {
           break;
         default:
           break;
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions]);
+  }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions, escapePressed]);
 
   // Center camera on queen when game starts
   useEffect(() => {
@@ -2619,6 +2626,12 @@ function App() {
         setSelectedEgg(null);
         // Track that this ant was just deselected to prevent immediate reselection
         setLastDeselectedAnt({ antId: clickedAnt.id, time: now });
+        return;
+      }
+
+      // Prevent selection if Escape was just pressed
+      if (escapePressed) {
+        console.log('Preventing ant selection - Escape was just pressed');
         return;
       }
 
