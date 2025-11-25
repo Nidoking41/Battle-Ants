@@ -5,11 +5,13 @@ export const HeroQueens = {
   GORLAK: {
     id: 'gorlak',
     name: 'Gorlak the Crusher',
-    description: 'Melee units gain +20% attack',
+    description: 'Melee units gain +20% attack, ranged units do 10% less',
     icon: '🗡️',
     portraitImage: 'hero_red.png',
     bonuses: {
-      meleeAttackBonus: 0.20  // +20% attack for melee (rounded up)
+      meleeAttackBonus: 0.20,  // +20% attack for melee (rounded up)
+      rangedAttackPenalty: -0.10,  // -10% attack for ranged
+      bombardierRangePenalty: -1  // Bombardier gets -1 range
     },
     heroAbility: {
       name: 'Crushing Blow',
@@ -21,11 +23,12 @@ export const HeroQueens = {
   SORLORG: {
     id: 'sorlorg',
     name: 'Sorlorg the Precise',
-    description: 'Ranged units gain +10% attack',
+    description: 'Ranged units gain +10% attack, melee units do 10% less',
     icon: '🎯',
     portraitImage: 'hero_green.png',
     bonuses: {
-      rangedAttackBonus: 0.10  // +10% attack for ranged
+      rangedAttackBonus: 0.10,  // +10% attack for ranged
+      meleeAttackPenalty: -0.10  // -10% attack for melee
     },
     heroAbility: {
       name: 'Perfect Aim',
@@ -125,9 +128,24 @@ export function applyHeroBonuses(antStats, antType, heroId) {
     modifiedStats.health = modifiedStats.health + bonuses.meleeHealthBonus;
   }
 
+  // Apply melee penalties (Sorlorg)
+  if (isMelee && bonuses.meleeAttackPenalty) {
+    modifiedStats.attack = Math.floor(modifiedStats.attack * (1 + bonuses.meleeAttackPenalty));
+  }
+
   // Apply ranged bonuses (Sorlorg)
   if (isRanged && bonuses.rangedAttackBonus) {
     modifiedStats.attack = Math.floor(modifiedStats.attack * (1 + bonuses.rangedAttackBonus));
+  }
+
+  // Apply ranged penalties (Gorlak)
+  if (isRanged && bonuses.rangedAttackPenalty) {
+    modifiedStats.attack = Math.floor(modifiedStats.attack * (1 + bonuses.rangedAttackPenalty));
+  }
+
+  // Apply bombardier range penalty (Gorlak)
+  if (antType === 'bombardier' && bonuses.bombardierRangePenalty) {
+    modifiedStats.attackRange = Math.max(1, modifiedStats.attackRange + bonuses.bombardierRangePenalty);
   }
 
   // Apply universal attack multiplier (Skrazzit, Thorgrim)
