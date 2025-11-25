@@ -276,7 +276,29 @@ function App() {
                   return canAttack(ant, enemy, gameState);
                 });
 
-                if (enemiesInRange.length > 0) {
+                // Also check for enemy anthills in range
+                const anthillsInRange = Object.values(gameState.anthills || {}).filter(anthill => {
+                  if (anthill.owner === currentPlayerId) return false;
+                  const distance = Math.max(
+                    Math.abs(ant.position.q - anthill.position.q),
+                    Math.abs(ant.position.r - anthill.position.r),
+                    Math.abs((-ant.position.q - ant.position.r) - (-anthill.position.q - anthill.position.r))
+                  );
+                  return distance <= antType.attackRange && distance >= (antType.minAttackRange || 0);
+                });
+
+                // Also check for enemy eggs in range
+                const eggsInRange = Object.values(gameState.eggs || {}).filter(egg => {
+                  if (egg.owner === currentPlayerId) return false;
+                  const distance = Math.max(
+                    Math.abs(ant.position.q - egg.position.q),
+                    Math.abs(ant.position.r - egg.position.r),
+                    Math.abs((-ant.position.q - ant.position.r) - (-egg.position.q - egg.position.r))
+                  );
+                  return distance <= antType.attackRange && distance >= (antType.minAttackRange || 0);
+                });
+
+                if (enemiesInRange.length > 0 || anthillsInRange.length > 0 || eggsInRange.length > 0) {
                   // Toggle attack action - if already selected, deselect it
                   setSelectedAction(prev => prev === 'attack' ? null : 'attack');
                   return;
@@ -1348,6 +1370,7 @@ function App() {
     const antType = AntTypes[ant.type.toUpperCase()];
     const enemies = [];
 
+    // Add enemy ants in range
     Object.values(currentState.ants).forEach(enemyAnt => {
       if (enemyAnt.owner !== ant.owner) {
         const distance = Math.max(
@@ -1355,8 +1378,36 @@ function App() {
           Math.abs(ant.position.r - enemyAnt.position.r),
           Math.abs((-ant.position.q - ant.position.r) - (-enemyAnt.position.q - enemyAnt.position.r))
         );
-        if (distance <= antType.attackRange) {
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
           enemies.push(enemyAnt);
+        }
+      }
+    });
+
+    // Add enemy anthills in range
+    Object.values(currentState.anthills || {}).forEach(anthill => {
+      if (anthill.owner !== ant.owner) {
+        const distance = Math.max(
+          Math.abs(ant.position.q - anthill.position.q),
+          Math.abs(ant.position.r - anthill.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-anthill.position.q - anthill.position.r))
+        );
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
+          enemies.push(anthill);
+        }
+      }
+    });
+
+    // Add enemy eggs in range
+    Object.values(currentState.eggs || {}).forEach(egg => {
+      if (egg.owner !== ant.owner) {
+        const distance = Math.max(
+          Math.abs(ant.position.q - egg.position.q),
+          Math.abs(ant.position.r - egg.position.r),
+          Math.abs((-ant.position.q - ant.position.r) - (-egg.position.q - egg.position.r))
+        );
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
+          enemies.push(egg);
         }
       }
     });
