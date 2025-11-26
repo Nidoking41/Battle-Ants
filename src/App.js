@@ -320,20 +320,15 @@ function App() {
             }
             return;
           case 'm':
-            console.log('Move hotkey triggered', {
-              antId: ant?.id,
-              hasMoved: ant?.hasMoved,
-              hasAttacked: ant?.hasAttacked,
-              currentSelectedAction: selectedAction
-            });
+            console.log('Move hotkey triggered - antId:', ant?.id, 'hasMoved:', ant?.hasMoved, 'hasAttacked:', ant?.hasAttacked);
             e.preventDefault();
             // Move action
             if (ant && !ant.hasMoved) {
-              console.log('Setting selectedAction to move from M key');
+              console.log('✅ Setting selectedAction to MOVE from M key');
               setSelectedAction('move');
               return;
             }
-            console.log('Not setting move action - ant has moved or no ant selected');
+            console.log('❌ NOT setting move action - ant:', ant?.id, 'hasMoved:', ant?.hasMoved);
             return;
           case 'o':
             // Soldier (marauder)
@@ -1087,7 +1082,17 @@ function App() {
   const updateGame = (newState) => {
     if (gameMode?.isMultiplayer) {
       // For multiplayer, newState is the full unfiltered state
-      // Update Firebase with the full state
+
+      // IMPORTANT: Update local state IMMEDIATELY for responsive UI
+      // Don't wait for Firebase subscription callback
+      setFullGameState(newState);
+
+      // Apply fog of war filtering for current player
+      const currentPlayerId = gameMode.playerRole || 'player1';
+      const filteredState = applyFogOfWar(newState, currentPlayerId);
+      setGameState(filteredState);
+
+      // THEN send to Firebase for syncing with other player
       if (gameMode.gameId) {
         // Add timestamp for sync delay tracking
         const stateWithTimestamp = {
@@ -1103,7 +1108,7 @@ function App() {
         });
         updateGameState(gameMode.gameId, stateWithTimestamp);
       }
-      // The Firebase subscription will handle updating both fullGameState and the filtered gameState
+      // Firebase subscription will also update state when other player makes moves
     } else {
       // For local games and AI games
       if (gameMode?.isAI) {
