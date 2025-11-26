@@ -5,10 +5,12 @@ import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attac
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
+import AIGameSetup from './AIGameSetup';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
 
 function App() {
   const [gameMode, setGameMode] = useState(null);
+  const [currentScreen, setCurrentScreen] = useState('menu'); // 'menu', 'aiSetup', 'game'
   const [gameState, setGameState] = useState(createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null);
   const [selectedAnt, setSelectedAnt] = useState(null);
@@ -368,6 +370,7 @@ function App() {
   // Handle start game from menu
   const handleStartGame = (mode) => {
     setGameMode(mode);
+    setCurrentScreen('game');
     if (!mode.isMultiplayer) {
       setGameState(createInitialGameState());
     }
@@ -392,11 +395,19 @@ function App() {
 
   // Handle entering AI game setup
   const handleEnterAISetup = () => {
-    // For now, just start an AI game with default settings
-    alert('AI game setup - Coming soon! Starting a quick AI game...');
+    setCurrentScreen('aiSetup');
+  };
+
+  // Handle starting AI game from setup screen
+  const handleStartAIGame = (setupConfig) => {
     handleStartGame({
       isMultiplayer: false,
-      isAI: true
+      isAI: true,
+      aiDifficulty: setupConfig.difficulty,
+      playerHero: setupConfig.playerHero,
+      aiHero: setupConfig.aiHero,
+      mapSize: setupConfig.mapSize,
+      fogOfWar: setupConfig.fogOfWar
     });
   };
 
@@ -407,8 +418,22 @@ function App() {
     alert('Online multiplayer lobby - Use Quick Play or Join with Code buttons instead!');
   };
 
+  // Handle back to menu
+  const handleBackToMenu = () => {
+    setCurrentScreen('menu');
+    setGameMode(null);
+  };
+
+  // Show AI setup screen
+  if (currentScreen === 'aiSetup') {
+    return <AIGameSetup
+      onStartGame={handleStartAIGame}
+      onBack={handleBackToMenu}
+    />;
+  }
+
   // Show menu if game hasn't started
-  if (!gameMode) {
+  if (!gameMode || currentScreen === 'menu') {
     return <MultiplayerMenu
       onStartGame={handleStartGame}
       onEnterLobby={handleEnterLobby}
