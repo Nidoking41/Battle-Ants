@@ -766,6 +766,12 @@ export function endTurn(gameState) {
     }
   }
 
+  // Clear revealed hexes from Reveal ability at end of turn
+  updatedPlayers[gameState.currentPlayer] = {
+    ...updatedPlayers[gameState.currentPlayer],
+    revealedHexes: []
+  };
+
   // Calculate and record army strength for both players at end of turn
   const finalGameState = {
     ...gameState,

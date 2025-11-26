@@ -1046,8 +1046,8 @@ function App() {
               currentStep: 0
             });
 
-            // Wait for animation to complete (150ms per step)
-            const animationDuration = (fullPath.length - 1) * 150;
+            // Wait for animation to complete (600ms per step to match animation speed)
+            const animationDuration = (fullPath.length - 1) * 600;
             setTimeout(resolve, animationDuration + 100);
           });
 
@@ -3063,6 +3063,8 @@ function App() {
       getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
     const cordycepsTargets = selectedAction === 'cordyceps' && selectedAnt ?
       getValidCordycepsTargets(getGameStateForLogic(), selectedAnt) : [];
+    const plagueTargets = selectedAction === 'plague' && selectedAnt ?
+      getValidPlagueTargets(getGameStateForLogic(), selectedAnt) : [];
 
     // Get valid reveal target hexes (any hex on the board)
     const revealTargetHexes = (() => {
@@ -3196,6 +3198,7 @@ function App() {
         const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
         const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
         const isCordycepsTarget = cordycepsTargets.some(enemy => hexEquals(enemy.position, hex));
+        const isPlagueTarget = plagueTargets.some(enemy => hexEquals(enemy.position, hex));
         const isRevealTarget = revealTargetHexes.some(validHex => hexEquals(validHex, hex));
         const isBombardierSplashHex = bombardierSplashHexes.some(validHex => hexEquals(validHex, hex));
         const isBombardierRotatedHex = bombardierRotatedHexes.some(validHex => hexEquals(validHex, hex));
@@ -3260,6 +3263,10 @@ function App() {
         }
         if (isCordycepsTarget) {
           fillColor = '#8e44ad'; // Purple for mind control targets
+          useBirthingPoolPattern = false;
+        }
+        if (isPlagueTarget) {
+          fillColor = '#9B59B6'; // Light purple for plague targets
           useBirthingPoolPattern = false;
         }
         if (isRevealTarget) {

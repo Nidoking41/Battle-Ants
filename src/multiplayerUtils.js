@@ -444,10 +444,10 @@ export function getVisibleHexes(gameState, playerId) {
     });
   }
 
-  // Add revealed hexes from Reveal ability
+  // Add revealed hexes from Reveal ability (stored as strings like "q,r")
   if (gameState.players?.[playerId]?.revealedHexes) {
-    gameState.players[playerId].revealedHexes.forEach(hex => {
-      visibleHexes.add(`${hex.q},${hex.r}`);
+    gameState.players[playerId].revealedHexes.forEach(hexStr => {
+      visibleHexes.add(hexStr); // hexStr is already in "q,r" format
     });
   }
 
@@ -475,7 +475,7 @@ export function getVisibleHexes(gameState, playerId) {
   return visibleHexes;
 }
 
-// Get detected burrowed enemy ants (scouts are detectors)
+// Get detected burrowed enemy ants (scouts and revealed hexes are detectors)
 export function getDetectedBurrowedAnts(gameState, playerId) {
   const detectedBurrowed = new Set(); // Set of ant IDs
 
@@ -517,6 +517,15 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     });
   });
 
+  // Check revealed hexes - they also detect burrowed units
+  const revealedHexes = gameState.players?.[playerId]?.revealedHexes || [];
+  enemyBurrowedAnts.forEach(burrowedAnt => {
+    const hexKey = `${burrowedAnt.position.q},${burrowedAnt.position.r}`;
+    if (revealedHexes.includes(hexKey)) {
+      detectedBurrowed.add(burrowedAnt.id);
+    }
+  });
+
   return detectedBurrowed;
 }
 
@@ -529,6 +538,9 @@ export function applyFogOfWar(gameState, playerId) {
   const filteredAnts = {};
   if (gameState.ants) {
     Object.entries(gameState.ants).forEach(([id, ant]) => {
+      // Safety check - skip ants without position
+      if (!ant.position) return;
+
       const hexKey = `${ant.position.q},${ant.position.r}`;
       // Always show own ants
       if (ant.owner === playerId) {
@@ -545,6 +557,9 @@ export function applyFogOfWar(gameState, playerId) {
   const filteredEggs = {};
   if (gameState.eggs) {
     Object.entries(gameState.eggs).forEach(([id, egg]) => {
+      // Safety check - skip eggs without position
+      if (!egg.position) return;
+
       const hexKey = `${egg.position.q},${egg.position.r}`;
       if (visibleHexes.has(hexKey)) {
         filteredEggs[id] = egg;
@@ -559,6 +574,9 @@ export function applyFogOfWar(gameState, playerId) {
   // Filter anthills - only show anthills in visible range
   const filteredAnthills = {};
   Object.entries(gameState.anthills || {}).forEach(([id, anthill]) => {
+    // Safety check - skip anthills without position
+    if (!anthill.position) return;
+
     const hexKey = `${anthill.position.q},${anthill.position.r}`;
     // Always show own anthills, only show enemy anthills if visible
     if (anthill.owner === playerId || visibleHexes.has(hexKey)) {
@@ -570,6 +588,9 @@ export function applyFogOfWar(gameState, playerId) {
   const filteredDeadAnts = {};
   if (gameState.deadAnts) {
     Object.entries(gameState.deadAnts).forEach(([id, deadAnt]) => {
+      // Safety check - skip dead ants without position
+      if (!deadAnt.position) return;
+
       const hexKey = `${deadAnt.position.q},${deadAnt.position.r}`;
       if (visibleHexes.has(hexKey)) {
         filteredDeadAnts[id] = deadAnt;
