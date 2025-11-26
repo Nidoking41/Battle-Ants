@@ -4839,23 +4839,24 @@ function App() {
             </div>
           )}
 
-          {/* End Turn Button */}
-          <button
-            onClick={handleEndTurn}
-            disabled={!isMyTurn()}
-            style={{
-              width: '100%',
-              padding: '10px',
-              fontSize: '16px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            End Turn
-          </button>
+          {/* End Turn Button - only show when it's your turn */}
+          {isMyTurn() && (
+            <button
+              onClick={handleEndTurn}
+              style={{
+                width: '100%',
+                padding: '10px',
+                fontSize: '16px',
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              End Turn
+            </button>
+          )}
 
           {/* Game Over */}
           {gameState.gameOver && (
