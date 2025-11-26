@@ -1,4 +1,4 @@
-import { ref, set, onValue, push, get, update, remove } from 'firebase/database';
+import { ref, set, onValue, push, get, update, remove, onDisconnect } from 'firebase/database';
 import { database } from './firebaseConfig';
 import { HexCoord, hexDistance } from './hexUtils';
 import { AntTypes } from './antTypes';
@@ -328,7 +328,20 @@ export async function joinGameRoom(gameId, playerId) {
 // Update game state in Firebase
 export async function updateGameState(gameId, gameState) {
   const gameRef = ref(database, `games/${gameId}/gameState`);
-  await set(gameRef, serializeGameState(gameState));
+  const serialized = serializeGameState(gameState);
+
+  // Use set with onComplete to ensure the write completes
+  return new Promise((resolve, reject) => {
+    set(gameRef, serialized)
+      .then(() => {
+        console.log('Firebase write completed successfully');
+        resolve();
+      })
+      .catch((error) => {
+        console.error('Firebase write failed:', error);
+        reject(error);
+      });
+  });
 }
 
 // Listen to game state changes
@@ -337,10 +350,20 @@ export function subscribeToGameState(gameId, callback) {
 
   const unsubscribe = onValue(gameRef, (snapshot) => {
     if (snapshot.exists()) {
+      const receiveTime = Date.now();
       const serialized = snapshot.val();
       const gameState = deserializeGameState(serialized);
+
+      // Add timing information for debugging
+      if (gameState.lastUpdateTimestamp) {
+        const delay = receiveTime - gameState.lastUpdateTimestamp;
+        console.log(`Firebase sync delay: ${delay}ms`);
+      }
+
       callback(gameState);
     }
+  }, (error) => {
+    console.error('Firebase subscription error:', error);
   });
 
   return unsubscribe;

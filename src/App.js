@@ -1082,12 +1082,19 @@ function App() {
       // For multiplayer, newState is the full unfiltered state
       // Update Firebase with the full state
       if (gameMode.gameId) {
+        // Add timestamp for sync delay tracking
+        const stateWithTimestamp = {
+          ...newState,
+          lastUpdateTimestamp: Date.now()
+        };
+
         console.log('updateGame - Sending to Firebase:', {
           turn: newState.turn,
           currentPlayer: newState.currentPlayer,
-          gameId: gameMode.gameId
+          gameId: gameMode.gameId,
+          timestamp: stateWithTimestamp.lastUpdateTimestamp
         });
-        updateGameState(gameMode.gameId, newState);
+        updateGameState(gameMode.gameId, stateWithTimestamp);
       }
       // The Firebase subscription will handle updating both fullGameState and the filtered gameState
     } else {
