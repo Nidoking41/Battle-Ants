@@ -1224,8 +1224,7 @@ function App() {
     }
     if (!gameMode.isMultiplayer) return true; // Local game = always your turn
     const result = gameState.currentPlayer === gameMode.playerRole;
-    if (gameMode.isMultiplayer) {
-   
+       
     return result;
   };
 
