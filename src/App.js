@@ -906,6 +906,11 @@ function App() {
   useEffect(() => {
     if (gameMode?.isMultiplayer && gameMode.gameId) {
       const unsubscribe = subscribeToGameState(gameMode.gameId, (newState) => {
+        console.log('Firebase subscription received:', {
+          turn: newState.turn,
+          currentPlayer: newState.currentPlayer,
+          myRole: gameMode.playerRole
+        });
         // Store the full state for fog of war calculations
         setFullGameState(newState);
 
@@ -1077,6 +1082,11 @@ function App() {
       // For multiplayer, newState is the full unfiltered state
       // Update Firebase with the full state
       if (gameMode.gameId) {
+        console.log('updateGame - Sending to Firebase:', {
+          turn: newState.turn,
+          currentPlayer: newState.currentPlayer,
+          gameId: gameMode.gameId
+        });
         updateGameState(gameMode.gameId, newState);
       }
       // The Firebase subscription will handle updating both fullGameState and the filtered gameState
@@ -1109,7 +1119,16 @@ function App() {
       return gameState.currentPlayer === 'player1' && !isAIThinking;
     }
     if (!gameMode.isMultiplayer) return true; // Local game = always your turn
-    return gameState.currentPlayer === gameMode.playerRole;
+    const result = gameState.currentPlayer === gameMode.playerRole;
+    if (gameMode.isMultiplayer) {
+      console.log('isMyTurn check:', {
+        currentPlayer: gameState.currentPlayer,
+        myRole: gameMode.playerRole,
+        result: result,
+        turn: gameState.turn
+      });
+    }
+    return result;
   };
 
   // Handle start game from menu
@@ -1211,8 +1230,35 @@ function App() {
 
   // Handle end turn with AI support
   const handleEndTurn = async () => {
+    // Safety check: Don't allow ending turn if it's not your turn
+    if (!isMyTurn()) {
+      console.error('handleEndTurn blocked: Not your turn!');
+      return;
+    }
+
     const currentState = getGameStateForLogic();
+
+    // Double-check in multiplayer that currentPlayer matches our role
+    if (gameMode?.isMultiplayer && currentState.currentPlayer !== gameMode.playerRole) {
+      console.error('handleEndTurn blocked: currentPlayer mismatch!', {
+        currentPlayer: currentState.currentPlayer,
+        myRole: gameMode.playerRole
+      });
+      return;
+    }
+
+    console.log('handleEndTurn - Before endTurn:', {
+      turn: currentState.turn,
+      currentPlayer: currentState.currentPlayer,
+      playerRole: gameMode?.playerRole,
+      isMultiplayer: gameMode?.isMultiplayer
+    });
     const { gameState: newState, resourceGains } = endTurn(currentState);
+    console.log('handleEndTurn - After endTurn:', {
+      turn: newState.turn,
+      currentPlayer: newState.currentPlayer,
+      willUpdate: gameMode?.isMultiplayer ? 'Firebase' : 'Local'
+    });
 
     // Check if game is over and show victory modal
     if (newState.gameOver && !showVictoryModal) {
