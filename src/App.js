@@ -108,9 +108,6 @@ function App() {
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
 
-  // Track the last movement timestamp to prevent replaying the same animation
-  const lastMovementTimestamp = useRef(null);
-
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
@@ -1001,48 +998,6 @@ function App() {
                     });
                   }, isRanged ? 300 : 200);
                 }
-              }
-            }
-          }
-        }
-
-        // Check if there was a recent movement and show animations
-        if (newState.lastMovement) {
-          const { antId, path, timestamp } = newState.lastMovement;
-
-          // Only show animation if this is a new movement (timestamp changed)
-          if (timestamp && timestamp !== lastMovementTimestamp.current) {
-            lastMovementTimestamp.current = timestamp;
-
-            // Check if the moving ant is visible to current player
-            const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
-            const movingAnt = newState.ants[antId];
-
-            // Only show movement if ant is visible at start or end position
-            if (movingAnt && path && path.length > 0) {
-              const startPos = path[0];
-              const endPos = path[path.length - 1];
-              const startVisible = visibleHexes.has(`${startPos.q},${startPos.r}`);
-              const endVisible = visibleHexes.has(`${endPos.q},${endPos.r}`);
-
-              if (startVisible || endVisible) {
-                // Animate the movement
-                setMovingAnt({
-                  antId: antId,
-                  path: path,
-                  currentStep: 0
-                });
-
-                // Trigger walk animation
-                const playerColor = newState.players[movingAnt.owner]?.color;
-                setAntAnimation(antId, movingAnt.type, 'walk', playerColor);
-
-                // Return to idle after animation completes
-                const animationDuration = (path.length - 1) * 600;
-                setTimeout(() => {
-                  setAntAnimation(antId, movingAnt.type, 'idle', playerColor);
-                  setMovingAnt(null);
-                }, animationDuration);
               }
             }
           }
@@ -2389,17 +2344,7 @@ function App() {
         const animationDuration = (path.length - 1) * 600;
         setTimeout(() => {
           const newState = moveAnt(currentState, selectedAnt, hex);
-          const movedState = markAntMoved(newState, selectedAnt);
-
-          // Store movement action for multiplayer animation replay
-          const finalState = {
-            ...movedState,
-            lastMovement: {
-              antId: selectedAnt,
-              path: path,
-              timestamp: Date.now()
-            }
-          };
+          const finalState = markAntMoved(newState, selectedAnt);
           updateGame(finalState);
 
           // Return to idle animation
@@ -3881,24 +3826,16 @@ function App() {
 
       ants.push(
         <g key={`ant-overlay-${ant.id}`} transform={`translate(${x}, ${y}) ${finalTransform}`} style={{ transition: transitionStyle }}>
-          {/* Hero ability aura (rendered behind ant, 50% bigger) */}
+          {/* Hero ability aura (rendered behind ant) */}
           {showAura && playerColor && (
-            <g>
-              <defs>
-                <clipPath id={`clip-aura-${ant.id}`}>
-                  <rect x="-60" y="-60" width="120" height="120" />
-                </clipPath>
-              </defs>
-              <image
-                x={-60 - (effectAnimationFrame * 32 * 3.75)}
-                y={-60}
-                width={32 * 8 * 3.75}
-                height={32 * 3.75}
-                href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
-                clipPath={`url(#clip-aura-${ant.id})`}
-                style={{ pointerEvents: 'none', opacity: 0.8 }}
-              />
-            </g>
+            <image
+              x={-40}
+              y={-40}
+              width={80}
+              height={80}
+              href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
+              style={{ pointerEvents: 'none', opacity: 0.8 }}
+            />
           )}
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (
@@ -3952,25 +3889,6 @@ function App() {
               y="0"
               style={{ pointerEvents: 'none' }}
             />
-          )}
-          {/* Plague effect overlay */}
-          {ant.plagued && ant.plagued > 0 && (
-            <g>
-              <defs>
-                <clipPath id={`clip-plague-${ant.id}`}>
-                  <rect x="-40" y="-40" width="80" height="80" />
-                </clipPath>
-              </defs>
-              <image
-                x={-40 - (effectAnimationFrame * 32 * 2.5)}
-                y={-40}
-                width={32 * 8 * 2.5}
-                height={32 * 2.5}
-                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
-                clipPath={`url(#clip-plague-${ant.id})`}
-                style={{ pointerEvents: 'none', opacity: 0.9 }}
-              />
-            </g>
           )}
           {/* Health bar */}
           <g transform="translate(0, 20)">
