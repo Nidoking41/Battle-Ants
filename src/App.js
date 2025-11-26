@@ -3533,7 +3533,7 @@ function App() {
   };
 
   // Helper to get ant sprite path with folder structure
-  const getAntSpritePath = (antId) => {
+  const getAntSpritePath = (antId, playerColor = null) => {
     const antTypeToFolder = {
       'queen': 'Queen',
       'scout': 'Scout',
@@ -3560,10 +3560,23 @@ function App() {
       'cordyphage': 'cordyphage'
     };
 
+    const colorToSuffix = {
+      '#FF0000': 'red',
+      '#00FF00': 'green',
+      '#0000FF': 'blue',
+      '#FFFF00': 'yellow',
+      '#000000': 'black'
+    };
+
     const folder = antTypeToFolder[antId];
     const prefix = antTypeToPrefix[antId];
 
     if (folder && prefix) {
+      // If player color is provided, use colored sprite
+      if (playerColor && colorToSuffix[playerColor]) {
+        const colorSuffix = colorToSuffix[playerColor];
+        return `sprites/ants/${folder}/${prefix}_idle_${colorSuffix}.png`;
+      }
       return `sprites/ants/${folder}/${prefix}_idle.png`;
     }
     return `sprites/ants/${antId}_idle.png`;
@@ -3971,7 +3984,7 @@ function App() {
                           flexShrink: 0
                         }}>
                           <img
-                            src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id)}`}
+                            src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id, gameState.players[gameState.currentPlayer]?.color)}`}
                             alt={ant.name}
                             style={{
                               height: '32px',
