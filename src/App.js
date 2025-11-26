@@ -1004,11 +1004,11 @@ function App() {
           }
         }
 
- // Detect and animate movements for Player 2's ants
+         // Detect and animate movements for Player 2's ants
         if (gameMode.playerRole === 'player1') {
           const visibleHexes = getVisibleHexes(newState, 'player1');
           
-          // Check each ant in the new state
+          // Check each ant in the new state for movement
           Object.values(newState.ants || {}).forEach(ant => {
             // Only process opponent's ants
             if (ant.owner !== 'player2') return;
@@ -1020,19 +1020,16 @@ function App() {
             // Get last known position for this ant
             const lastPos = lastProcessedAntPositions.current[ant.id];
             
-                   // If we have a last position and it's different, animate the movement
+            // If we have a last position and it's different, trigger animation
             if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
               // Ant moved - trigger animation
               console.log(`Animating Player 2 ant ${ant.id} movement from`, lastPos, 'to', ant.position);
               
-              // Use setTimeout to queue the animation to avoid race conditions
-              setTimeout(() => {
-                setMovingAnt({
-                  antId: ant.id,
-                  path: [lastPos, ant.position],
-                  currentStep: 0
-                });
-              }, 50);
+              setMovingAnt({
+                antId: ant.id,
+                path: [lastPos, ant.position],
+                currentStep: 0
+              });
             } else if (!lastPos) {
               console.log(`First time seeing Player 2 ant ${ant.id} at`, ant.position);
             }
