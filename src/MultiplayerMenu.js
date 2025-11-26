@@ -73,7 +73,8 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       const playerId = `player_${Date.now()}`;
 
       // Don't create game state here - that happens in the lobby
-      await createOrJoinGameRoom(code, null, playerId);
+      // Capture the playerRole returned by createOrJoinGameRoom
+      const { playerRole, isNewRoom } = await createOrJoinGameRoom(code, null, playerId);
 
       alert(`Room ${code} created! Share this code with your opponent.`);
 
@@ -81,7 +82,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
       onEnterLobby({
         gameId: code,
         playerId,
-        playerRole: 'player1',
+        playerRole, // Use the actual returned playerRole instead of hardcoding
         isMultiplayer: true
       });
     } catch (error) {
