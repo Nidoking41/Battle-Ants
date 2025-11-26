@@ -3359,7 +3359,7 @@ function App() {
                     y={-40}
                     width={80}
                     height={80}
-                    href={`${process.env.PUBLIC_URL}/sprites/ants/dead_ant.png`}
+                    href={`${process.env.PUBLIC_URL}/sprites/ants/Misc/dead_ant.png`}
                     style={{ pointerEvents: 'none', opacity: 0.8 }}
                     onError={(e) => {
                       console.error('Failed to load dead ant sprite');

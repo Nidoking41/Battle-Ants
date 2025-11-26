@@ -104,6 +104,21 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
   'egg': 'egg'
 };
 
+// Map ant type IDs to their folder names
+const ANT_TYPE_TO_FOLDER = {
+  'queen': 'Queen',
+  'scout': 'Scout',
+  'drone': 'Drone',
+  'soldier': 'Marauder',
+  'tank': 'Bullet',
+  'spitter': 'Acid',
+  'healer': 'Weaver',
+  'bomber': 'Exploding',
+  'bombardier': 'Bombardier',
+  'cordyphage': 'Cordyceps',
+  'egg': 'Eggs'
+};
+
 // Helper function to get sprite info for an ant
 // playerColor: optional hex color code (e.g., '#FF0000')
 export function getSpriteInfo(antType, animation, playerColor = null) {
@@ -114,6 +129,9 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
 
   let spritePath = sprites[animation].path;
   let frameCount = sprites[animation].frames;
+
+  // Get folder name for this ant type
+  const folderName = ANT_TYPE_TO_FOLDER[antType] || '';
 
   // If playerColor is provided and this ant type has colored variants
   // Always use colored idle sprite (even for walk/attack) until colored variants exist for those animations
@@ -129,11 +147,16 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
     }
   }
 
+  // Build full path with folder structure
+  const fullPath = folderName
+    ? `${process.env.PUBLIC_URL}/sprites/ants/${folderName}/${spritePath}`
+    : `${process.env.PUBLIC_URL}/sprites/ants/${spritePath}`;
+
   return {
     ...sprites[animation],
     frames: frameCount,
     path: spritePath,
-    fullPath: `${process.env.PUBLIC_URL}/sprites/ants/${spritePath}`,
+    fullPath: fullPath,
     frameWidth: SpriteConfig.SPRITE_SIZE,
     frameHeight: SpriteConfig.SPRITE_SIZE,
     animationSpeed: SpriteConfig.ANIMATION_SPEEDS[animation] || 100
