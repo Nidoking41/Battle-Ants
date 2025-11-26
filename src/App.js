@@ -3520,6 +3520,18 @@ function App() {
   };
 
   // Render all ants in a separate overlay layer (on top of all hexes)
+  // Helper to get aura sprite based on player color
+  const getAuraSprite = (playerColor) => {
+    const colorToAura = {
+      '#FF0000': 'aura_red.png',
+      '#00FF00': 'aura_green.png',
+      '#0000FF': 'aura_blue.png',
+      '#FFFF00': 'aura_yellow.png',
+      '#000000': 'aura_black.png'
+    };
+    return colorToAura[playerColor] || 'aura_red.png';
+  };
+
   const renderAntsOverlay = () => {
     const ants = [];
 
@@ -3622,8 +3634,23 @@ function App() {
       const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
       const isAttackable = enemiesInRange.some(e => e.id === ant.id);
 
+      // Check if hero ability is active for this ant's owner
+      const player = gameState.players[ant.owner];
+      const showAura = player?.heroAbilityActive;
+
       ants.push(
         <g key={`ant-overlay-${ant.id}`} transform={`translate(${x}, ${y}) ${finalTransform}`} style={{ transition: transitionStyle }}>
+          {/* Hero ability aura (rendered behind ant) */}
+          {showAura && playerColor && (
+            <image
+              x={-40}
+              y={-40}
+              width={80}
+              height={80}
+              href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
+              style={{ pointerEvents: 'none', opacity: 0.8 }}
+            />
+          )}
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (
             <g opacity={hasActions ? 1 : 0.5}>
