@@ -1802,11 +1802,17 @@ export function activateHeroAbility(gameState, playerId) {
     case "vexxara":
       // Restore all units to full health and energy
       playerAnts.forEach(ant => {
-        updatedAnts[ant.id] = {
+        const updatedAnt = {
           ...ant,
-          health: ant.maxHealth,
-          energy: ant.maxEnergy || ant.energy
+          health: ant.maxHealth
         };
+
+        // Only set energy if the ant has maxEnergy (queens, healers, cordyphages)
+        if (ant.maxEnergy !== undefined) {
+          updatedAnt.energy = ant.maxEnergy;
+        }
+
+        updatedAnts[ant.id] = updatedAnt;
       });
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
