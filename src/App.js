@@ -5,10 +5,12 @@ import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attac
 import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
 import { hexToPixel, getMovementRange, HexCoord, getNeighbors } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
+import AIGameSetup from './AIGameSetup';
 import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
 
 function App() {
   const [gameMode, setGameMode] = useState(null);
+  const [currentScreen, setCurrentScreen] = useState('menu'); // 'menu', 'aiSetup', 'game'
   const [gameState, setGameState] = useState(createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null);
   const [selectedAnt, setSelectedAnt] = useState(null);
@@ -368,14 +370,77 @@ function App() {
   // Handle start game from menu
   const handleStartGame = (mode) => {
     setGameMode(mode);
+    setCurrentScreen('game');
     if (!mode.isMultiplayer) {
       setGameState(createInitialGameState());
     }
   };
 
+  // Handle entering lobby (for online multiplayer room setup)
+  const handleEnterLobby = (lobbyData) => {
+    // For now, this is handled by handleStartGame
+    // Future: Add dedicated lobby screen
+    handleStartGame(lobbyData);
+  };
+
+  // Handle entering local game setup
+  const handleEnterLocalSetup = () => {
+    // For now, just start a local game with default settings
+    alert('Local game setup - Coming soon! Starting a quick local game...');
+    handleStartGame({
+      isMultiplayer: false,
+      isLocal: true
+    });
+  };
+
+  // Handle entering AI game setup
+  const handleEnterAISetup = () => {
+    setCurrentScreen('aiSetup');
+  };
+
+  // Handle starting AI game from setup screen
+  const handleStartAIGame = (setupConfig) => {
+    handleStartGame({
+      isMultiplayer: false,
+      isAI: true,
+      aiDifficulty: setupConfig.difficulty,
+      playerHero: setupConfig.playerHero,
+      aiHero: setupConfig.aiHero,
+      mapSize: setupConfig.mapSize,
+      fogOfWar: setupConfig.fogOfWar
+    });
+  };
+
+  // Handle entering online multiplayer lobby
+  const handleEnterOnlineMultiplayer = () => {
+    // This should show the room code entry/creation screen
+    // For now, just show an alert
+    alert('Online multiplayer lobby - Use Quick Play or Join with Code buttons instead!');
+  };
+
+  // Handle back to menu
+  const handleBackToMenu = () => {
+    setCurrentScreen('menu');
+    setGameMode(null);
+  };
+
+  // Show AI setup screen
+  if (currentScreen === 'aiSetup') {
+    return <AIGameSetup
+      onStartGame={handleStartAIGame}
+      onBack={handleBackToMenu}
+    />;
+  }
+
   // Show menu if game hasn't started
-  if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} />;
+  if (!gameMode || currentScreen === 'menu') {
+    return <MultiplayerMenu
+      onStartGame={handleStartGame}
+      onEnterLobby={handleEnterLobby}
+      onEnterLocalSetup={handleEnterLocalSetup}
+      onEnterAISetup={handleEnterAISetup}
+      onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer}
+    />;
   }
 
   // Handle detonating a bomber
