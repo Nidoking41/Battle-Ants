@@ -320,13 +320,20 @@ function App() {
             }
             return;
           case 'm':
-            console.log('Move hotkey triggered');
+            console.log('Move hotkey triggered', {
+              antId: ant?.id,
+              hasMoved: ant?.hasMoved,
+              hasAttacked: ant?.hasAttacked,
+              currentSelectedAction: selectedAction
+            });
             e.preventDefault();
             // Move action
             if (ant && !ant.hasMoved) {
+              console.log('Setting selectedAction to move from M key');
               setSelectedAction('move');
               return;
             }
+            console.log('Not setting move action - ant has moved or no ant selected');
             return;
           case 'o':
             // Soldier (marauder)
@@ -2725,9 +2732,15 @@ function App() {
             setSelectedAction(null);
           }
         } else if (!clickedAnt.hasMoved && !clickedAnt.hasAttacked) {
+          console.log('Auto-selecting move action for ant that hasnt moved/attacked');
           setSelectedAction('move');
         } else {
           // Unit has used actions - just select for viewing, no action
+          console.log('Clearing selectedAction - unit has already moved/attacked', {
+            antId: clickedAnt.id,
+            hasMoved: clickedAnt.hasMoved,
+            hasAttacked: clickedAnt.hasAttacked
+          });
           setSelectedAction(null);
         }
       } else {
