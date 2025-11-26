@@ -3532,6 +3532,43 @@ function App() {
     return colorToAura[playerColor] || 'aura_red.png';
   };
 
+  // Helper to get ant sprite path with folder structure
+  const getAntSpritePath = (antId) => {
+    const antTypeToFolder = {
+      'queen': 'Queen',
+      'scout': 'Scout',
+      'drone': 'Drone',
+      'soldier': 'Marauder',
+      'tank': 'Bullet',
+      'spitter': 'Acid',
+      'healer': 'Weaver',
+      'bomber': 'Exploding',
+      'bombardier': 'Bombardier',
+      'cordyphage': 'Cordyceps'
+    };
+
+    const antTypeToPrefix = {
+      'queen': 'queen',
+      'scout': 'scout',
+      'drone': 'drone',
+      'soldier': 'marauder',
+      'tank': 'bullet',
+      'spitter': 'acid',
+      'healer': 'weaver',
+      'bomber': 'exploding',
+      'bombardier': 'bombardier',
+      'cordyphage': 'cordyphage'
+    };
+
+    const folder = antTypeToFolder[antId];
+    const prefix = antTypeToPrefix[antId];
+
+    if (folder && prefix) {
+      return `sprites/ants/${folder}/${prefix}_idle.png`;
+    }
+    return `sprites/ants/${antId}_idle.png`;
+  };
+
   const renderAntsOverlay = () => {
     const ants = [];
 
@@ -3934,7 +3971,7 @@ function App() {
                           flexShrink: 0
                         }}>
                           <img
-                            src={`${process.env.PUBLIC_URL}/sprites/ants/${ant.id}_idle.png`}
+                            src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id)}`}
                             alt={ant.name}
                             style={{
                               height: '32px',
@@ -5598,7 +5635,7 @@ function App() {
                         position: 'relative'
                       }}>
                         <img
-                          src={`${process.env.PUBLIC_URL}/sprites/ants/${ant.id}_idle.png`}
+                          src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id)}`}
                           alt={ant.name}
                           style={{
                             height: '32px',
