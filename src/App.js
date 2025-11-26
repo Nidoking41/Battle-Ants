@@ -2681,9 +2681,10 @@ function App() {
         return;
       }
 
-      // Prevent immediate reselection of an ant that was just deselected (within 500ms)
+      // Prevent immediate reselection of an ant that was just deselected (within 100ms)
+      // This prevents infinite reselection loops but allows normal reselection after a brief delay
       const wasJustDeselected = lastDeselectedAnt.antId === clickedAnt.id &&
-                                (now - lastDeselectedAnt.time) < 500;
+                                (now - lastDeselectedAnt.time) < 100;
       if (wasJustDeselected) {
         console.log('Preventing reselection of ant that was just deselected:', clickedAnt.id);
         return; // Ignore this click to prevent reselection loop
