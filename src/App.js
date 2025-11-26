@@ -107,6 +107,7 @@ function App() {
 
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
+  const lastProcessedAntPositions = useRef({});
 
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
@@ -1002,7 +1003,37 @@ function App() {
             }
           }
         }
-
+        
+ // Detect and animate movements for Player 2's ants
+        if (gameMode.playerRole === 'player1') {
+          const visibleHexes = getVisibleHexes(newState, 'player1');
+          
+          // Check each ant in the new state
+          Object.values(newState.ants || {}).forEach(ant => {
+            // Only process opponent's ants
+            if (ant.owner !== 'player2') return;
+            
+            // Check if ant is visible
+            const antHex = `${ant.position.q},${ant.position.r}`;
+            if (!visibleHexes.has(antHex)) return;
+            
+            // Get last known position for this ant
+            const lastPos = lastProcessedAntPositions.current[ant.id];
+            
+            // If we have a last position and it's different, animate the movement
+            if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
+              // Ant moved - trigger animation
+              setMovingAnt({
+                antId: ant.id,
+                path: [lastPos, ant.position],
+                currentStep: 0
+              });
+            }
+            
+            // Update last known position
+            lastProcessedAntPositions.current[ant.id] = { ...ant.position };
+          });
+        }
         // Apply fog of war for multiplayer games or AI games with fog of war enabled
         const shouldApplyFog = gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false);
         const filteredState = shouldApplyFog ? applyFogOfWar(newState, gameMode.playerRole || 'player1') : newState;
