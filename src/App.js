@@ -2698,7 +2698,17 @@ function App() {
       }
 
       // Only allow actions on your own ants and only when it's your turn
-      const isOwnAnt = clickedAnt.owner === currentState.currentPlayer;
+      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
+      const isOwnAnt = clickedAnt.owner === currentPlayerId;
+
+      console.log('Ant click check:', {
+        clickedAntOwner: clickedAnt.owner,
+        currentPlayerId,
+        isOwnAnt,
+        isMyTurn: isMyTurn(),
+        gameCurrentPlayer: currentState.currentPlayer,
+        playerRole: gameMode?.playerRole
+      });
 
       if (isOwnAnt && isMyTurn()) {
         setSelectedAnt(clickedAnt.id);
