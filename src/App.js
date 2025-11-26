@@ -1326,7 +1326,7 @@ function App() {
         const enemiesInRange = Object.values(currentState.ants).filter(otherAnt => {
           if (otherAnt.owner === ant.owner) return false;
           const distance = Math.max(
-            Math.abs(ant.position.q - otherAnt.position.
+            Math.abs(ant.position.q - otherAnt.position.q),
             Math.abs(ant.position.r - otherAnt.position.r),
             Math.abs((-ant.position.q - ant.position.r) - (-otherAnt.position.q - otherAnt.position.r))
           );
