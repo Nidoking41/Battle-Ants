@@ -373,9 +373,49 @@ function App() {
     }
   };
 
+  // Handle entering lobby (for online multiplayer room setup)
+  const handleEnterLobby = (lobbyData) => {
+    // For now, this is handled by handleStartGame
+    // Future: Add dedicated lobby screen
+    handleStartGame(lobbyData);
+  };
+
+  // Handle entering local game setup
+  const handleEnterLocalSetup = () => {
+    // For now, just start a local game with default settings
+    alert('Local game setup - Coming soon! Starting a quick local game...');
+    handleStartGame({
+      isMultiplayer: false,
+      isLocal: true
+    });
+  };
+
+  // Handle entering AI game setup
+  const handleEnterAISetup = () => {
+    // For now, just start an AI game with default settings
+    alert('AI game setup - Coming soon! Starting a quick AI game...');
+    handleStartGame({
+      isMultiplayer: false,
+      isAI: true
+    });
+  };
+
+  // Handle entering online multiplayer lobby
+  const handleEnterOnlineMultiplayer = () => {
+    // This should show the room code entry/creation screen
+    // For now, just show an alert
+    alert('Online multiplayer lobby - Use Quick Play or Join with Code buttons instead!');
+  };
+
   // Show menu if game hasn't started
   if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} />;
+    return <MultiplayerMenu
+      onStartGame={handleStartGame}
+      onEnterLobby={handleEnterLobby}
+      onEnterLocalSetup={handleEnterLocalSetup}
+      onEnterAISetup={handleEnterAISetup}
+      onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer}
+    />;
   }
 
   // Handle detonating a bomber
