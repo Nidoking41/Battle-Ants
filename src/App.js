@@ -56,6 +56,12 @@ function App() {
   const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
   const [showTurnPopup, setShowTurnPopup] = useState(false); // Show "Your Turn!" popup
 
+  // Window size for responsive SVG
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
   // Store random hex colors for earthy terrain
   const [hexColors] = useState(() => {
     // Earthy tone colors: light browns and greens
@@ -201,6 +207,32 @@ function App() {
       });
     }
   };
+
+  // Calculate dynamic SVG size based on available screen space
+  const calculateSvgSize = () => {
+    const leftPanelWidth = 250;
+    const rightPanelWidth = 300;
+    const padding = 60; // margins and gaps
+
+    // Available width after panels
+    const availableWidth = windowSize.width - leftPanelWidth - rightPanelWidth - padding;
+
+    // Available height (subtract header and some padding)
+    const availableHeight = windowSize.height - 100;
+
+    // Keep 4:3 aspect ratio (width:height = 1200:900 = 4:3)
+    // Use the smaller dimension to ensure it fits
+    const maxWidth = Math.min(availableWidth, (availableHeight * 4) / 3);
+    const maxHeight = (maxWidth * 3) / 4;
+
+    // Clamp between min (400x300) and max (1200x900)
+    const width = Math.max(400, Math.min(1200, maxWidth));
+    const height = (width * 3) / 4;
+
+    return { width, height };
+  };
+
+  const svgSize = calculateSvgSize();
 
   // Camera no longer auto-centers on turn change - players keep their current view
 
@@ -363,6 +395,15 @@ function App() {
               return;
             }
             return;
+          case 'x':
+            console.log('Detonate hotkey triggered (X key)');
+            e.preventDefault();
+            // Detonate action (for bombers only)
+            if (ant && ant.type === 'bomber') {
+              setSelectedAction('detonate');
+              return;
+            }
+            return;
           case 'p':
             console.log('Plague hotkey triggered');
             e.preventDefault();
@@ -385,13 +426,6 @@ function App() {
               console.log('Drone egg type selected');
               e.preventDefault();
               setPendingEggType('drone');
-              return;
-            }
-            // Otherwise, detonate action (for bombers only)
-            if (ant && ant.type === 'bomber') {
-              console.log('Detonate hotkey triggered');
-              e.preventDefault();
-              setSelectedAction('detonate');
               return;
             }
             return;
@@ -426,8 +460,8 @@ function App() {
               return;
             }
             return;
-          case 'i':
-            // Spitter (acid ant) - changed from 'a' to avoid conflict with attack
+          case 'z':
+            // Spitter (acid ant)
             if (showAntTypeSelector && selectedEggHex) {
               console.log('Spitter hotkey - hatching spitter');
               e.preventDefault();
@@ -627,6 +661,19 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [gameMode?.isMultiplayer, gameMode?.isAI]); // Only run when gameMode changes to a game object
+
+  // Track window resizing for responsive SVG
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate movement paths when selectedAnt or selectedAction changes
   useEffect(() => {
@@ -4116,9 +4163,9 @@ function App() {
             overflow: 'hidden'
           }}>
             <svg
-              width="1200"
-              height="900"
-              viewBox="0 0 1200 900"
+              width={svgSize.width}
+              height={svgSize.height}
+              viewBox={`0 0 ${svgSize.width} ${svgSize.height}`}
               style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -4134,7 +4181,7 @@ function App() {
                 </clipPath>
               ))}
             </defs>
-            <g transform={`translate(600, 450) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
+            <g transform={`translate(${svgSize.width / 2}, ${svgSize.height / 2}) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
             {/* Ants Overlay - rendered on top of all hexes */}
@@ -4583,7 +4630,7 @@ function App() {
                       opacity: isMyTurn() ? 1 : 0.6
                     }}
                   >
-                    💥 DETONATE (D) (Suicide Attack) 💥
+                    💥 DETONATE (X) (Suicide Attack) 💥
                   </button>
                 ) : gameState.ants[selectedAnt].type === 'healer' ? (
                   <>
