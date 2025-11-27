@@ -3242,10 +3242,10 @@ function App() {
         <pattern id="ensnareEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
-            x={-effectAnimationFrame * 32}
+            x={-effectAnimationFrame * 64}
             y="0"
-            width={32 * 8}
-            height="32"
+            width={64 * 8}
+            height="64"
             preserveAspectRatio="none"
             style={{ imageRendering: 'pixelated' }}
           />
@@ -3254,10 +3254,10 @@ function App() {
         <pattern id="plagueEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
-            x={-effectAnimationFrame * 32}
+            x={-effectAnimationFrame * 64}
             y="0"
-            width={32 * 8}
-            height="32"
+            width={64 * 8}
+            height="64"
             preserveAspectRatio="none"
             style={{ imageRendering: 'pixelated' }}
           />
@@ -3984,17 +3984,14 @@ function App() {
           )}
           {/* Plagued overlay */}
           {ant.plagued && ant.plagued > 0 && (
-            <>
-              {console.log(`Rendering plague overlay on ant ${ant.id} (${ant.type}) at position`, ant.position, `plagued turns remaining: ${ant.plagued}`)}
-              <circle
-                cx="0"
-                cy="0"
-                r="32"
-                fill="url(#plagueEffectPattern)"
-                opacity="0.8"
-                style={{ pointerEvents: 'none' }}
-              />
-            </>
+            <circle
+              cx="0"
+              cy="0"
+              r="32"
+              fill="url(#plagueEffectPattern)"
+              opacity="0.8"
+              style={{ pointerEvents: 'none' }}
+            />
           )}
           {/* Health bar */}
           <g transform="translate(0, 20)">
