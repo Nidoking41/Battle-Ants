@@ -1029,39 +1029,8 @@ function App() {
 
             // If we have a last position and it's different, trigger animation
             if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
-              // Ant moved - calculate the full path they took
+              // Ant moved - animate from last position to current position
               console.log(`Animating ${opponentRole} ant ${ant.id} movement from`, lastPos, 'to', ant.position);
-
-              // Calculate the full path using pathfinding
-              const startHex = new HexCoord(lastPos.q, lastPos.r);
-              const endHex = new HexCoord(ant.position.q, ant.position.r);
-
-              // Create a temporary state with ant at old position for pathfinding
-              const tempState = {
-                ...newState,
-                ants: {
-                  ...newState.ants,
-                  [ant.id]: {
-                    ...newState.ants[ant.id],
-                    position: startHex
-                  }
-                }
-              };
-
-              // Get movement range with paths from start position
-              const { paths } = getMovementRangeWithPaths(startHex, ant.movementRange || 3, tempState, ant.owner);
-
-              // Get the path to the destination
-              const pathKey = `${endHex.q},${endHex.r}`;
-              let fullPath = paths[pathKey];
-
-              // If no path found, just use direct start->end path
-              if (!fullPath) {
-                console.log(`No path found for ant ${ant.id}, using direct path`);
-                fullPath = [startHex, endHex];
-              }
-
-              console.log(`Full path for ant ${ant.id}:`, fullPath);
 
               // Create a modified state with ant at OLD position for display
               modifiedState = {
@@ -1075,10 +1044,10 @@ function App() {
                 }
               };
 
-              // Trigger movement animation with full path
+              // Trigger simple 2-point movement animation (start -> end)
               setMovingAnt({
                 antId: ant.id,
-                path: fullPath,
+                path: [lastPos, ant.position],
                 currentStep: 0
               });
             } else if (!lastPos) {
