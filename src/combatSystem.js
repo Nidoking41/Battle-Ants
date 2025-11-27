@@ -170,7 +170,7 @@ export function detonateBomber(gameState, bomberId) {
 
     // Update hero power for bomber detonation
     updatedGameState = updateHeroPower(updatedGameState, bomber.owner, damage); // Bomber deals damage
-    updatedGameState = updateHeroPower(updatedGameState, target.owner, damage); // Target receives damage
+    updatedGameState = updateHeroPower(updatedGameState, target.owner, damage, 0.65); // Target receives damage (0.65 multiplier)
 
     // Track bomber detonation damage stats
     updatedGameState.stats[bomber.owner].damageDealt = (updatedGameState.stats[bomber.owner].damageDealt || 0) + damage;
@@ -275,8 +275,8 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   const { updateHeroPower } = require('./gameState');
   updatedGameState = updateHeroPower(updatedGameState, attacker.owner, damage);
 
-  // Update hero power for defender (damage received)
-  updatedGameState = updateHeroPower(updatedGameState, defender.owner, damage);
+  // Update hero power for defender (damage received with 0.65 multiplier)
+  updatedGameState = updateHeroPower(updatedGameState, defender.owner, damage, 0.65);
 
   // Track damage dealt and received stats
   if (!updatedGameState.stats) {

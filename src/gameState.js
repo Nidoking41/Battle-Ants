@@ -1732,7 +1732,8 @@ export function getSpawningPoolHexes(queen, getNeighborsFunc) {
 
 
 // Update hero power based on damage dealt or received
-export function updateHeroPower(gameState, playerId, damageAmount) {
+// multiplier: 1.0 for damage dealt, 0.65 for damage received
+export function updateHeroPower(gameState, playerId, damageAmount, multiplier = 1.0) {
   if (!gameState.players[playerId]) return gameState;
 
   const player = gameState.players[playerId];
@@ -1742,7 +1743,8 @@ export function updateHeroPower(gameState, playerId, damageAmount) {
 
   // Calculate new hero power: 150 total damage = 100% power
   // So each point of damage = 100/150 = 0.6667% power
-  const powerGain = (damageAmount / 150) * 100;
+  // Apply multiplier (1.0 for dealt, 0.65 for received)
+  const powerGain = (damageAmount / 150) * 100 * multiplier;
   const newPower = Math.min(100, (player.heroPower || 0) + powerGain);
 
   return {
