@@ -3238,30 +3238,6 @@ function App() {
           <stop offset="70%" stopColor="#6A0DAD" stopOpacity="1" />
           <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
         </radialGradient>
-        {/* Ensnare effect pattern - now using sprite animation */}
-        <pattern id="ensnareEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
-          <image
-            href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
-            x={-effectAnimationFrame * 64}
-            y="0"
-            width={64 * 8}
-            height="64"
-            preserveAspectRatio="none"
-            style={{ imageRendering: 'pixelated' }}
-          />
-        </pattern>
-        {/* Plague effect pattern - using sprite animation */}
-        <pattern id="plagueEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
-          <image
-            href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
-            x={-effectAnimationFrame * 64}
-            y="0"
-            width={64 * 8}
-            height="64"
-            preserveAspectRatio="none"
-            style={{ imageRendering: 'pixelated' }}
-          />
-        </pattern>
       </defs>
     );
 
@@ -3927,6 +3903,44 @@ function App() {
               style={{ pointerEvents: 'none', opacity: 0.8 }}
             />
           )}
+          {/* Ensnare effect (rendered behind ant, twice as big as 32x32 sprite = 64x64) */}
+          {ant.ensnared && ant.ensnared > 0 && (
+            <g opacity={0.9}>
+              <defs>
+                <clipPath id={`ensnare-clip-${ant.id}`}>
+                  <circle cx="0" cy="0" r="32" />
+                </clipPath>
+              </defs>
+              <image
+                x={-32 - (effectAnimationFrame * 64)}
+                y={-32}
+                width={32 * 8 * 2}
+                height={32 * 2}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
+                clipPath={`url(#ensnare-clip-${ant.id})`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+              />
+            </g>
+          )}
+          {/* Plague effect (rendered behind ant, twice as big as 32x32 sprite = 64x64) */}
+          {ant.plagued && ant.plagued > 0 && (
+            <g opacity={0.8}>
+              <defs>
+                <clipPath id={`plague-clip-${ant.id}`}>
+                  <circle cx="0" cy="0" r="32" />
+                </clipPath>
+              </defs>
+              <image
+                x={-32 - (effectAnimationFrame * 64)}
+                y={-32}
+                width={32 * 8 * 2}
+                height={32 * 2}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
+                clipPath={`url(#plague-clip-${ant.id})`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+              />
+            </g>
+          )}
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (
             <g opacity={hasActions ? 1 : 0.5}>
@@ -3970,28 +3984,6 @@ function App() {
             >
               💤
             </text>
-          )}
-          {/* Ensnared web overlay */}
-          {ant.ensnared && ant.ensnared > 0 && (
-            <circle
-              cx="0"
-              cy="0"
-              r="32"
-              fill="url(#ensnareEffectPattern)"
-              opacity="0.9"
-              style={{ pointerEvents: 'none' }}
-            />
-          )}
-          {/* Plagued overlay */}
-          {ant.plagued && ant.plagued > 0 && (
-            <circle
-              cx="0"
-              cy="0"
-              r="32"
-              fill="url(#plagueEffectPattern)"
-              opacity="0.8"
-              style={{ pointerEvents: 'none' }}
-            />
           )}
           {/* Health bar */}
           <g transform="translate(0, 20)">
