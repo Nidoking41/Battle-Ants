@@ -1004,7 +1004,8 @@ function App() {
           }
         }
 
-         // Detect and animate movements for Player 2's ants
+               // Detect and animate movements for Player 2's ants
+        let modifiedState = newState;
         if (gameMode.playerRole === 'player1') {
           const visibleHexes = getVisibleHexes(newState, 'player1');
           
@@ -1022,9 +1023,22 @@ function App() {
             
             // If we have a last position and it's different, trigger animation
             if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
-              // Ant moved - trigger animation
+              // Ant moved - we need to keep it at old position during animation
               console.log(`Animating Player 2 ant ${ant.id} movement from`, lastPos, 'to', ant.position);
               
+              // Create a modified state with ant at OLD position for display
+              modifiedState = {
+                ...modifiedState,
+                ants: {
+                  ...modifiedState.ants,
+                  [ant.id]: {
+                    ...modifiedState.ants[ant.id],
+                    position: lastPos  // Keep at old position during animation
+                  }
+                }
+              };
+              
+              // Trigger movement animation - this will update position when animation completes
               setMovingAnt({
                 antId: ant.id,
                 path: [lastPos, ant.position],
@@ -1034,13 +1048,14 @@ function App() {
               console.log(`First time seeing Player 2 ant ${ant.id} at`, ant.position);
             }
             
-            // Update last known position
+              // Update last known position
             lastProcessedAntPositions.current[ant.id] = { ...ant.position };
           });
         }
+        
         // Apply fog of war for multiplayer games or AI games with fog of war enabled
         const shouldApplyFog = gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false);
-        const filteredState = shouldApplyFog ? applyFogOfWar(newState, gameMode.playerRole || 'player1') : newState;
+        const filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1') : modifiedState;
         setGameState(filteredState);
       });
 
