@@ -3892,51 +3892,21 @@ function App() {
 
       ants.push(
         <g key={`ant-overlay-${ant.id}`} transform={`translate(${x}, ${y}) ${finalTransform}`} style={{ transition: transitionStyle }}>
-          {/* Hero ability aura (rendered behind ant) */}
+          {/* Hero ability aura (rendered behind ant, animated sprite sheet) */}
           {showAura && playerColor && (
-            <image
-              x={-40}
-              y={-40}
-              width={80}
-              height={80}
-              href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
-              style={{ pointerEvents: 'none', opacity: 0.8 }}
-            />
-          )}
-          {/* Ensnare effect (rendered behind ant, twice as big as 32x32 sprite = 64x64) */}
-          {ant.ensnared && ant.ensnared > 0 && (
-            <g opacity={0.9}>
-              <defs>
-                <clipPath id={`ensnare-clip-${ant.id}`}>
-                  <circle cx="0" cy="0" r="32" />
-                </clipPath>
-              </defs>
-              <image
-                x={-32 - (effectAnimationFrame * 64)}
-                y={-32}
-                width={32 * 8 * 2}
-                height={32 * 2}
-                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
-                clipPath={`url(#ensnare-clip-${ant.id})`}
-                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-              />
-            </g>
-          )}
-          {/* Plague effect (rendered behind ant, twice as big as 32x32 sprite = 64x64) */}
-          {ant.plagued && ant.plagued > 0 && (
             <g opacity={0.8}>
               <defs>
-                <clipPath id={`plague-clip-${ant.id}`}>
-                  <circle cx="0" cy="0" r="32" />
+                <clipPath id={`aura-clip-${ant.id}`}>
+                  <circle cx="0" cy="0" r="40" />
                 </clipPath>
               </defs>
               <image
-                x={-32 - (effectAnimationFrame * 64)}
-                y={-32}
-                width={32 * 8 * 2}
-                height={32 * 2}
-                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
-                clipPath={`url(#plague-clip-${ant.id})`}
+                x={-40 - (effectAnimationFrame * 80)}
+                y={-40}
+                width={32 * 8 * 2.5}
+                height={32 * 2.5}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
+                clipPath={`url(#aura-clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
               />
             </g>
@@ -3984,6 +3954,44 @@ function App() {
             >
               💤
             </text>
+          )}
+          {/* Ensnare effect (rendered on top of ant, twice as big as 32x32 sprite = 64x64) */}
+          {ant.ensnared && ant.ensnared > 0 && (
+            <g opacity={0.9}>
+              <defs>
+                <clipPath id={`ensnare-clip-${ant.id}`}>
+                  <circle cx="0" cy="0" r="32" />
+                </clipPath>
+              </defs>
+              <image
+                x={-32 - (effectAnimationFrame * 64)}
+                y={-32}
+                width={32 * 8 * 2}
+                height={32 * 2}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
+                clipPath={`url(#ensnare-clip-${ant.id})`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+              />
+            </g>
+          )}
+          {/* Plague effect (rendered on top of ant, twice as big as 32x32 sprite = 64x64) */}
+          {ant.plagued && ant.plagued > 0 && (
+            <g opacity={0.8}>
+              <defs>
+                <clipPath id={`plague-clip-${ant.id}`}>
+                  <circle cx="0" cy="0" r="32" />
+                </clipPath>
+              </defs>
+              <image
+                x={-32 - (effectAnimationFrame * 64)}
+                y={-32}
+                width={32 * 8 * 2}
+                height={32 * 2}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
+                clipPath={`url(#plague-clip-${ant.id})`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+              />
+            </g>
           )}
           {/* Health bar */}
           <g transform="translate(0, 20)">
