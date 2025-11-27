@@ -1036,12 +1036,30 @@ function App() {
               const startHex = new HexCoord(lastPos.q, lastPos.r);
               const endHex = new HexCoord(ant.position.q, ant.position.r);
 
+              // Create a temporary state with ant at old position for pathfinding
+              const tempState = {
+                ...newState,
+                ants: {
+                  ...newState.ants,
+                  [ant.id]: {
+                    ...newState.ants[ant.id],
+                    position: startHex
+                  }
+                }
+              };
+
               // Get movement range with paths from start position
-              const { paths } = getMovementRangeWithPaths(startHex, ant.movementRange || 3, newState, ant.owner);
+              const { paths } = getMovementRangeWithPaths(startHex, ant.movementRange || 3, tempState, ant.owner);
 
               // Get the path to the destination
               const pathKey = `${endHex.q},${endHex.r}`;
-              let fullPath = paths[pathKey] || [startHex, endHex]; // Fallback to direct path if pathfinding fails
+              let fullPath = paths[pathKey];
+
+              // If no path found, just use direct start->end path
+              if (!fullPath) {
+                console.log(`No path found for ant ${ant.id}, using direct path`);
+                fullPath = [startHex, endHex];
+              }
 
               console.log(`Full path for ant ${ant.id}:`, fullPath);
 
