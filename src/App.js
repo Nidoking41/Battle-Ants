@@ -3239,26 +3239,26 @@ function App() {
           <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
         </radialGradient>
         {/* Ensnare effect pattern - now using sprite animation */}
-        <pattern id="ensnareEffectPattern" x="0" y="0" width="1" height="1" patternUnits="objectBoundingBox">
+        <pattern id="ensnareEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
-            x={-effectAnimationFrame * 64}
+            x={-effectAnimationFrame * 32}
             y="0"
-            width={64 * 8}
-            height="64"
-            preserveAspectRatio="xMidYMid slice"
+            width={32 * 8}
+            height="32"
+            preserveAspectRatio="none"
             style={{ imageRendering: 'pixelated' }}
           />
         </pattern>
         {/* Plague effect pattern - using sprite animation */}
-        <pattern id="plagueEffectPattern" x="0" y="0" width="1" height="1" patternUnits="objectBoundingBox">
+        <pattern id="plagueEffectPattern" x="-32" y="-32" width="64" height="64" patternUnits="userSpaceOnUse">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
-            x={-effectAnimationFrame * 64}
+            x={-effectAnimationFrame * 32}
             y="0"
-            width={64 * 8}
-            height="64"
-            preserveAspectRatio="xMidYMid slice"
+            width={32 * 8}
+            height="32"
+            preserveAspectRatio="none"
             style={{ imageRendering: 'pixelated' }}
           />
         </pattern>
