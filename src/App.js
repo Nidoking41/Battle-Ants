@@ -1029,8 +1029,21 @@ function App() {
 
             // If we have a last position and it's different, trigger animation
             if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
-              // Ant moved - we need to keep it at old position during animation
+              // Ant moved - calculate the full path they took
               console.log(`Animating ${opponentRole} ant ${ant.id} movement from`, lastPos, 'to', ant.position);
+
+              // Calculate the full path using pathfinding
+              const startHex = new HexCoord(lastPos.q, lastPos.r);
+              const endHex = new HexCoord(ant.position.q, ant.position.r);
+
+              // Get movement range with paths from start position
+              const { paths } = getMovementRangeWithPaths(startHex, ant.movementRange || 3, newState, ant.owner);
+
+              // Get the path to the destination
+              const pathKey = `${endHex.q},${endHex.r}`;
+              let fullPath = paths[pathKey] || [startHex, endHex]; // Fallback to direct path if pathfinding fails
+
+              console.log(`Full path for ant ${ant.id}:`, fullPath);
 
               // Create a modified state with ant at OLD position for display
               modifiedState = {
@@ -1044,10 +1057,10 @@ function App() {
                 }
               };
 
-              // Trigger movement animation - this will update position when animation completes
+              // Trigger movement animation with full path
               setMovingAnt({
                 antId: ant.id,
-                path: [lastPos, ant.position],
+                path: fullPath,
                 currentStep: 0
               });
             } else if (!lastPos) {
@@ -3222,22 +3235,17 @@ function App() {
           <stop offset="70%" stopColor="#6A0DAD" stopOpacity="1" />
           <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
         </radialGradient>
-        {/* Spider web pattern for ensnared units */}
-        <g id="spiderWebPattern">
-          {/* Radial threads */}
-          <line x1="0" y1="0" x2="0" y2="-30" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="21" y2="-21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="30" y2="0" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="21" y2="21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="0" y2="30" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="-21" y2="21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="-30" y2="0" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="0" x2="-21" y2="-21" stroke="#00FF00" strokeWidth="1.5" opacity="0.7" />
-          {/* Circular threads */}
-          <circle cx="0" cy="0" r="10" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.6" />
-          <circle cx="0" cy="0" r="20" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.5" />
-          <circle cx="0" cy="0" r="30" fill="none" stroke="#00FF00" strokeWidth="1.5" opacity="0.4" />
-        </g>
+        {/* Ensnare effect pattern - now using sprite animation */}
+        <pattern id="ensnareEffectPattern" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
+            x={-effectAnimationFrame * 32}
+            y="0"
+            width={32 * 8}
+            height="32"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
       </defs>
     );
 
@@ -3949,10 +3957,12 @@ function App() {
           )}
           {/* Ensnared web overlay */}
           {ant.ensnared && ant.ensnared > 0 && (
-            <use
-              href="#spiderWebPattern"
-              x="0"
-              y="0"
+            <circle
+              cx="0"
+              cy="0"
+              r="32"
+              fill="url(#ensnareEffectPattern)"
+              opacity="0.9"
               style={{ pointerEvents: 'none' }}
             />
           )}
