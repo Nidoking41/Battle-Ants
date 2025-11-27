@@ -1385,7 +1385,7 @@ function App() {
       playerRole: gameMode?.playerRole,
       isMultiplayer: gameMode?.isMultiplayer
     });
-    const { gameState: newState, resourceGains } = endTurn(currentState);
+    const { gameState: newState, resourceGains, plagueDamages } = endTurn(currentState);
     console.log('handleEndTurn - After endTurn:', {
       turn: newState.turn,
       currentPlayer: newState.currentPlayer,
@@ -1411,6 +1411,22 @@ function App() {
 
         if (shouldShow) {
           showResourceGain(gain.amount, gain.type, gain.position);
+        }
+      });
+    }
+
+    // Show plague damage numbers - only for visible ants
+    if (plagueDamages && plagueDamages.length > 0) {
+      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+      const visibleHexes = gameMode?.isMultiplayer ? getVisibleHexes(newState, currentPlayerId) : null;
+
+      plagueDamages.forEach(({ damage, position, antId }) => {
+        const hexKey = `${position.q},${position.r}`;
+        // Show damage number if: ant is visible to current player
+        const shouldShow = !gameMode?.isMultiplayer || !visibleHexes || visibleHexes.has(hexKey);
+
+        if (shouldShow) {
+          showDamageNumber(damage, position);
         }
       });
     }
@@ -3223,13 +3239,26 @@ function App() {
           <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
         </radialGradient>
         {/* Ensnare effect pattern - now using sprite animation */}
-        <pattern id="ensnareEffectPattern" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+        <pattern id="ensnareEffectPattern" x="0" y="0" width="1" height="1" patternUnits="objectBoundingBox">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
-            x={-effectAnimationFrame * 32}
+            x={-effectAnimationFrame * 64}
             y="0"
-            width={32 * 8}
-            height="32"
+            width={64 * 8}
+            height="64"
+            preserveAspectRatio="xMidYMid slice"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        {/* Plague effect pattern - using sprite animation */}
+        <pattern id="plagueEffectPattern" x="0" y="0" width="1" height="1" patternUnits="objectBoundingBox">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
+            x={-effectAnimationFrame * 64}
+            y="0"
+            width={64 * 8}
+            height="64"
+            preserveAspectRatio="xMidYMid slice"
             style={{ imageRendering: 'pixelated' }}
           />
         </pattern>
@@ -3950,6 +3979,17 @@ function App() {
               r="32"
               fill="url(#ensnareEffectPattern)"
               opacity="0.9"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
+          {/* Plagued overlay */}
+          {ant.plagued && ant.plagued > 0 && (
+            <circle
+              cx="0"
+              cy="0"
+              r="32"
+              fill="url(#plagueEffectPattern)"
+              opacity="0.8"
               style={{ pointerEvents: 'none' }}
             />
           )}

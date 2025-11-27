@@ -681,6 +681,7 @@ export function endTurn(gameState) {
 
   // Reset hasMoved, hasAttacked, and hasBuilt flags for the next player's ants
   // Also regenerate energy for queens at the start of each player's turn
+  const plagueDamages = []; // Track plague damage for animations
   Object.values(gameState.ants).forEach(ant => {
     // ALWAYS reset flags for the next player to ensure clean state
     if (ant.owner === nextPlayer) {
@@ -723,6 +724,13 @@ export function endTurn(gameState) {
         const cordyphageType = AntTypes.CORDYPHAGE;
         const plagueDamage = Math.ceil(ant.maxHealth * cordyphageType.plagueHealthLoss);
         updates.health = Math.max(1, updates.health - plagueDamage); // Min 1 health
+
+        // Track plague damage for animation
+        plagueDamages.push({
+          damage: plagueDamage,
+          position: ant.position,
+          antId: ant.id
+        });
 
         // Decrease plague duration
         updates.plagued = ant.plagued - 1;
@@ -803,7 +811,8 @@ export function endTurn(gameState) {
 
   return {
     gameState: finalGameState,
-    resourceGains // Return the gathered resources for animations
+    resourceGains, // Return the gathered resources for animations
+    plagueDamages // Return the plague damage for animations
   };
 }
 
