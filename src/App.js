@@ -1004,33 +1004,34 @@ function App() {
           }
         }
 
-               // Detect and animate movements for Player 2's ants
+               // Detect and animate movements for opponent's ants
         let modifiedState = newState;
-        console.log('Movement detection check:', {
-          isMultiplayer: gameMode.isMultiplayer,
-          playerRole: gameMode.playerRole,
-          willCheckMovement: gameMode.playerRole === 'player1'
-        });
-        if (gameMode.playerRole === 'player1') {
-          const visibleHexes = getVisibleHexes(newState, 'player1');
-          
+
+        if (gameMode.isMultiplayer && gameMode.playerRole) {
+          const myRole = gameMode.playerRole;
+          const opponentRole = myRole === 'player1' ? 'player2' : 'player1';
+
+          console.log(`Movement detection: I am ${myRole}, checking for ${opponentRole} movements`);
+
+          const visibleHexes = getVisibleHexes(newState, myRole);
+
           // Check each ant in the new state for movement
           Object.values(newState.ants || {}).forEach(ant => {
             // Only process opponent's ants
-            if (ant.owner !== 'player2') return;
-            
+            if (ant.owner !== opponentRole) return;
+
             // Check if ant is visible
             const antHex = `${ant.position.q},${ant.position.r}`;
             if (!visibleHexes.has(antHex)) return;
-            
+
             // Get last known position for this ant
             const lastPos = lastProcessedAntPositions.current[ant.id];
-            
+
             // If we have a last position and it's different, trigger animation
             if (lastPos && (lastPos.q !== ant.position.q || lastPos.r !== ant.position.r)) {
               // Ant moved - we need to keep it at old position during animation
-              console.log(`Animating Player 2 ant ${ant.id} movement from`, lastPos, 'to', ant.position);
-              
+              console.log(`Animating ${opponentRole} ant ${ant.id} movement from`, lastPos, 'to', ant.position);
+
               // Create a modified state with ant at OLD position for display
               modifiedState = {
                 ...modifiedState,
@@ -1042,7 +1043,7 @@ function App() {
                   }
                 }
               };
-              
+
               // Trigger movement animation - this will update position when animation completes
               setMovingAnt({
                 antId: ant.id,
@@ -1050,9 +1051,9 @@ function App() {
                 currentStep: 0
               });
             } else if (!lastPos) {
-              console.log(`First time seeing Player 2 ant ${ant.id} at`, ant.position);
+              console.log(`First time seeing ${opponentRole} ant ${ant.id} at`, ant.position);
             }
-            
+
               // Update last known position
             lastProcessedAntPositions.current[ant.id] = { ...ant.position };
           });
