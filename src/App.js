@@ -1006,6 +1006,11 @@ function App() {
 
                // Detect and animate movements for Player 2's ants
         let modifiedState = newState;
+        console.log('Movement detection check:', {
+          isMultiplayer: gameMode.isMultiplayer,
+          playerRole: gameMode.playerRole,
+          willCheckMovement: gameMode.playerRole === 'player1'
+        });
         if (gameMode.playerRole === 'player1') {
           const visibleHexes = getVisibleHexes(newState, 'player1');
           
@@ -1055,7 +1060,24 @@ function App() {
         
         // Apply fog of war for multiplayer games or AI games with fog of war enabled
         const shouldApplyFog = gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false);
-        const filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1') : modifiedState;
+        let filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1') : modifiedState;
+
+        // Protect currently animating ants from being overwritten by Firebase updates
+        // This prevents the animation from being interrupted by subsequent Firebase syncs
+        if (movingAnt && filteredState.ants?.[movingAnt.antId]) {
+          const currentAnimatedPosition = movingAnt.path[movingAnt.currentStep];
+          filteredState = {
+            ...filteredState,
+            ants: {
+              ...filteredState.ants,
+              [movingAnt.antId]: {
+                ...filteredState.ants[movingAnt.antId],
+                position: currentAnimatedPosition
+              }
+            }
+          };
+        }
+
         setGameState(filteredState);
       });
 
