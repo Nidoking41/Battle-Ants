@@ -1619,6 +1619,8 @@ export function plagueEnemy(gameState, cordyphageId, targetId) {
   if (distance > cordyphageType.plagueRange) return gameState;
 
   // Apply plague
+  console.log(`Plague applied: Cordyphage ${cordyphageId} (${cordyphage.type}) plaguing target ${targetId} (${target.type}) at position`, target.position);
+
   return {
     ...gameState,
     ants: {

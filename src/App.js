@@ -3984,14 +3984,17 @@ function App() {
           )}
           {/* Plagued overlay */}
           {ant.plagued && ant.plagued > 0 && (
-            <circle
-              cx="0"
-              cy="0"
-              r="32"
-              fill="url(#plagueEffectPattern)"
-              opacity="0.8"
-              style={{ pointerEvents: 'none' }}
-            />
+            <>
+              {console.log(`Rendering plague overlay on ant ${ant.id} (${ant.type}) at position`, ant.position, `plagued turns remaining: ${ant.plagued}`)}
+              <circle
+                cx="0"
+                cy="0"
+                r="32"
+                fill="url(#plagueEffectPattern)"
+                opacity="0.8"
+                style={{ pointerEvents: 'none' }}
+              />
+            </>
           )}
           {/* Health bar */}
           <g transform="translate(0, 20)">
