@@ -8,7 +8,7 @@ export const AntTypes = {
     hatchTime: 0,
     maxHealth: 60,
     attack: 6,
-    defense: 5,
+    defense: 2,
     moveSpeed: 1,
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
