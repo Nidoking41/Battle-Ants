@@ -220,11 +220,22 @@ export function createInitialGameState(options = {}) {
     deadAnts: {}, // Dead ants that persist for 2 seconds
     resources: generateResourceNodes(gridRadius),
     anthills: {}, // Anthills built on resource nodes
+    trees: {}, // Trees will be generated after we have occupied positions
     selectedAnt: null,
     selectedAction: null,
     gameOver: false,
     winner: null
   };
+
+  // Collect all occupied positions (ants, eggs, resources)
+  const occupiedPositions = [
+    ...Object.values(initialState.ants).map(ant => ant.position),
+    ...Object.values(initialState.eggs).map(egg => egg.position),
+    ...Object.values(initialState.resources).map(res => res.position)
+  ];
+
+  // Generate trees avoiding occupied positions
+  initialState.trees = generateTrees(gridRadius, occupiedPositions);
 
   // Apply hero bonuses to starting ants
   if (player1Hero || player2Hero) {
@@ -356,6 +367,95 @@ function generateResourceNodes(gridRadius = 6) {
   );
 
   return resources;
+}
+
+// Generate tree positions (3 in north, 3 in south)
+function generateTrees(gridRadius = 6, existingOccupiedPositions = []) {
+  const trees = {};
+  const queenOffset = gridRadius - 1;
+
+  // Create a set of occupied positions for quick lookup
+  const occupiedSet = new Set(existingOccupiedPositions.map(pos => `${pos.q},${pos.r}`));
+
+  // Helper to check if position is occupied
+  const isOccupied = (hex) => occupiedSet.has(`${hex.q},${hex.r}`);
+
+  // Define possible spawn positions for north side (r < 0)
+  const northPositions = [];
+
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
+
+        // Exclude positions too close to north queen at (0, -queenOffset)
+        const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(r - (-queenOffset)), Math.abs(s - queenOffset));
+
+        // Skip if occupied or too close to queen
+        if (!isOccupied(hex) && distToNorthQueen >= 2) {
+          northPositions.push(hex);
+        }
+      }
+    }
+  }
+
+  // Define possible spawn positions for south side (r > 0)
+  const southPositions = [];
+
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    for (let r = 1; r <= gridRadius; r++) { // Only south side (r > 0)
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
+
+        // Exclude positions too close to south queen at (0, queenOffset)
+        const distToSouthQueen = Math.max(Math.abs(q - 0), Math.abs(r - queenOffset), Math.abs(s - (-queenOffset)));
+
+        // Skip if occupied or too close to queen
+        if (!isOccupied(hex) && distToSouthQueen >= 2) {
+          southPositions.push(hex);
+        }
+      }
+    }
+  }
+
+  console.log('Valid tree positions - North:', northPositions.length, 'South:', southPositions.length);
+
+  // Shuffle and select 3 from each side
+  const shuffledNorth = northPositions.sort(() => Math.random() - 0.5);
+  const shuffledSouth = southPositions.sort(() => Math.random() - 0.5);
+
+  const treesPerSide = 3;
+  const selectedNorth = shuffledNorth.slice(0, treesPerSide);
+  const selectedSouth = shuffledSouth.slice(0, treesPerSide);
+
+  let treeIndex = 0;
+
+  // Add north trees
+  selectedNorth.forEach(pos => {
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: pos,
+      side: 'north'
+    };
+    treeIndex++;
+  });
+
+  // Add south trees
+  selectedSouth.forEach(pos => {
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: pos,
+      side: 'south'
+    };
+    treeIndex++;
+  });
+
+  console.log('Total trees generated:', Object.keys(trees).length);
+  console.log('Tree positions:', Object.values(trees).map(t => `${t.side} at (${t.position.q},${t.position.r})`));
+
+  return trees;
 }
 
 // Respawn a resource on the same side of the board (north/south) in an empty spot
@@ -1086,6 +1186,17 @@ export function getAntDefense(ant, player, gameState) {
 
     if (onAnthill) {
       defense += 2;
+    }
+  }
+
+  // Check if ant is on a tree for +1 defense bonus (stacks with other bonuses)
+  if (gameState && gameState.trees) {
+    const onTree = Object.values(gameState.trees).some(tree =>
+      tree.position.q === ant.position.q && tree.position.r === ant.position.r
+    );
+
+    if (onTree) {
+      defense += GameConstants.TREE_DEFENSE_BONUS;
     }
   }
 

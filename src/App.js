@@ -1147,6 +1147,26 @@ function App() {
         // Execute AI turn (returns { gameState, movements })
         const { gameState: aiState, movements } = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
 
+        // Check if AI performed combat and show attack animation
+        if (aiState.lastCombatAction) {
+          const { attackerId, targetPosition, isRanged, damageDealt } = aiState.lastCombatAction;
+          const attacker = aiState.ants[attackerId];
+
+          if (attacker) {
+            showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
+            if (damageDealt && damageDealt.length > 0) {
+              setTimeout(() => {
+                damageDealt.forEach(({ damage, position }) => {
+                  showDamageNumber(damage, position);
+                });
+              }, isRanged ? 300 : 200);
+            }
+          }
+
+          // Wait for attack animation to complete
+          await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
+        }
+
         // Animate movements sequentially with rhythm
         for (let i = 0; i < movements.length; i++) {
           const movement = movements[i];
@@ -3155,10 +3175,16 @@ function App() {
         return [];
       }
 
-      // Get blocked hexes (only enemy units block movement)
-      const blockedHexes = Object.values(gameState.ants)
-        .filter(a => a.owner !== ant.owner) // Only block enemies, not friendly units
-        .map(a => new HexCoord(a.position.q, a.position.r));
+      // Get blocked hexes (enemy units and trees block movement)
+      const blockedHexes = [
+        // Enemy units block movement
+        ...Object.values(gameState.ants)
+          .filter(a => a.owner !== ant.owner)
+          .map(a => new HexCoord(a.position.q, a.position.r)),
+        // Trees block movement
+        ...Object.values(gameState.trees || {})
+          .map(t => new HexCoord(t.position.q, t.position.r))
+      ];
 
       let range = antType.moveRange;
 
@@ -3196,10 +3222,11 @@ function App() {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
 
-      // Filter out occupied hexes
+      // Filter out occupied hexes (ants, eggs, and trees)
       return spawningPool.filter(hex => {
         const occupied = Object.values(gameState.ants).some(a => hexEquals(a.position, hex)) ||
-                        Object.values(gameState.eggs).some(e => hexEquals(e.position, hex));
+                        Object.values(gameState.eggs).some(e => hexEquals(e.position, hex)) ||
+                        Object.values(gameState.trees || {}).some(t => hexEquals(t.position, hex));
         return !occupied;
       });
     }
@@ -3330,6 +3357,7 @@ function App() {
         const ant = Object.values(gameState.ants).find(a => hexEquals(a.position, hex));
         const egg = Object.values(gameState.eggs).find(e => hexEquals(e.position, hex));
         const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, hex));
+        const tree = Object.values(gameState.trees || {}).find(t => hexEquals(t.position, hex));
 
         const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, hex));
         const isValidMove = validMoves.some(v => hexEquals(v, hex));
@@ -3592,6 +3620,20 @@ function App() {
                 </g>
               ) : null;
             })()}
+            {/* Tree rendering - always visible, below ants */}
+            {tree && (
+              <image
+                x={-16}
+                y={-16}
+                width={32}
+                height={32}
+                href={`${process.env.PUBLIC_URL}/sprites/ants/Misc/tree_sprite.png`}
+                style={{ pointerEvents: 'none' }}
+                onError={(e) => {
+                  console.error('Failed to load tree sprite');
+                }}
+              />
+            )}
             {resource && !anthill && isVisible && (
               <g transform={ant ? "translate(15, -15)" : ""}>
                 {/* Colored circle background for resource */}

@@ -211,6 +211,8 @@ export const GameConstants = {
   },
   HEX_GRID_SIZE: 10, // 10x10 hex grid
   RESOURCE_SPAWN_COUNT: 6, // number of resource nodes on map
+  TREE_COUNT: 6, // number of trees on map (3 north, 3 south)
+  TREE_DEFENSE_BONUS: 1, // defense bonus for ants on tree hexes
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
   ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
   ANTHILL_PASSIVE_INCOME: {

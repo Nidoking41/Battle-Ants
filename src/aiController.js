@@ -277,7 +277,8 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
     const allSpawningHexes = getSpawningPoolHexes(queen, getNeighbors);
     const spawningPool = allSpawningHexes.filter(hex => {
       const occupied = Object.values(state.ants).some(a => hexEquals(a.position, hex)) ||
-                      Object.values(state.eggs).some(e => hexEquals(e.position, hex));
+                      Object.values(state.eggs).some(e => hexEquals(e.position, hex)) ||
+                      Object.values(state.trees || {}).some(t => hexEquals(t.position, hex));
       return !occupied;
     });
 
@@ -631,8 +632,24 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
       // Perform attack
       const attackResult = resolveCombat(state, unit.id, target.id);
       state = attackResult.gameState;
+
       // Mark unit as having attacked
-      state.ants[unit.id] = { ...state.ants[unit.id], hasAttacked: true };
+      const updatedAnts = { ...state.ants };
+      if (updatedAnts[unit.id]) {
+        updatedAnts[unit.id] = { ...updatedAnts[unit.id], hasAttacked: true };
+      }
+
+      // Store combat action for animation (same as player attacks)
+      state = {
+        ...state,
+        ants: updatedAnts,
+        lastCombatAction: attackResult.attackAnimation ? {
+          ...attackResult.attackAnimation,
+          damageDealt: attackResult.damageDealt,
+          timestamp: Date.now()
+        } : undefined
+      };
+
       return { state, movement: null };
     }
   }
@@ -853,8 +870,12 @@ function moveUnitToward(gameState, unit, targetPos) {
   const eggHexes = Object.values(state.eggs || {})
     .map(egg => new HexCoord(egg.position.q, egg.position.r));
 
+  // Block hexes with trees
+  const treeHexes = Object.values(state.trees || {})
+    .map(tree => new HexCoord(tree.position.q, tree.position.r));
+
   // Combine all blocked hexes
-  const blockedHexes = [...antHexes, ...eggHexes];
+  const blockedHexes = [...antHexes, ...eggHexes, ...treeHexes];
 
   const movesWithPaths = getMovementRangeWithPaths(unit.position, antType.moveRange, gridRadius, blockedHexes);
   console.log(`Move range has ${movesWithPaths.length} hexes with valid paths`);

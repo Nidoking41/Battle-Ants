@@ -475,6 +475,39 @@ export function getVisibleHexes(gameState, playerId) {
   return visibleHexes;
 }
 
+// Check if an enemy ant is obscured by a tree
+// Returns true if the ant should be hidden from the player
+export function isAntObscuredByTree(gameState, ant, playerId) {
+  // Only check enemy ants
+  if (!ant || ant.owner === playerId) {
+    return false;
+  }
+
+  // Check if ant is on a tree hex
+  const treeAtPosition = gameState.trees ? Object.values(gameState.trees).find(
+    tree => tree.position.q === ant.position.q && tree.position.r === ant.position.r
+  ) : null;
+
+  if (!treeAtPosition) {
+    return false; // No tree, not obscured
+  }
+
+  // Ant is on a tree - check if player has an adjacent ant
+  const playerAnts = gameState.ants ? Object.values(gameState.ants).filter(
+    a => a.owner === playerId && !a.isDead
+  ) : [];
+
+  for (const playerAnt of playerAnts) {
+    const distance = hexDistance(playerAnt.position, ant.position);
+    if (distance === 1) {
+      return false; // Player has adjacent ant, enemy is visible
+    }
+  }
+
+  // No adjacent player ants, enemy is obscured by tree
+  return true;
+}
+
 // Get detected burrowed enemy ants (scouts and revealed hexes are detectors)
 export function getDetectedBurrowedAnts(gameState, playerId) {
   const detectedBurrowed = new Set(); // Set of ant IDs
@@ -548,7 +581,10 @@ export function applyFogOfWar(gameState, playerId) {
       }
       // Show enemy ants if visible OR if detected while burrowed
       else if (visibleHexes.has(hexKey) || detectedBurrowed.has(id)) {
-        filteredAnts[id] = ant;
+        // Additional check: is the enemy ant obscured by a tree?
+        if (!isAntObscuredByTree(gameState, ant, playerId)) {
+          filteredAnts[id] = ant;
+        }
       }
     });
   }
