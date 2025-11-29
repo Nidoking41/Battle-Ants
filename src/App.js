@@ -1616,6 +1616,9 @@ function App() {
 
     // Add enemy ants in range
     Object.values(currentState.ants).forEach(enemyAnt => {
+      // Safety check: skip ants without position
+      if (!enemyAnt.position || !ant.position) return;
+
       if (enemyAnt.owner !== ant.owner) {
         const distance = Math.max(
           Math.abs(ant.position.q - enemyAnt.position.q),
@@ -1630,6 +1633,9 @@ function App() {
 
     // Add enemy anthills in range
     Object.values(currentState.anthills || {}).forEach(anthill => {
+      // Safety check: skip anthills without position
+      if (!anthill.position || !ant.position) return;
+
       if (anthill.owner !== ant.owner) {
         const distance = Math.max(
           Math.abs(ant.position.q - anthill.position.q),
@@ -3026,7 +3032,7 @@ function App() {
 
     // Get all ants with remaining actions
     const antsWithActions = Object.values(currentState.ants).filter(ant =>
-      ant.owner === currentPlayerId && hasRemainingActions(ant)
+      ant.owner === currentPlayerId && ant.position && hasRemainingActions(ant)
     );
 
     if (antsWithActions.length === 0) {
@@ -3043,6 +3049,12 @@ function App() {
     // Get next ant (wrap around to start)
     const nextIndex = (currentIndex + 1) % antsWithActions.length;
     const nextAnt = antsWithActions[nextIndex];
+
+    // Safety check: ensure ant has position
+    if (!nextAnt || !nextAnt.position) {
+      console.error('Next ant has no position:', nextAnt);
+      return;
+    }
 
     // Select the ant and auto-select appropriate action
     setSelectedAnt(nextAnt.id);
