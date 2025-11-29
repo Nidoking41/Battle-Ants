@@ -5980,7 +5980,7 @@ function App() {
                         position: 'relative'
                       }}>
                         <img
-                          src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id, gameState.players[gameState.currentPlayer]?.color)}`}
+                          src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id, gameState.players[gameState.currentPlayer]?.color || '#FF0000')}`}
                           alt={ant.name}
                           style={{
                             height: '32px',
@@ -5989,6 +5989,9 @@ function App() {
                             objectPosition: '0 0',
                             transform: 'scale(2)',
                             transformOrigin: 'top left'
+                          }}
+                          onError={(e) => {
+                            console.error(`Failed to load sprite for ${ant.name}:`, e.target.src);
                           }}
                         />
                       </div>
