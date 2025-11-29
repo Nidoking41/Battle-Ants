@@ -147,53 +147,60 @@ const AI_CONFIG = {
  * @returns {Object} Object with gameState and movements array for animation
  */
 export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
-  const config = AI_CONFIG[difficulty];
-  let state = { ...gameState };
-  let movements = []; // Track all movements for animation
+  try {
+    const config = AI_CONFIG[difficulty];
+    let state = { ...gameState };
+    let movements = []; // Track all movements for animation
 
-  console.log(`AI (${aiPlayer}, ${difficulty}) starting turn ${state.turn}`);
+    console.log(`AI (${aiPlayer}, ${difficulty}) starting turn ${state.turn}`);
 
-  // DEBUG: Check what the AI can see
-  const allAnts = Object.values(state.ants || {});
-  const aiAnts = allAnts.filter(ant => ant.owner === aiPlayer);
-  const aiQueen = aiAnts.find(ant => ant.type === 'queen');
-  console.log(`AI sees ${allAnts.length} total ants, ${aiAnts.length} are mine`);
-  console.log(`AI queen:`, aiQueen ? `found at (${aiQueen.position.q}, ${aiQueen.position.r})` : 'NOT FOUND');
-  console.log(`AI resources:`, state.players?.[aiPlayer]?.resources);
-  console.log(`AI eggs:`, Object.values(state.eggs || {}).filter(e => e.owner === aiPlayer).length);
+    // DEBUG: Check what the AI can see
+    const allAnts = Object.values(state.ants || {});
+    const aiAnts = allAnts.filter(ant => ant.owner === aiPlayer);
+    const aiQueen = aiAnts.find(ant => ant.type === 'queen');
+    console.log(`AI sees ${allAnts.length} total ants, ${aiAnts.length} are mine`);
+    console.log(`AI queen:`, aiQueen ? `found at (${aiQueen.position.q}, ${aiQueen.position.r})` : 'NOT FOUND');
+    console.log(`AI resources:`, state.players?.[aiPlayer]?.resources);
+    console.log(`AI eggs:`, Object.values(state.eggs || {}).filter(e => e.owner === aiPlayer).length);
 
-  // DEBUG: Check movement flags at start of AI turn
-  console.log('=== AI UNIT FLAGS AT START OF TURN ===');
-  aiAnts.forEach(ant => {
-    console.log(`${ant.id} (${ant.type}): hasMoved=${ant.hasMoved}, hasAttacked=${ant.hasAttacked}, hasBuilt=${ant.hasBuilt}`);
-  });
+    // DEBUG: Check movement flags at start of AI turn
+    console.log('=== AI UNIT FLAGS AT START OF TURN ===');
+    aiAnts.forEach(ant => {
+      console.log(`${ant.id} (${ant.type}): hasMoved=${ant.hasMoved}, hasAttacked=${ant.hasAttacked}, hasBuilt=${ant.hasBuilt}`);
+    });
 
-  // Analyze game state to determine strategy
-  const strategy = analyzeGameState(state, aiPlayer, difficulty);
-  console.log(`AI strategy: ${strategy.phase}, army strength: ${strategy.armyStrength}, economic power: ${strategy.economicPower}`);
+    // Analyze game state to determine strategy
+    const strategy = analyzeGameState(state, aiPlayer, difficulty);
+    console.log(`AI strategy: ${strategy.phase}, army strength: ${strategy.armyStrength}, economic power: ${strategy.economicPower}`);
 
-  // Wait a bit to make AI feel more natural
-  await delay(config.thinkTime);
+    // Wait a bit to make AI feel more natural
+    await delay(config.thinkTime);
 
-  // Phase 1: Hatch eggs
-  state = hatchEggsIfReady(state, aiPlayer);
+    // Phase 1: Hatch eggs
+    state = hatchEggsIfReady(state, aiPlayer);
 
-  // Phase 2: Move and use units (do this BEFORE laying eggs to free up spawn spots)
-  const unitActionResult = performUnitActions(state, aiPlayer, config, strategy);
-  state = unitActionResult.state;
-  movements = unitActionResult.movements;
+    // Phase 2: Move and use units (do this BEFORE laying eggs to free up spawn spots)
+    const unitActionResult = performUnitActions(state, aiPlayer, config, strategy);
+    state = unitActionResult.state;
+    movements = unitActionResult.movements;
 
-  // Phase 3: Queen actions (lay eggs, heal) - now spawn spots are free
-  state = performQueenActions(state, aiPlayer, config, strategy);
+    // Phase 3: Queen actions (lay eggs, heal) - now spawn spots are free
+    state = performQueenActions(state, aiPlayer, config, strategy);
 
-  // Phase 4: Consider upgrades
-  if (Math.random() < config.upgradeFrequency) {
-    state = considerUpgrades(state, aiPlayer);
+    // Phase 4: Consider upgrades
+    if (Math.random() < config.upgradeFrequency) {
+      state = considerUpgrades(state, aiPlayer);
+    }
+
+    console.log(`AI (${aiPlayer}) ending turn with ${movements.length} movements`);
+
+    return { gameState: state, movements };
+  } catch (error) {
+    console.error('AI turn error:', error);
+    console.error('Error stack:', error.stack);
+    // Return the original game state if AI fails
+    return { gameState, movements: [] };
   }
-
-  console.log(`AI (${aiPlayer}) ending turn with ${movements.length} movements`);
-
-  return { gameState: state, movements };
 }
 
 /**
