@@ -1002,6 +1002,11 @@ function App() {
         // Store the full state for fog of war calculations
         setFullGameState(newState);
 
+        // Check if game is over and show victory modal
+        if (newState.gameOver && !showVictoryModal) {
+          setShowVictoryModal(true);
+        }
+
         // Check if there was a recent combat action and show animations
         if (newState.lastCombatAction) {
           const { attackerId, targetPosition, isRanged, damageDealt, timestamp } = newState.lastCombatAction;
@@ -4028,7 +4033,7 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-40 - (effectAnimationFrame * 32 * 2)}
+                x={-40 - (effectAnimationFrame * 128)}
                 y={-40}
                 width={32 * 8 * 2}
                 height={32 * 2}
@@ -4091,7 +4096,7 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-32 - (effectAnimationFrame * 32 * 2)}
+                x={-32 - (effectAnimationFrame * 64)}
                 y={-32}
                 width={32 * 8 * 2}
                 height={32 * 2}
@@ -4110,7 +4115,7 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-32 - (effectAnimationFrame * 32 * 2)}
+                x={-32 - (effectAnimationFrame * 64)}
                 y={-32}
                 width={32 * 8 * 2}
                 height={32 * 2}

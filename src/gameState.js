@@ -2,33 +2,56 @@ import { HexCoord } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers } from './antTypes';
 
 // Calculate army strength for a player
-// Formula: For each alive ant: (attack + defense) + (health / 10), with upgrade bonuses
+// Formula: Fixed base value per ant type + 2 per upgrade tier
 export function calculateArmyStrength(gameState, playerId) {
   const player = gameState.players[playerId];
   let totalStrength = 0;
 
+  // Base army values for each ant type
+  const ANT_BASE_VALUES = {
+    'scout': 10,
+    'drone': 5,
+    'spitter': 20,  // Acid Ant
+    'soldier': 20,  // Marauder
+    'tank': 40,     // Bullet Ant
+    'cordyphage': 30,
+    'bomber': 15,   // Exploding Ant
+    'healer': 35,   // Weaver
+    'bombardier': 30,
+    'queen': 0      // Queens don't count toward army value
+  };
+
+  // Melee ant types (get bonus from melee attack upgrades)
+  const MELEE_TYPES = ['scout', 'drone', 'soldier', 'tank'];
+  // Ranged ant types (get bonus from ranged attack upgrades)
+  const RANGED_TYPES = ['spitter', 'bombardier', 'queen'];
+
   Object.values(gameState.ants)
     .filter(ant => ant.owner === playerId && !ant.isDead)
     .forEach(ant => {
-      const antType = AntTypes[ant.type.toUpperCase()];
-      if (!antType) return; // Skip invalid ant types
+      const baseValue = ANT_BASE_VALUES[ant.type] || 0;
 
-      // Base strength calculation
-      const attack = antType.attack || 0;
-      const defense = antType.defense || 0;
-      const health = ant.health || 0;
-      const baseStrength = attack + defense + (health / 10);
+      // Calculate upgrade bonuses (+2 per tier)
+      let upgradeBonus = 0;
 
-      // Apply upgrade multipliers
-      const meleeBonus = antType.attackType === 'melee' ? player.upgrades.meleeAttack : 0;
-      const rangedBonus = antType.attackType === 'ranged' ? player.upgrades.rangedAttack : 0;
-      const defenseBonus = player.upgrades.defense;
+      // Add melee attack upgrade bonus
+      if (MELEE_TYPES.includes(ant.type)) {
+        upgradeBonus += player.upgrades.meleeAttack * 2;
+      }
 
-      const strength = baseStrength + meleeBonus + rangedBonus + defenseBonus;
+      // Add ranged attack upgrade bonus
+      if (RANGED_TYPES.includes(ant.type)) {
+        upgradeBonus += player.upgrades.rangedAttack * 2;
+      }
+
+      // Add defense upgrade bonus (all units benefit)
+      upgradeBonus += player.upgrades.defense * 2;
+
+      const strength = baseValue + upgradeBonus;
       totalStrength += strength;
     });
 
-  return Math.round(totalStrength);
+  return totalStrength;
 }
 
 // Initialize a new game state
