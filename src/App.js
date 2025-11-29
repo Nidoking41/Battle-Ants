@@ -4028,7 +4028,7 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-40 - (effectAnimationFrame * 64)}
+                x={-40 - (effectAnimationFrame * 32 * 2)}
                 y={-40}
                 width={32 * 8 * 2}
                 height={32 * 2}

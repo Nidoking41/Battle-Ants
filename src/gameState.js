@@ -1783,7 +1783,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Attack boost is passive, handled in combat calculations
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
       };
       break;
 
@@ -1792,7 +1792,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Damage boost is passive, handled in combat calculations
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
       };
       break;
 
@@ -1804,7 +1804,7 @@ export function activateHeroAbility(gameState, playerId) {
           food: Math.floor(player.resources.food * 1.5),
           minerals: Math.floor(player.resources.minerals * 1.5)
         },
-        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
       };
       break;
 
@@ -1812,7 +1812,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Units gain +2 defense and +2 attack until next turn (handled in combat)
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
       };
       break;
 
@@ -1833,7 +1833,7 @@ export function activateHeroAbility(gameState, playerId) {
       });
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 2 // Lasts until next turn
+        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
       };
       break;
 
