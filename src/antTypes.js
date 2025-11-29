@@ -218,7 +218,7 @@ export const GameConstants = {
     minerals: 8  // Per turn for mineral anthills
   },
   // Queen Energy System
-  QUEEN_BASE_ENERGY: 100,
+  QUEEN_BASE_ENERGY: 75,
   QUEEN_BASE_ENERGY_REGEN: 15,
   EGG_LAY_ENERGY_COST: 20,
   HEAL_ENERGY_COST: 25,
@@ -328,8 +328,7 @@ export const QueenTiers = {
     id: 'queen',
     name: 'Queen',
     spawningSpots: 2,
-    eggCostReduction: 0,
-    maxEnergy: 100,
+    maxEnergy: 75,
     energyRegen: 15,
     foodIncome: 5,
     icon: '👑🐜'
@@ -338,10 +337,9 @@ export const QueenTiers = {
     id: 'broodQueen',
     name: 'Brood Queen',
     spawningSpots: 4,
-    eggCostReduction: 5,
-    maxEnergy: 125,
+    maxEnergy: 100,
     energyRegen: 20,
-    foodIncome: 8,
+    foodIncome: 6,
     cost: { food: 20, minerals: 15 },
     icon: '👑👑🐜'
   },
@@ -349,10 +347,9 @@ export const QueenTiers = {
     id: 'swarmQueen',
     name: 'Swarm Queen',
     spawningSpots: 6,
-    eggCostReduction: 10,
-    maxEnergy: 150,
+    maxEnergy: 125,
     energyRegen: 25,
-    foodIncome: 11,
+    foodIncome: 7,
     cost: { food: 30, minerals: 20 },
     icon: '👑👑👑🐜'
   }

@@ -4684,8 +4684,7 @@ function App() {
                   </div>
                   <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
-                    • -5 Egg Cost ({GameConstants.EGG_LAY_ENERGY_COST - QueenTiers[currentTier].eggCostReduction}⚡ → {GameConstants.EGG_LAY_ENERGY_COST - nextTierData.eggCostReduction}⚡)<br/>
-                    • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy<br/>
+                    • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
                     • +5 Energy Regen/Turn<br/>
                     • +{nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} Food Income/Turn ({QueenTiers[currentTier].foodIncome}🍃 → {nextTierData.foodIncome}🍃)
                   </div>

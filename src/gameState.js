@@ -1096,10 +1096,9 @@ export function deductEnergy(queen, cost) {
   };
 }
 
-// Get egg laying cost for a queen based on tier
-export function getEggLayCost(queen) {
-  const queenTier = QueenTiers[queen.queenTier || 'queen'];
-  return Math.max(0, GameConstants.EGG_LAY_ENERGY_COST - queenTier.eggCostReduction);
+// Get egg laying cost for a queen
+export function getEggLayCost() {
+  return GameConstants.EGG_LAY_ENERGY_COST;
 }
 
 // Heal an ant with queen's heal ability
