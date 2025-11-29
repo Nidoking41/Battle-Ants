@@ -3654,22 +3654,47 @@ function App() {
 
                 if (hexEquals(targetHex, hex)) {
                   console.log('[PHEROMONE RENDER] SHOWING effect at hex:', hex, 'step:', anim.currentStep);
+                  // Calculate which frame to show (0-7), cycling based on time
+                  const frameIndex = Math.floor(Date.now() / 100) % 8; // Change frame every 100ms
+                  const frameOffsetX = frameIndex * 32; // Each frame is 32px wide
+
                   return (
-                    <image
-                      x={-32}
-                      y={-32}
-                      width={64}
-                      height={64}
-                      href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/pheromone_effect.png`}
-                      style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-                      opacity={0.8}
-                      onError={(e) => {
-                        console.error('Failed to load pheromone effect sprite');
-                      }}
-                      onLoad={(e) => {
-                        console.log('[PHEROMONE RENDER] Successfully loaded sprite');
-                      }}
-                    />
+                    <g transform="translate(-32, -32) scale(2)">
+                      <defs>
+                        <pattern
+                          id={`pheromone-pattern-${anim.id}`}
+                          x={-frameOffsetX}
+                          y={0}
+                          width={256}
+                          height={32}
+                          patternUnits="userSpaceOnUse"
+                        >
+                          <image
+                            x={0}
+                            y={0}
+                            width={256}
+                            height={32}
+                            href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/pheromone_effect.png`}
+                            style={{ imageRendering: 'pixelated' }}
+                            onError={(e) => {
+                              console.error('Failed to load pheromone effect sprite');
+                            }}
+                            onLoad={(e) => {
+                              console.log('[PHEROMONE RENDER] Successfully loaded sprite');
+                            }}
+                          />
+                        </pattern>
+                      </defs>
+                      <rect
+                        x={0}
+                        y={0}
+                        width={32}
+                        height={32}
+                        fill={`url(#pheromone-pattern-${anim.id})`}
+                        opacity={0.8}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    </g>
                   );
                 }
               }
