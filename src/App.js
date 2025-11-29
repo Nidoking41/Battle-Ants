@@ -5963,7 +5963,7 @@ function App() {
                         position: 'relative'
                       }}>
                         <img
-                          src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id)}`}
+                          src={`${process.env.PUBLIC_URL}/${getAntSpritePath(ant.id, gameState.players[gameState.currentPlayer]?.color)}`}
                           alt={ant.name}
                           style={{
                             height: '32px',
