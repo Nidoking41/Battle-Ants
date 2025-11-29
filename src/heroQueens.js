@@ -23,11 +23,11 @@ export const HeroQueens = {
   SORLORG: {
     id: 'sorlorg',
     name: 'Sorlorg the Precise',
-    description: 'Ranged units gain +10% attack, melee units do 10% less',
+    description: 'Ranged units gain +20% attack, melee units do 10% less',
     icon: '🎯',
     portraitImage: 'hero_green.png',
     bonuses: {
-      rangedAttackBonus: 0.10,  // +10% attack for ranged
+      rangedAttackBonus: 0.20,  // +20% attack for ranged
       meleeAttackPenalty: -0.10  // -10% attack for melee
     },
     heroAbility: {
