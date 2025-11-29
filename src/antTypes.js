@@ -312,8 +312,8 @@ export const Upgrades = {
   },
   REVEAL: {
     id: 'reveal',
-    name: 'Reveal',
-    description: 'Unlocks Reveal ability for Queens (30⚡). Reveals any hex and its 6 adjacent hexes. Detects burrowed units for 1 turn.',
+    name: 'Pheromone Pulse',
+    description: 'Unlocks Pheromone Pulse ability for Queens (30⚡). Reveals any hex and its 6 adjacent hexes. Detects burrowed units for 1 turn.',
     icon: '👁️',
     maxTier: 1,
     costs: [
