@@ -55,6 +55,7 @@ function App() {
   const [showHeroInfo, setShowHeroInfo] = useState(false); // Show hero info modal
   const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
   const [showTurnPopup, setShowTurnPopup] = useState(false); // Show "Your Turn!" popup
+  const [pheromoneAnimations, setPheromoneAnimations] = useState([]); // Array of {id, centerHex, currentStep, timestamp} for pheromone pulse animations
 
   // Window size for responsive SVG
   const [windowSize, setWindowSize] = useState({
@@ -149,6 +150,26 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle pheromone pulse animation cycling
+  useEffect(() => {
+    if (pheromoneAnimations.length === 0) return;
+
+    const interval = setInterval(() => {
+      setPheromoneAnimations(prev => {
+        return prev.map(anim => {
+          const newStep = anim.currentStep + 1;
+          // 18 steps total (3 cycles × 6 hexes)
+          if (newStep >= 18) {
+            return null; // Mark for removal
+          }
+          return { ...anim, currentStep: newStep };
+        }).filter(anim => anim !== null);
+      });
+    }, 200); // 200ms per hex
+
+    return () => clearInterval(interval);
+  }, [pheromoneAnimations]);
+
   // Camera/view state for pan and zoom
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 }); // Camera position offset
   const [zoomLevel, setZoomLevel] = useState(1.0); // Zoom level (0.5 to 2.0)
@@ -165,6 +186,23 @@ function App() {
   const hexEquals = (pos1, pos2) => {
     if (!pos1 || !pos2) return false;
     return pos1.q === pos2.q && pos1.r === pos2.r;
+  };
+
+  // Get 6 neighboring hexes in clockwise order starting from top-right (1 o'clock position)
+  const getClockwiseNeighbors = (centerHex) => {
+    // Clockwise from top-right (1 o'clock)
+    const directions = [
+      { q: 1, r: -1 },  // Top-right (1 o'clock)
+      { q: 1, r: 0 },   // Right (3 o'clock)
+      { q: 0, r: 1 },   // Bottom-right (5 o'clock)
+      { q: -1, r: 1 },  // Bottom-left (7 o'clock)
+      { q: -1, r: 0 },  // Left (9 o'clock)
+      { q: 0, r: -1 }   // Top-left (11 o'clock)
+    ];
+
+    return directions.map(dir =>
+      new HexCoord(centerHex.q + dir.q, centerHex.r + dir.r)
+    );
   };
 
   // Get 3 hexes in a triangle for bombardier splash attack based on rotation (0-5)
@@ -2571,6 +2609,16 @@ function App() {
         showFeedback('Cannot use Reveal! Check energy and upgrade requirements.');
         return;
       }
+
+      // Start pheromone pulse animation
+      const animId = `pheromone_${Date.now()}_${Math.random()}`;
+      setPheromoneAnimations(prev => [...prev, {
+        id: animId,
+        centerHex: hex,
+        currentStep: 0,
+        timestamp: Date.now()
+      }]);
+
       updateGame(newState);
       setSelectedAction(null);
       setSelectedAnt(null);
@@ -3568,6 +3616,33 @@ function App() {
                     }}
                   />
                 );
+              }
+              return null;
+            })()}
+            {/* Pheromone Pulse effect rendering */}
+            {(() => {
+              // Check if this hex should show the pheromone pulse effect
+              for (const anim of pheromoneAnimations) {
+                const neighbors = getClockwiseNeighbors(anim.centerHex);
+                const currentHexIndex = anim.currentStep % 6; // Which of the 6 hexes to show (cycles 0-5)
+                const targetHex = neighbors[currentHexIndex];
+
+                if (hexEquals(targetHex, hex)) {
+                  return (
+                    <image
+                      x={-32}
+                      y={-32}
+                      width={64}
+                      height={64}
+                      href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/pheromone_effect.png`}
+                      style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                      opacity={0.8}
+                      onError={(e) => {
+                        console.error('Failed to load pheromone effect sprite');
+                      }}
+                    />
+                  );
+                }
               }
               return null;
             })()}
