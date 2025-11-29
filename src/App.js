@@ -1174,6 +1174,11 @@ function App() {
 
         // Wait a tiny bit to ensure game state is updated before showing popup
         await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('AI turn execution failed:', error);
+        console.error('Error stack:', error.stack);
+        // Don't retry - just end the AI's turn and let player continue
+        showFeedback('AI encountered an error. Ending AI turn.');
       } finally {
         // Only set isAIThinking to false AFTER all animations are complete
         setIsAIThinking(false);
