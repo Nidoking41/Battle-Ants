@@ -1674,7 +1674,7 @@ function App() {
 
     // Check if can attack enemies
     const hasEnemiesInRange = state.ants ? Object.values(state.ants).some(enemyAnt => {
-      if (enemyAnt.owner !== ant.owner) {
+      if (enemyAnt.owner !== ant.owner && enemyAnt.position && ant.position) {
         const distance = Math.max(
           Math.abs(ant.position.q - enemyAnt.position.q),
           Math.abs(ant.position.r - enemyAnt.position.r),
@@ -3099,7 +3099,7 @@ function App() {
       if (antType.canBuildAnthill) {
         // Check if there are any enemies in attack range (can still attack after building)
         const enemiesInRange = Object.values(currentState.ants).filter(otherAnt => {
-          if (otherAnt.owner === ant.owner) return false;
+          if (otherAnt.owner === ant.owner || !otherAnt.position || !ant.position) return false;
           const distance = Math.max(
             Math.abs(ant.position.q - otherAnt.position.q),
             Math.abs(ant.position.r - otherAnt.position.r),
@@ -3114,7 +3114,7 @@ function App() {
 
       // Check if there are any enemies in attack range
       const enemiesInRange = Object.values(currentState.ants).filter(otherAnt => {
-        if (otherAnt.owner === ant.owner) return false;
+        if (otherAnt.owner === ant.owner || !otherAnt.position || !ant.position) return false;
         const distance = Math.max(
           Math.abs(ant.position.q - otherAnt.position.q),
           Math.abs(ant.position.r - otherAnt.position.r),
