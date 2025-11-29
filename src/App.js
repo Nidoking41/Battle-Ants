@@ -2612,12 +2612,17 @@ function App() {
 
       // Start pheromone pulse animation
       const animId = `pheromone_${Date.now()}_${Math.random()}`;
-      setPheromoneAnimations(prev => [...prev, {
-        id: animId,
-        centerHex: hex,
-        currentStep: 0,
-        timestamp: Date.now()
-      }]);
+      console.log('[PHEROMONE] Starting animation:', { animId, centerHex: hex, timestamp: Date.now() });
+      setPheromoneAnimations(prev => {
+        const newAnims = [...prev, {
+          id: animId,
+          centerHex: hex,
+          currentStep: 0,
+          timestamp: Date.now()
+        }];
+        console.log('[PHEROMONE] Updated animations array:', newAnims);
+        return newAnims;
+      });
 
       updateGame(newState);
       setSelectedAction(null);
@@ -3622,12 +3627,16 @@ function App() {
             {/* Pheromone Pulse effect rendering */}
             {(() => {
               // Check if this hex should show the pheromone pulse effect
+              if (pheromoneAnimations.length > 0) {
+                console.log('[PHEROMONE RENDER] Checking hex:', hex, 'against animations:', pheromoneAnimations);
+              }
               for (const anim of pheromoneAnimations) {
                 const neighbors = getClockwiseNeighbors(anim.centerHex);
                 const currentHexIndex = anim.currentStep % 6; // Which of the 6 hexes to show (cycles 0-5)
                 const targetHex = neighbors[currentHexIndex];
 
                 if (hexEquals(targetHex, hex)) {
+                  console.log('[PHEROMONE RENDER] SHOWING effect at hex:', hex, 'step:', anim.currentStep);
                   return (
                     <image
                       x={-32}
@@ -3639,6 +3648,9 @@ function App() {
                       opacity={0.8}
                       onError={(e) => {
                         console.error('Failed to load pheromone effect sprite');
+                      }}
+                      onLoad={(e) => {
+                        console.log('[PHEROMONE RENDER] Successfully loaded sprite');
                       }}
                     />
                   );
