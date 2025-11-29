@@ -471,6 +471,9 @@ export function canAttack(attacker, defender, gameState) {
   if (!attacker || !defender) return false;
   if (attacker.owner === defender.owner) return false;
 
+  // Bombers cannot use normal attack - they can only detonate manually
+  if (attacker.type === 'bomber') return false;
+
   // Burrowed units cannot attack except soldiers/marauders
   if (attacker.isBurrowed && attacker.type !== 'soldier') return false;
 
