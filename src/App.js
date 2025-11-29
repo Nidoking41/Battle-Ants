@@ -3878,14 +3878,12 @@ function App() {
     const prefix = antTypeToPrefix[antId];
 
     if (folder && prefix) {
-      // If player color is provided, use colored sprite
-      if (playerColor && colorToSuffix[playerColor]) {
-        const colorSuffix = colorToSuffix[playerColor];
-        return `sprites/ants/${folder}/${prefix}_idle_${colorSuffix}.png`;
-      }
-      return `sprites/ants/${folder}/${prefix}_idle.png`;
+      // Get color suffix, default to 'red' if not provided or not found
+      const colorSuffix = colorToSuffix[playerColor] || 'red';
+      return `sprites/ants/${folder}/${prefix}_idle_${colorSuffix}.png`;
     }
-    return `sprites/ants/${antId}_idle.png`;
+    // Fallback with red color
+    return `sprites/ants/${antId}_idle_red.png`;
   };
 
   const renderAntsOverlay = () => {
