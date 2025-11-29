@@ -3901,10 +3901,10 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-40 - (effectAnimationFrame * 80)}
+                x={-40 - (effectAnimationFrame * 64)}
                 y={-40}
-                width={32 * 8 * 2.5}
-                height={32 * 2.5}
+                width={32 * 8 * 2}
+                height={32 * 2}
                 href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
                 clipPath={`url(#aura-clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}

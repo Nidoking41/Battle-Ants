@@ -74,7 +74,7 @@ export const AntTypes = {
     cost: { food: 15, minerals: 10 },
     hatchTime: 1,
     maxHealth: 25,
-    attack: 10,
+    attack: 8,
     defense: 0,
     attackRange: 2,
     moveSpeed: 2,
@@ -156,14 +156,15 @@ export const AntTypes = {
     requiresQueenTier: 'broodQueen', // Locked behind Brood Queen
     // Energy system for abilities
     maxEnergy: 50,
+    startingEnergy: 10,
     energyRegen: 10,
     // Abilities
     healRange: 1, // Melee range healing
     healAmount: 20,
-    healEnergyCost: 15,
+    healEnergyCost: 20,
     ensnareRange: 3,
     ensnareDuration: 3, // turns
-    ensnareEnergyCost: 20,
+    ensnareEnergyCost: 30,
     description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
     icon: '✨🐜'
   },
@@ -183,14 +184,15 @@ export const AntTypes = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
     maxEnergy: 50,
+    startingEnergy: 10,
     energyRegen: 10,
     // Abilities
     cordycepsRange: 2, // Range for mind control
-    cordycepsEnergyCost: 35, // Expensive ability
+    cordycepsEnergyCost: 50, // Expensive ability
     plagueRange: 3, // Range for plague
     plagueDuration: 3, // turns
     plagueHealthLoss: 0.20, // 20% health per turn
-    plagueEnergyCost: 25,
+    plagueEnergyCost: 35,
     description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
     icon: '☠️🐜'
   }
