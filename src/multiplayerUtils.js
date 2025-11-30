@@ -647,7 +647,7 @@ export function applyFogOfWar(gameState, playerId) {
         name: player.name,
         color: player.color,
         heroId: player.heroId,
-        resources: { food: 0, minerals: 0 } // Hide actual resource counts
+        resources: { food: '??', minerals: '??' } // Hide actual resource counts
       };
     }
   });
