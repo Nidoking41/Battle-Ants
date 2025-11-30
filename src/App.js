@@ -3175,13 +3175,16 @@ function App() {
         return [];
       }
 
-      // Get blocked hexes (enemy units and trees block movement)
+      // Get blocked hexes (enemy units block movement)
       const blockedHexes = [
         // Enemy units block movement
         ...Object.values(gameState.ants)
           .filter(a => a.owner !== ant.owner)
-          .map(a => new HexCoord(a.position.q, a.position.r)),
-        // Trees block movement
+          .map(a => new HexCoord(a.position.q, a.position.r))
+      ];
+
+      // Trees block movement (cannot end on them, but show in range for visual feedback)
+      const cannotEndHexes = [
         ...Object.values(gameState.trees || {})
           .map(t => new HexCoord(t.position.q, t.position.r))
       ];
@@ -3216,7 +3219,7 @@ function App() {
       }
 
       // Get movement range (paths are calculated in useEffect)
-      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes);
+      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes);
       return movesWithPaths.map(item => item.hex);
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       // Get spawning pool hexes based on queen tier
