@@ -151,6 +151,7 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
     const config = AI_CONFIG[difficulty];
     let state = { ...gameState };
     let movements = []; // Track all movements for animation
+    let combatActions = []; // Track all combat actions for animation
 
     console.log(`AI (${aiPlayer}, ${difficulty}) starting turn ${state.turn}`);
 
@@ -183,6 +184,7 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
     const unitActionResult = performUnitActions(state, aiPlayer, config, strategy);
     state = unitActionResult.state;
     movements = unitActionResult.movements;
+    combatActions = unitActionResult.combatActions || []; // Collect combat actions
 
     // Phase 3: Queen actions (lay eggs, heal) - now spawn spots are free
     state = performQueenActions(state, aiPlayer, config, strategy);
@@ -192,14 +194,14 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
       state = considerUpgrades(state, aiPlayer);
     }
 
-    console.log(`AI (${aiPlayer}) ending turn with ${movements.length} movements`);
+    console.log(`AI (${aiPlayer}) ending turn with ${movements.length} movements and ${combatActions.length} combat actions`);
 
-    return { gameState: state, movements };
+    return { gameState: state, movements, combatActions };
   } catch (error) {
     console.error('AI turn error:', error);
     console.error('Error stack:', error.stack);
     // Return the original game state if AI fails
-    return { gameState, movements: [] };
+    return { gameState, movements: [], combatActions: [] };
   }
 }
 
@@ -453,6 +455,7 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
 function performUnitActions(gameState, aiPlayer, config, strategy) {
   let state = { ...gameState };
   let movements = []; // Track movements for animation
+  let combatActions = []; // Track combat actions for animation
 
   // Get all AI units
   const aiUnits = Object.values(state.ants)
@@ -492,6 +495,7 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
     const result = handleCombatUnit(state, unit, aiPlayer, config, strategy);
     state = result.state;
     if (result.movement) movements.push(result.movement);
+    if (result.combatAction) combatActions.push(result.combatAction);
   }
 
   // Handle healers
@@ -503,7 +507,7 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
   }
 
   console.log('Unit actions complete');
-  return { state, movements };
+  return { state, movements, combatActions };
 }
 
 /**
@@ -640,17 +644,19 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
       }
 
       // Store combat action for animation (same as player attacks)
+      const combatAction = attackResult.attackAnimation ? {
+        ...attackResult.attackAnimation,
+        damageDealt: attackResult.damageDealt,
+        timestamp: Date.now()
+      } : null;
+
       state = {
         ...state,
         ants: updatedAnts,
-        lastCombatAction: attackResult.attackAnimation ? {
-          ...attackResult.attackAnimation,
-          damageDealt: attackResult.damageDealt,
-          timestamp: Date.now()
-        } : undefined
+        lastCombatAction: combatAction
       };
 
-      return { state, movement: null };
+      return { state, movement: null, combatAction };
     }
   }
 

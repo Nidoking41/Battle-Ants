@@ -1144,27 +1144,29 @@ function App() {
         // Small delay so player can see turn changed
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Execute AI turn (returns { gameState, movements })
-        const { gameState: aiState, movements } = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+        // Execute AI turn (returns { gameState, movements, combatActions })
+        const { gameState: aiState, movements, combatActions } = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
 
-        // Check if AI performed combat and show attack animation
-        if (aiState.lastCombatAction) {
-          const { attackerId, targetPosition, isRanged, damageDealt } = aiState.lastCombatAction;
-          const attacker = aiState.ants[attackerId];
+        // Animate all combat actions sequentially
+        if (combatActions && combatActions.length > 0) {
+          for (const combatAction of combatActions) {
+            const { attackerId, targetPosition, isRanged, damageDealt } = combatAction;
+            const attacker = aiState.ants[attackerId];
 
-          if (attacker) {
-            showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
-            if (damageDealt && damageDealt.length > 0) {
-              setTimeout(() => {
-                damageDealt.forEach(({ damage, position }) => {
-                  showDamageNumber(damage, position);
-                });
-              }, isRanged ? 300 : 200);
+            if (attacker) {
+              showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
+              if (damageDealt && damageDealt.length > 0) {
+                setTimeout(() => {
+                  damageDealt.forEach(({ damage, position }) => {
+                    showDamageNumber(damage, position);
+                  });
+                }, isRanged ? 300 : 200);
+              }
             }
-          }
 
-          // Wait for attack animation to complete
-          await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
+            // Wait for attack animation to complete before next attack
+            await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
+          }
         }
 
         // Animate movements sequentially with rhythm
