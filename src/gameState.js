@@ -235,7 +235,9 @@ export function createInitialGameState(options = {}) {
   ];
 
   // Generate trees avoiding occupied positions
-  initialState.trees = generateTrees(gridRadius, occupiedPositions);
+  // Large maps (gridRadius 10) get 4 trees per side, others get 3
+  const treesPerSide = gridRadius >= 10 ? 4 : 3;
+  initialState.trees = generateTrees(gridRadius, occupiedPositions, treesPerSide);
 
   // Apply hero bonuses to starting ants
   if (player1Hero || player2Hero) {
@@ -369,8 +371,9 @@ function generateResourceNodes(gridRadius = 6) {
   return resources;
 }
 
-// Generate tree positions (3 in north, 3 in south)
-function generateTrees(gridRadius = 6, existingOccupiedPositions = []) {
+// Generate tree positions with mirrored placement
+// treesPerSide: number of trees per side (3 for small/medium, 4 for large)
+function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerSide = 3) {
   const trees = {};
   const queenOffset = gridRadius - 1;
 
@@ -380,27 +383,7 @@ function generateTrees(gridRadius = 6, existingOccupiedPositions = []) {
   // Helper to check if position is occupied
   const isOccupied = (hex) => occupiedSet.has(`${hex.q},${hex.r}`);
 
-  // Define possible spawn positions for north side (r < 0)
-  const northPositions = [];
-
-  for (let q = -gridRadius; q <= gridRadius; q++) {
-    for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
-      const s = -q - r;
-      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
-        const hex = new HexCoord(q, r);
-
-        // Exclude positions too close to north queen at (0, -queenOffset)
-        const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(r - (-queenOffset)), Math.abs(s - queenOffset));
-
-        // Skip if occupied or too close to queen
-        if (!isOccupied(hex) && distToNorthQueen >= 2) {
-          northPositions.push(hex);
-        }
-      }
-    }
-  }
-
-  // Define possible spawn positions for south side (r > 0)
+  // Define possible spawn positions for south side (r > 0) - we'll mirror these to north
   const southPositions = [];
 
   for (let q = -gridRadius; q <= gridRadius; q++) {
@@ -414,40 +397,43 @@ function generateTrees(gridRadius = 6, existingOccupiedPositions = []) {
 
         // Skip if occupied or too close to queen
         if (!isOccupied(hex) && distToSouthQueen >= 2) {
-          southPositions.push(hex);
+          // Check if the mirrored position (for north) would also be valid
+          const mirroredHex = new HexCoord(q, -r); // Mirror across the q-axis
+          const distToNorthQueen = Math.max(Math.abs(q - 0), Math.abs(-r - (-queenOffset)), Math.abs(-s - queenOffset));
+
+          // Only include if both south and mirrored north positions are valid
+          if (!isOccupied(mirroredHex) && distToNorthQueen >= 2) {
+            southPositions.push(hex);
+          }
         }
       }
     }
   }
 
-  console.log('Valid tree positions - North:', northPositions.length, 'South:', southPositions.length);
+  console.log('Valid mirrored tree positions:', southPositions.length);
 
-  // Shuffle and select 3 from each side
-  const shuffledNorth = northPositions.sort(() => Math.random() - 0.5);
+  // Shuffle and select treesPerSide positions
   const shuffledSouth = southPositions.sort(() => Math.random() - 0.5);
-
-  const treesPerSide = 3;
-  const selectedNorth = shuffledNorth.slice(0, treesPerSide);
   const selectedSouth = shuffledSouth.slice(0, treesPerSide);
 
   let treeIndex = 0;
 
-  // Add north trees
-  selectedNorth.forEach(pos => {
+  // Add south trees and their mirrored north counterparts
+  selectedSouth.forEach(southPos => {
+    // Add south tree
     trees[`tree_${treeIndex}`] = {
       id: `tree_${treeIndex}`,
-      position: pos,
-      side: 'north'
+      position: southPos,
+      side: 'south'
     };
     treeIndex++;
-  });
 
-  // Add south trees
-  selectedSouth.forEach(pos => {
+    // Add mirrored north tree
+    const northPos = new HexCoord(southPos.q, -southPos.r);
     trees[`tree_${treeIndex}`] = {
       id: `tree_${treeIndex}`,
-      position: pos,
-      side: 'south'
+      position: northPos,
+      side: 'north'
     };
     treeIndex++;
   });
