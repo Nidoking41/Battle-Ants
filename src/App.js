@@ -3220,7 +3220,17 @@ function App() {
 
       // Get movement range (paths are calculated in useEffect)
       const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes);
-      return movesWithPaths.map(item => item.hex);
+      const validMoveHexes = movesWithPaths.map(item => item.hex);
+
+      // Also include tree hexes within range for visual feedback (they show blue but can't be clicked)
+      const treeHexesInRange = cannotEndHexes.filter(treeHex => {
+        // Check if the tree hex is within the movement range by seeing if any valid move is adjacent
+        // or if we can path through it to reach other hexes
+        const distance = hexDistance(ant.position, treeHex);
+        return distance <= range;
+      });
+
+      return [...validMoveHexes, ...treeHexesInRange];
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
