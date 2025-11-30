@@ -634,13 +634,32 @@ export function applyFogOfWar(gameState, playerId) {
     });
   }
 
+  // Filter players - hide opponent's resources
+  // Only include the current player's full data
+  const filteredPlayers = {};
+  Object.entries(gameState.players || {}).forEach(([id, player]) => {
+    if (id === playerId) {
+      // Show full data for current player
+      filteredPlayers[id] = player;
+    } else {
+      // For opponent, only show name and color (hide resources)
+      filteredPlayers[id] = {
+        name: player.name,
+        color: player.color,
+        heroId: player.heroId,
+        resources: { food: 0, minerals: 0 } // Hide actual resource counts
+      };
+    }
+  });
+
   return {
     ...gameState,
     ants: filteredAnts,
     eggs: filteredEggs,
     resources: filteredResources,
     anthills: filteredAnthills,
-    deadAnts: filteredDeadAnts
+    deadAnts: filteredDeadAnts,
+    players: filteredPlayers
   };
 }
 
