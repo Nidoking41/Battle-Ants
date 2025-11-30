@@ -3623,10 +3623,10 @@ function App() {
             {/* Tree rendering - always visible, below ants */}
             {tree && (
               <image
-                x={-16}
-                y={-16}
-                width={32}
-                height={32}
+                x={-32}
+                y={-32}
+                width={64}
+                height={64}
                 href={`${process.env.PUBLIC_URL}/sprites/ants/Misc/tree_sprite.png`}
                 style={{ pointerEvents: 'none' }}
                 onError={(e) => {
