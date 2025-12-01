@@ -165,21 +165,36 @@ export function generateTriangleGrid(sideLength) {
 export function generateSquareGrid(width, height) {
   const hexes = [];
 
-  // Use a simple diamond/rhombus grid centered at origin
-  // This works well with axial coordinates and hexToPixel rendering
+  // Use odd-q offset coordinates to create a proper rectangle
+  // Then convert to axial coordinates for game logic
+  // This creates a grid that looks rectangular when rendered
   const halfWidth = Math.floor(width / 2);
   const halfHeight = Math.floor(height / 2);
 
-  // Generate a grid where q ranges from -halfWidth to halfWidth
-  // and r ranges from -halfHeight to halfHeight
-  // But constrain to keep it roughly rectangular
-  for (let q = -halfWidth; q <= halfWidth; q++) {
-    for (let r = -halfHeight; r <= halfHeight; r++) {
+  for (let col = -halfWidth; col <= halfWidth; col++) {
+    for (let row = -halfHeight; row <= halfHeight; row++) {
+      // Convert odd-q offset to axial coordinates
+      // For odd-q: q = col, r = row - floor((col - (col & 1)) / 2)
+      const q = col;
+      const r = row - Math.floor((col - (col & 1)) / 2);
       hexes.push(new HexCoord(q, r));
     }
   }
 
   return hexes;
+}
+
+// Check if a hex is within the rectangular grid bounds (for 4-player maps)
+export function isValidSquareHex(hex, width, height) {
+  const halfWidth = Math.floor(width / 2);
+  const halfHeight = Math.floor(height / 2);
+
+  // Convert axial back to odd-q offset to check bounds
+  const col = hex.q;
+  const row = hex.r + Math.floor((hex.q - (hex.q & 1)) / 2);
+
+  return col >= -halfWidth && col <= halfWidth &&
+         row >= -halfHeight && row <= halfHeight;
 }
 
 // Rotate hex coordinates by 120 degrees clockwise around origin
@@ -207,16 +222,32 @@ export function getPlayerStartingPositions(mapShape, sideLength) {
       new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
     ];
   } else if (mapShape === 'square') {
-    // 4 players at cardinal directions of the grid
-    // For rectangular grid: width=sideLength, height=sideLength*0.75
-    const halfWidth = Math.floor(sideLength / 2);
-    const halfHeight = Math.floor(sideLength * 0.75 / 2);
-    // Players at north, east, south, west edges (simple axial coords)
+    // 4 players at cardinal directions of the rectangular grid
+    // width=sideLength, height=sideLength*0.75
+    const width = sideLength;
+    const height = Math.floor(sideLength * 0.75);
+    const halfWidth = Math.floor(width / 2);
+    const halfHeight = Math.floor(height / 2);
+
+    // Convert offset positions to axial coordinates
+    // Player positions in offset coords: top center, right center, bottom center, left center
+    // Top: col=0, row=-halfHeight
+    // Right: col=halfWidth, row=0
+    // Bottom: col=0, row=halfHeight
+    // Left: col=-halfWidth, row=0
+
+    // Convert each offset position to axial
+    const offsetToAxial = (col, row) => {
+      const q = col;
+      const r = row - Math.floor((col - (col & 1)) / 2);
+      return new HexCoord(q, r);
+    };
+
     return [
-      new HexCoord(0, -halfHeight),    // Player 1: Top (north)
-      new HexCoord(halfWidth, 0),      // Player 2: Right (east)
-      new HexCoord(0, halfHeight),     // Player 3: Bottom (south)
-      new HexCoord(-halfWidth, 0)      // Player 4: Left (west)
+      offsetToAxial(0, -halfHeight + 1),     // Player 1: Top (north) - 1 hex from edge
+      offsetToAxial(halfWidth - 1, 0),       // Player 2: Right (east) - 1 hex from edge
+      offsetToAxial(0, halfHeight - 1),      // Player 3: Bottom (south) - 1 hex from edge
+      offsetToAxial(-halfWidth + 1, 0)       // Player 4: Left (west) - 1 hex from edge
     ];
   } else {
     // Rectangle (2-player)

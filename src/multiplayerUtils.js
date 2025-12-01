@@ -14,7 +14,10 @@ export function serializeGameState(gameState) {
     ...gameState,
     ants: {},
     eggs: {},
-    resources: {}
+    resources: {},
+    anthills: {},
+    trees: {},
+    deadAnts: {}
   };
 
   // Serialize ants
@@ -47,6 +50,36 @@ export function serializeGameState(gameState) {
     });
   }
 
+  // Serialize anthills
+  if (gameState.anthills) {
+    Object.entries(gameState.anthills).forEach(([id, anthill]) => {
+      serialized.anthills[id] = {
+        ...anthill,
+        position: { q: anthill.position.q, r: anthill.position.r }
+      };
+    });
+  }
+
+  // Serialize trees
+  if (gameState.trees) {
+    Object.entries(gameState.trees).forEach(([id, tree]) => {
+      serialized.trees[id] = {
+        ...tree,
+        position: { q: tree.position.q, r: tree.position.r }
+      };
+    });
+  }
+
+  // Serialize dead ants
+  if (gameState.deadAnts) {
+    Object.entries(gameState.deadAnts).forEach(([id, deadAnt]) => {
+      serialized.deadAnts[id] = {
+        ...deadAnt,
+        position: { q: deadAnt.position.q, r: deadAnt.position.r }
+      };
+    });
+  }
+
   return serialized;
 }
 
@@ -56,7 +89,10 @@ export function deserializeGameState(serialized) {
     ...serialized,
     ants: {},
     eggs: {},
-    resources: {}
+    resources: {},
+    anthills: {},
+    trees: {},
+    deadAnts: {}
   };
 
   // Deserialize ants
@@ -85,6 +121,36 @@ export function deserializeGameState(serialized) {
       gameState.resources[id] = {
         ...resource,
         position: new HexCoord(resource.position.q, resource.position.r)
+      };
+    });
+  }
+
+  // Deserialize anthills
+  if (serialized.anthills) {
+    Object.entries(serialized.anthills).forEach(([id, anthill]) => {
+      gameState.anthills[id] = {
+        ...anthill,
+        position: new HexCoord(anthill.position.q, anthill.position.r)
+      };
+    });
+  }
+
+  // Deserialize trees
+  if (serialized.trees) {
+    Object.entries(serialized.trees).forEach(([id, tree]) => {
+      gameState.trees[id] = {
+        ...tree,
+        position: new HexCoord(tree.position.q, tree.position.r)
+      };
+    });
+  }
+
+  // Deserialize dead ants
+  if (serialized.deadAnts) {
+    Object.entries(serialized.deadAnts).forEach(([id, deadAnt]) => {
+      gameState.deadAnts[id] = {
+        ...deadAnt,
+        position: new HexCoord(deadAnt.position.q, deadAnt.position.r)
       };
     });
   }
