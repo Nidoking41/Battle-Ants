@@ -165,19 +165,16 @@ export function generateTriangleGrid(sideLength) {
 export function generateSquareGrid(width, height) {
   const hexes = [];
 
-  // For a rectangular hex grid, we use offset coordinates converted to axial
-  // This creates an actual rectangle shape when rendered
+  // Use a simple diamond/rhombus grid centered at origin
+  // This works well with axial coordinates and hexToPixel rendering
   const halfWidth = Math.floor(width / 2);
   const halfHeight = Math.floor(height / 2);
 
-  for (let row = -halfHeight; row <= halfHeight; row++) {
-    // Offset for odd rows (pointy-top hexes stagger right on odd rows)
-    const rowOffset = Math.floor(row / 2);
-
-    for (let col = -halfWidth; col <= halfWidth; col++) {
-      // Convert offset coordinates to axial (q, r)
-      const q = col - rowOffset;
-      const r = row;
+  // Generate a grid where q ranges from -halfWidth to halfWidth
+  // and r ranges from -halfHeight to halfHeight
+  // But constrain to keep it roughly rectangular
+  for (let q = -halfWidth; q <= halfWidth; q++) {
+    for (let r = -halfHeight; r <= halfHeight; r++) {
       hexes.push(new HexCoord(q, r));
     }
   }
@@ -210,19 +207,16 @@ export function getPlayerStartingPositions(mapShape, sideLength) {
       new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
     ];
   } else if (mapShape === 'square') {
-    // 4 players at cardinal edges of the rectangle
+    // 4 players at cardinal directions of the grid
     // For rectangular grid: width=sideLength, height=sideLength*0.75
     const halfWidth = Math.floor(sideLength / 2);
     const halfHeight = Math.floor(sideLength * 0.75 / 2);
-    // Players at north, east, south, west edges
-    // Account for hex offset: top row has offset of floor(-halfHeight/2)
-    const topOffset = Math.floor(-halfHeight / 2);
-    const bottomOffset = Math.floor(halfHeight / 2);
+    // Players at north, east, south, west edges (simple axial coords)
     return [
-      new HexCoord(0 - topOffset, -halfHeight),    // Player 1: Top (north)
-      new HexCoord(halfWidth, 0),                   // Player 2: Right (east)
-      new HexCoord(0 - bottomOffset, halfHeight),  // Player 3: Bottom (south)
-      new HexCoord(-halfWidth, 0)                   // Player 4: Left (west)
+      new HexCoord(0, -halfHeight),    // Player 1: Top (north)
+      new HexCoord(halfWidth, 0),      // Player 2: Right (east)
+      new HexCoord(0, halfHeight),     // Player 3: Bottom (south)
+      new HexCoord(-halfWidth, 0)      // Player 4: Left (west)
     ];
   } else {
     // Rectangle (2-player)
