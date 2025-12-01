@@ -158,22 +158,26 @@ export function generateTriangleGrid(sideLength) {
   return hexes;
 }
 
-// Generate square/diamond grid (4-player map)
-// width: number of hexes wide (e.g., 12)
-// height: number of hexes tall (e.g., 8)
-// Returns: array of HexCoord objects forming a square/diamond
+// Generate rectangular grid (4-player map)
+// width: number of hexes wide (e.g., 16)
+// height: number of hexes tall (e.g., 12)
+// Returns: array of HexCoord objects forming a rectangle
 export function generateSquareGrid(width, height) {
   const hexes = [];
 
-  // Create a diamond shape that appears as a square when rendered
+  // For a rectangular hex grid, we use offset coordinates converted to axial
+  // This creates an actual rectangle shape when rendered
   const halfWidth = Math.floor(width / 2);
   const halfHeight = Math.floor(height / 2);
 
-  for (let q = -halfWidth; q <= halfWidth; q++) {
-    const r1 = Math.max(-halfHeight, -q - halfHeight);
-    const r2 = Math.min(halfHeight, -q + halfHeight);
+  for (let row = -halfHeight; row <= halfHeight; row++) {
+    // Offset for odd rows (pointy-top hexes stagger right on odd rows)
+    const rowOffset = Math.floor(row / 2);
 
-    for (let r = r1; r <= r2; r++) {
+    for (let col = -halfWidth; col <= halfWidth; col++) {
+      // Convert offset coordinates to axial (q, r)
+      const q = col - rowOffset;
+      const r = row;
       hexes.push(new HexCoord(q, r));
     }
   }
@@ -206,15 +210,19 @@ export function getPlayerStartingPositions(mapShape, sideLength) {
       new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
     ];
   } else if (mapShape === 'square') {
-    // 4 players at cardinal directions
-    // For square grid: width=sideLength, height=sideLength*0.75
+    // 4 players at cardinal edges of the rectangle
+    // For rectangular grid: width=sideLength, height=sideLength*0.75
     const halfWidth = Math.floor(sideLength / 2);
     const halfHeight = Math.floor(sideLength * 0.75 / 2);
+    // Players at north, east, south, west edges
+    // Account for hex offset: top row has offset of floor(-halfHeight/2)
+    const topOffset = Math.floor(-halfHeight / 2);
+    const bottomOffset = Math.floor(halfHeight / 2);
     return [
-      new HexCoord(0, -halfHeight),           // Player 1: Top (north)
-      new HexCoord(halfWidth, 0),             // Player 2: Right (east)
-      new HexCoord(0, halfHeight),            // Player 3: Bottom (south)
-      new HexCoord(-halfWidth, 0)             // Player 4: Left (west)
+      new HexCoord(0 - topOffset, -halfHeight),    // Player 1: Top (north)
+      new HexCoord(halfWidth, 0),                   // Player 2: Right (east)
+      new HexCoord(0 - bottomOffset, halfHeight),  // Player 3: Bottom (south)
+      new HexCoord(-halfWidth, 0)                   // Player 4: Left (west)
     ];
   } else {
     // Rectangle (2-player)
