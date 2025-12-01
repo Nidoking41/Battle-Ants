@@ -228,22 +228,22 @@ export const Teams = {
 export const QueenTiers = {
   queen: {
     name: 'Queen',
-    spawningSpots: 3,
-    maxEnergy: 5,
+    spawningSpots: 2,
+    maxEnergy: 50,
     foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
-    spawningSpots: 5,
-    maxEnergy: 7,
+    spawningSpots: 4,
+    maxEnergy: 75,
     foodIncome: 6,
-    cost: { food: 50, minerals: 25 }
+    cost: { food: 25, minerals: 15 }
   },
   swarmQueen: {
     name: 'Swarm Queen',
-    spawningSpots: 7,
-    maxEnergy: 10,
+    spawningSpots: 6,
+    maxEnergy: 100,
     foodIncome: 7,
-    cost: { food: 100, minerals: 50 }
+    cost: { food: 30, minerals: 20 }
   }
 };
