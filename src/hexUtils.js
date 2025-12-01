@@ -207,9 +207,9 @@ export function getPlayerStartingPositions(mapShape, sideLength) {
     ];
   } else if (mapShape === 'square') {
     // 4 players at cardinal directions
-    // For square grid: width=sideLength, height=sideLength*0.67
+    // For square grid: width=sideLength, height=sideLength*0.75
     const halfWidth = Math.floor(sideLength / 2);
-    const halfHeight = Math.floor(sideLength * 0.67 / 2);
+    const halfHeight = Math.floor(sideLength * 0.75 / 2);
     return [
       new HexCoord(0, -halfHeight),           // Player 1: Top (north)
       new HexCoord(halfWidth, 0),             // Player 2: Right (east)

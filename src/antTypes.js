@@ -168,7 +168,7 @@ export const GameConstants = {
   CANNIBALISM_MINERAL_GAIN: 2,
   // Map sizes for multiplayer
   TRIANGLE_SIDE_LENGTH: 15, // 3-player triangle map (15 hexes per side)
-  SQUARE_SIZE: 12 // 4-player square map (12x8 hexes)
+  SQUARE_SIZE: 16 // 4-player square map (16x12 hexes, ~149 hexes)
 };
 
 export const Upgrades = {

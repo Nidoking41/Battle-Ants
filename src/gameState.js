@@ -473,7 +473,7 @@ function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
   if (mapShape === MapShape.TRIANGLE) {
     allHexes = generateTriangleGrid(sideLength);
   } else if (mapShape === MapShape.SQUARE) {
-    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.67)); // 12x8 ratio
+    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75)); // 16x12 ratio
   }
 
   // Filter out hexes too close to starting positions
@@ -547,7 +547,7 @@ function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPos
   if (mapShape === MapShape.TRIANGLE) {
     allHexes = generateTriangleGrid(sideLength);
   } else if (mapShape === MapShape.SQUARE) {
-    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.67));
+    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
   }
 
   // Filter out occupied positions and positions near starting positions

@@ -3604,7 +3604,7 @@ function App() {
     if (mapShape === 'triangle') {
       mapHexes = generateTriangleGrid(sideLength);
     } else if (mapShape === 'square') {
-      mapHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.67));
+      mapHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
     } else {
       // Rectangle (2-player) - generate hexes the old way
       for (let q = -gridRadius; q <= gridRadius; q++) {
