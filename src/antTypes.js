@@ -149,7 +149,7 @@ export const GameConstants = {
   HEX_GRID_SIZE: 10, // 10x10 hex grid
   RESOURCE_SPAWN_COUNT: 6, // number of resource nodes on map
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
-  ANTHILL_BUILD_COST: 15, // Food cost to start building an anthill
+  ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
   ANTHILL_PASSIVE_INCOME: {
     food: 8,  // Per turn for food anthills
     minerals: 6 // Per turn for mineral anthills
@@ -230,20 +230,20 @@ export const QueenTiers = {
     name: 'Queen',
     spawningSpots: 3,
     maxEnergy: 5,
-    foodIncome: 0
+    foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
     spawningSpots: 5,
     maxEnergy: 7,
-    foodIncome: 2,
+    foodIncome: 6,
     cost: { food: 50, minerals: 25 }
   },
   swarmQueen: {
     name: 'Swarm Queen',
     spawningSpots: 7,
     maxEnergy: 10,
-    foodIncome: 5,
+    foodIncome: 7,
     cost: { food: 100, minerals: 50 }
   }
 };
