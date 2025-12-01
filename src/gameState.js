@@ -844,11 +844,11 @@ export function endTurn(gameState) {
   let updatedResources = { ...gameState.resources };
   const depletedAnthills = []; // Track anthills that got depleted this turn
 
-  // Track stats for this turn
-  const updatedStats = {
-    player1: { ...gameState.stats.player1 },
-    player2: { ...gameState.stats.player2 }
-  };
+  // Track stats for this turn - dynamically include all players
+  const updatedStats = {};
+  Object.keys(gameState.players).forEach(playerId => {
+    updatedStats[playerId] = { ...gameState.stats[playerId] };
+  });
 
   // Track hatched ants stats
   Object.values(gameState.eggs).forEach(egg => {
@@ -1067,15 +1067,14 @@ export function endTurn(gameState) {
     selectedAction: null
   };
 
-  // Track army strength history at the end of each complete round
+  // Track army strength history at the end of each complete round - for all players
   if (isNewRound) {
-    const player1Strength = calculateArmyStrength(finalGameState, 'player1');
-    const player2Strength = calculateArmyStrength(finalGameState, 'player2');
-
-    finalGameState.armyStrengthHistory = {
-      player1: [...(finalGameState.armyStrengthHistory?.player1 || []), player1Strength],
-      player2: [...(finalGameState.armyStrengthHistory?.player2 || []), player2Strength]
-    };
+    const newArmyStrengthHistory = {};
+    Object.keys(gameState.players).forEach(playerId => {
+      const strength = calculateArmyStrength(finalGameState, playerId);
+      newArmyStrengthHistory[playerId] = [...(finalGameState.armyStrengthHistory?.[playerId] || []), strength];
+    });
+    finalGameState.armyStrengthHistory = newArmyStrengthHistory;
   }
 
   return {
