@@ -3601,8 +3601,6 @@ function App() {
     const sideLength = mapShape === 'triangle' ? GameConstants.TRIANGLE_SIDE_LENGTH :
                        mapShape === 'square' ? GameConstants.SQUARE_SIZE : gridRadius;
 
-    console.log('renderHexGrid mapShape:', mapShape, 'sideLength:', sideLength, 'gameState.mapShape:', gameState.mapShape);
-
     if (mapShape === 'triangle') {
       mapHexes = generateTriangleGrid(sideLength);
     } else if (mapShape === 'square') {

@@ -232,18 +232,18 @@ export const QueenTiers = {
     maxEnergy: 5,
     foodIncome: 0
   },
-  matriarch: {
-    name: 'Matriarch',
+  broodQueen: {
+    name: 'Brood Queen',
     spawningSpots: 5,
     maxEnergy: 7,
     foodIncome: 2,
-    upgradeCost: { food: 50, minerals: 25 }
+    cost: { food: 50, minerals: 25 }
   },
-  empress: {
-    name: 'Empress',
+  swarmQueen: {
+    name: 'Swarm Queen',
     spawningSpots: 7,
     maxEnergy: 10,
     foodIncome: 5,
-    upgradeCost: { food: 100, minerals: 50 }
+    cost: { food: 100, minerals: 50 }
   }
 };
