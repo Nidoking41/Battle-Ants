@@ -12,6 +12,75 @@ export function createDeadAnt(ant) {
   };
 }
 
+// Helper function to check if two players are on the same team
+function areTeammates(gameState, playerId1, playerId2) {
+  if (playerId1 === playerId2) return true;
+
+  const player1 = gameState.players[playerId1];
+  const player2 = gameState.players[playerId2];
+
+  // If either player has no team (null/undefined), they are not teammates
+  if (!player1?.team || !player2?.team) return false;
+
+  // Check if they're on the same team
+  return player1.team === player2.team;
+}
+
+// Check win conditions after a queen dies
+// Returns { gameOver: boolean, winner: string|null, winningTeam: string|null }
+export function checkWinCondition(gameState, killerPlayerId, deadQueenOwner) {
+  const playerCount = gameState.playerCount || 2;
+
+  // Get all living queens
+  const livingQueens = Object.values(gameState.ants).filter(
+    ant => ant.type === 'queen' && !ant.isDead && ant.owner !== deadQueenOwner
+  );
+
+  // For 2-player games, simple: killer wins
+  if (playerCount === 2) {
+    return { gameOver: true, winner: killerPlayerId, winningTeam: null };
+  }
+
+  // For team games, check if all queens on a team are dead
+  const teamA = gameState.players ? Object.keys(gameState.players).filter(
+    pid => gameState.players[pid]?.team === 'A'
+  ) : [];
+  const teamB = gameState.players ? Object.keys(gameState.players).filter(
+    pid => gameState.players[pid]?.team === 'B'
+  ) : [];
+
+  const hasTeams = teamA.length > 0 && teamB.length > 0;
+
+  if (hasTeams) {
+    // Team game win condition: all queens on opposing team are dead
+    const teamAQueensAlive = livingQueens.filter(q => teamA.includes(q.owner)).length;
+    const teamBQueensAlive = livingQueens.filter(q => teamB.includes(q.owner)).length;
+
+    if (teamAQueensAlive === 0 && teamBQueensAlive > 0) {
+      // Team B wins
+      return { gameOver: true, winner: killerPlayerId, winningTeam: 'B' };
+    } else if (teamBQueensAlive === 0 && teamAQueensAlive > 0) {
+      // Team A wins
+      return { gameOver: true, winner: killerPlayerId, winningTeam: 'A' };
+    }
+    // Game continues - not all opposing queens are dead
+    return { gameOver: false, winner: null, winningTeam: null };
+  }
+
+  // FFA game (no teams): last player standing wins
+  // Count unique players with living queens
+  const playersWithQueens = new Set(livingQueens.map(q => q.owner));
+
+  if (playersWithQueens.size === 1) {
+    // Only one player has a queen left - they win
+    const winner = [...playersWithQueens][0];
+    return { gameOver: true, winner, winningTeam: null };
+  }
+
+  // Game continues
+  return { gameOver: false, winner: null, winningTeam: null };
+}
+
 // Attack an egg
 export function attackEgg(gameState, attackerId, eggId) {
   const attacker = gameState.ants[attackerId];
@@ -21,8 +90,8 @@ export function attackEgg(gameState, attackerId, eggId) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  // Can't attack your own egg
-  if (attacker.owner === egg.owner) {
+  // Can't attack your own egg or teammate's egg
+  if (attacker.owner === egg.owner || areTeammates(gameState, attacker.owner, egg.owner)) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
@@ -80,8 +149,8 @@ export function attackAnthill(gameState, attackerId, anthillId) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  // Can't attack your own anthill
-  if (attacker.owner === anthill.owner) {
+  // Can't attack your own anthill or teammate's anthill
+  if (attacker.owner === anthill.owner || areTeammates(gameState, attacker.owner, anthill.owner)) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
@@ -191,8 +260,12 @@ export function detonateBomber(gameState, bomberId) {
 
       // Check if bomber killed a queen
       if (target.type === 'queen') {
-        updatedGameState.gameOver = true;
-        updatedGameState.winner = bomber.owner;
+        // Update ants first so checkWinCondition sees the dead queen removed
+        updatedGameState.ants = updatedAnts;
+        const winResult = checkWinCondition(updatedGameState, bomber.owner, target.owner);
+        updatedGameState.gameOver = winResult.gameOver;
+        updatedGameState.winner = winResult.winner;
+        updatedGameState.winningTeam = winResult.winningTeam;
       }
 
       // If killed ant is also a bomber, trigger chain reaction
@@ -320,8 +393,12 @@ export function resolveCombat(gameState, attackerId, defenderId) {
 
     // Check if it was a queen
     if (defender.type === 'queen') {
-      updatedGameState.gameOver = true;
-      updatedGameState.winner = attacker.owner;
+      // Update ants first so checkWinCondition sees the dead queen removed
+      updatedGameState.ants = updatedAnts;
+      const winResult = checkWinCondition(updatedGameState, attacker.owner, defender.owner);
+      updatedGameState.gameOver = winResult.gameOver;
+      updatedGameState.winner = winResult.winner;
+      updatedGameState.winningTeam = winResult.winningTeam;
     }
 
     // If defender was a bomber, trigger detonation
@@ -436,10 +513,14 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         };
       }
 
-      // Check if it was a queen
+      // Check if it was a queen (attacker died from counterattack)
       if (attacker.type === 'queen') {
-        updatedGameState.gameOver = true;
-        updatedGameState.winner = defender.owner;
+        // Update ants first so checkWinCondition sees the dead queen removed
+        updatedGameState.ants = updatedAnts;
+        const winResult = checkWinCondition(updatedGameState, defender.owner, attacker.owner);
+        updatedGameState.gameOver = winResult.gameOver;
+        updatedGameState.winner = winResult.winner;
+        updatedGameState.winningTeam = winResult.winningTeam;
       }
 
       // If attacker was a bomber, trigger detonation
@@ -469,7 +550,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
 // Check if an attack is valid
 export function canAttack(attacker, defender, gameState) {
   if (!attacker || !defender) return false;
+
+  // Can't attack self or teammates
   if (attacker.owner === defender.owner) return false;
+  if (areTeammates(gameState, attacker.owner, defender.owner)) return false;
 
   // Bombers cannot use normal attack - they can only detonate manually
   if (attacker.type === 'bomber') return false;
@@ -512,7 +596,10 @@ export function getValidTargets(antId, gameState) {
   const minRange = attackerType.minAttackRange || 0;
 
   return Object.values(gameState.ants).filter(ant => {
+    // Can't target self or teammates
     if (ant.owner === attacker.owner) return false;
+    if (areTeammates(gameState, attacker.owner, ant.owner)) return false;
+
     const distance = hexDistance(ant.position, attacker.position);
     return distance >= minRange && distance <= attackerType.attackRange;
   });
@@ -668,5 +755,207 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
     },
     damageDealt,
     attackAnimation
+  };
+}
+
+// Resolve ambush when a unit moves into fog of war onto a hidden enemy
+// Returns: { gameState, damageDealt, attackAnimations, ambushOccurred }
+export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
+  const movingAnt = gameState.ants[movingAntId];
+  const ambusher = gameState.ants[ambusherAntId];
+
+  if (!movingAnt || !ambusher) {
+    return {
+      gameState,
+      damageDealt: [],
+      attackAnimations: [],
+      ambushOccurred: false
+    };
+  }
+
+  const movingAntType = AntTypes[movingAnt.type.toUpperCase()];
+  const ambusherType = AntTypes[ambusher.type.toUpperCase()];
+
+  let updatedGameState = { ...gameState };
+  let damageDealt = [];
+  let attackAnimations = [];
+
+  // Check if combat occurs
+  // If hidden unit is ranged, neither unit attacks
+  if (ambusherType.attackRange > 1) {
+    return {
+      gameState: updatedGameState,
+      damageDealt,
+      attackAnimations,
+      ambushOccurred: true // Ambush happened, but no combat
+    };
+  }
+
+  // Ambusher attacks first
+  const ambusherDamage = calculateDamage(ambusher, movingAnt, updatedGameState);
+  damageDealt.push({ damage: ambusherDamage, position: movingAnt.position });
+
+  // Add ambusher's attack animation
+  attackAnimations.push({
+    attackerId: ambusherAntId,
+    targetPosition: movingAnt.position,
+    isRanged: false
+  });
+
+  // Update hero power for ambusher (damage dealt)
+  const { updateHeroPower } = require('./gameState');
+  updatedGameState = updateHeroPower(updatedGameState, ambusher.owner, ambusherDamage);
+
+  // Update hero power for moving ant (damage received)
+  updatedGameState = updateHeroPower(updatedGameState, movingAnt.owner, ambusherDamage, 0.65);
+
+  // Track damage dealt and received stats
+  if (!updatedGameState.stats) {
+    updatedGameState.stats = { player1: {}, player2: {} };
+  }
+  updatedGameState.stats[ambusher.owner].damageDealt = (updatedGameState.stats[ambusher.owner].damageDealt || 0) + ambusherDamage;
+  updatedGameState.stats[movingAnt.owner].damageReceived = (updatedGameState.stats[movingAnt.owner].damageReceived || 0) + ambusherDamage;
+
+  // Apply damage to moving ant
+  const updatedAnts = { ...updatedGameState.ants };
+  const newMovingAntHealth = movingAnt.health - ambusherDamage;
+
+  if (newMovingAntHealth <= 0) {
+    // Moving ant dies - create dead ant
+    const deadAnt = createDeadAnt(movingAnt);
+    updatedGameState.deadAnts = {
+      ...updatedGameState.deadAnts,
+      [deadAnt.id]: deadAnt
+    };
+    delete updatedAnts[movingAntId];
+
+    // Track kills and losses stats
+    updatedGameState.stats[ambusher.owner].antsKilled = (updatedGameState.stats[ambusher.owner].antsKilled || 0) + 1;
+    updatedGameState.stats[movingAnt.owner].antsLost = (updatedGameState.stats[movingAnt.owner].antsLost || 0) + 1;
+
+    // Grant cannibalism food if ambusher has the upgrade
+    const ambusherPlayer = updatedGameState.players[ambusher.owner];
+    if (ambusherPlayer.upgrades.cannibalism > 0) {
+      updatedGameState.players = {
+        ...updatedGameState.players,
+        [ambusher.owner]: {
+          ...ambusherPlayer,
+          resources: {
+            ...ambusherPlayer.resources,
+            food: ambusherPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN,
+            minerals: ambusherPlayer.resources.minerals + GameConstants.CANNIBALISM_MINERAL_GAIN
+          }
+        }
+      };
+    }
+
+    // Check if moving ant was a queen
+    if (movingAnt.type === 'queen') {
+      updatedGameState.gameOver = true;
+      updatedGameState.winner = ambusher.owner;
+    }
+
+    // If moving ant was a bomber, trigger detonation
+    if (movingAnt.type === 'bomber') {
+      updatedGameState.ants = updatedAnts;
+      updatedGameState = detonateBomber(updatedGameState, movingAntId);
+    }
+
+    return {
+      gameState: {
+        ...updatedGameState,
+        ants: updatedAnts
+      },
+      damageDealt,
+      attackAnimations,
+      ambushOccurred: true
+    };
+  }
+
+  // Moving ant survived - update health
+  updatedAnts[movingAntId] = {
+    ...movingAnt,
+    health: newMovingAntHealth
+  };
+
+  // Counter-attack if moving ant is melee
+  if (movingAntType.attackRange <= 1) {
+    const updatedMovingAnt = updatedAnts[movingAntId];
+    const counterDamage = calculateDamage(updatedMovingAnt, ambusher, { ...updatedGameState, ants: updatedAnts });
+    damageDealt.push({ damage: counterDamage, position: ambusher.position });
+
+    // Add counter-attack animation
+    attackAnimations.push({
+      attackerId: movingAntId,
+      targetPosition: ambusher.position,
+      isRanged: false
+    });
+
+    // Update hero power for counter-attack
+    updatedGameState = updateHeroPower(updatedGameState, movingAnt.owner, counterDamage);
+    updatedGameState = updateHeroPower(updatedGameState, ambusher.owner, counterDamage, 0.65);
+
+    // Track counter-attack damage stats
+    updatedGameState.stats[movingAnt.owner].damageDealt = (updatedGameState.stats[movingAnt.owner].damageDealt || 0) + counterDamage;
+    updatedGameState.stats[ambusher.owner].damageReceived = (updatedGameState.stats[ambusher.owner].damageReceived || 0) + counterDamage;
+
+    const newAmbusherHealth = ambusher.health - counterDamage;
+
+    if (newAmbusherHealth <= 0) {
+      // Ambusher dies - create dead ant
+      const deadAnt = createDeadAnt(ambusher);
+      updatedGameState.deadAnts = {
+        ...updatedGameState.deadAnts,
+        [deadAnt.id]: deadAnt
+      };
+      delete updatedAnts[ambusherAntId];
+
+      // Track kills and losses stats
+      updatedGameState.stats[movingAnt.owner].antsKilled = (updatedGameState.stats[movingAnt.owner].antsKilled || 0) + 1;
+      updatedGameState.stats[ambusher.owner].antsLost = (updatedGameState.stats[ambusher.owner].antsLost || 0) + 1;
+
+      // Grant cannibalism if moving ant has the upgrade
+      const movingAntPlayer = updatedGameState.players[movingAnt.owner];
+      if (movingAntPlayer.upgrades.cannibalism > 0) {
+        updatedGameState.players = {
+          ...updatedGameState.players,
+          [movingAnt.owner]: {
+            ...movingAntPlayer,
+            resources: {
+              ...movingAntPlayer.resources,
+              food: movingAntPlayer.resources.food + GameConstants.CANNIBALISM_FOOD_GAIN,
+              minerals: movingAntPlayer.resources.minerals + GameConstants.CANNIBALISM_MINERAL_GAIN
+            }
+          }
+        };
+      }
+
+      // Check if ambusher was a queen
+      if (ambusher.type === 'queen') {
+        updatedGameState.gameOver = true;
+        updatedGameState.winner = movingAnt.owner;
+      }
+
+      // If ambusher was a bomber, trigger detonation
+      if (ambusher.type === 'bomber') {
+        updatedGameState.ants = updatedAnts;
+        updatedGameState = detonateBomber(updatedGameState, ambusherAntId);
+      }
+    } else {
+      updatedAnts[ambusherAntId] = {
+        ...ambusher,
+        health: newAmbusherHealth
+      };
+    }
+  }
+
+  return {
+    gameState: {
+      ...updatedGameState,
+      ants: updatedAnts
+    },
+    damageDealt,
+    attackAnimations,
+    ambushOccurred: true
   };
 }

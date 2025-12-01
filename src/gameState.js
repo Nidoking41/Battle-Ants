@@ -1,5 +1,5 @@
-import { HexCoord } from './hexUtils';
-import { AntTypes, GameConstants, Upgrades, QueenTiers } from './antTypes';
+import { HexCoord, generateTriangleGrid, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
+import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams } from './antTypes';
 
 // Calculate army strength for a player
 // Formula: Fixed base value per ant type + 2 per upgrade tier
@@ -58,13 +58,23 @@ export function calculateArmyStrength(gameState, playerId) {
 export function createInitialGameState(options = {}) {
   const {
     mapSize = 'large', // 'small', 'medium', 'large'
+    playerCount = 2, // 2, 3, or 4 players
+    mapShape = MapShape.RECTANGLE, // 'rectangle', 'triangle', 'square'
     player1Color = '#FF0000',
     player2Color = '#0000FF',
+    player3Color = '#00FF00',
+    player4Color = '#FFFF00',
     player1Hero = null,
-    player2Hero = null
+    player2Hero = null,
+    player3Hero = null,
+    player4Hero = null,
+    player1Team = Teams.NONE,
+    player2Team = Teams.NONE,
+    player3Team = Teams.NONE,
+    player4Team = Teams.NONE
   } = options;
 
-  // Map size to grid radius
+  // Map size to grid radius (for 2-player rectangle maps)
   const gridSizeMap = {
     small: 4,   // 4 hex radius = ~7x7 grid
     medium: 5,  // 5 hex radius = ~9x9 grid
@@ -72,48 +82,62 @@ export function createInitialGameState(options = {}) {
   };
   const gridRadius = gridSizeMap[mapSize] || 6;
 
+  // Determine map dimensions based on shape
+  let sideLength = gridRadius;
+  console.log('createInitialGameState called with:', { playerCount, mapShape, mapSize });
+  if (mapShape === MapShape.TRIANGLE) {
+    sideLength = GameConstants.TRIANGLE_SIDE_LENGTH; // 15
+    console.log('Using TRIANGLE map, sideLength:', sideLength);
+  } else if (mapShape === MapShape.SQUARE) {
+    sideLength = GameConstants.SQUARE_SIZE; // 12
+    console.log('Using SQUARE map, sideLength:', sideLength);
+  } else {
+    console.log('Using RECTANGLE map (2-player), gridRadius:', gridRadius);
+  }
+
+  // Helper to create player object
+  const createPlayer = (playerId, name, color, heroId, team) => ({
+    id: playerId,
+    name,
+    resources: { ...GameConstants.STARTING_RESOURCES },
+    color,
+    heroId,
+    team, // Team A, B, or null (FFA)
+    upgrades: {
+      meleeAttack: 0,
+      rangedAttack: 0,
+      defense: 0,
+      cannibalism: 0
+    },
+    heroPower: 0,
+    heroAbilityActive: false,
+    heroAbilityEndsOnTurn: null
+  });
+
+  // Initialize players based on playerCount
+  const players = {
+    player1: createPlayer('player1', 'Player 1', player1Color, player1Hero, player1Team),
+    player2: createPlayer('player2', 'Player 2', player2Color, player2Hero, player2Team)
+  };
+
+  if (playerCount >= 3) {
+    players.player3 = createPlayer('player3', 'Player 3', player3Color, player3Hero, player3Team);
+  }
+  if (playerCount >= 4) {
+    players.player4 = createPlayer('player4', 'Player 4', player4Color, player4Hero, player4Team);
+  }
+
   const initialState = {
     turn: 1,
     currentPlayer: 'player1',
     mapSize,
+    mapShape,
+    playerCount,
     gridRadius,
-    players: {
-      player1: {
-        id: 'player1',
-        name: 'Player 1',
-        resources: { ...GameConstants.STARTING_RESOURCES },
-        color: player1Color,
-        heroId: player1Hero,
-        upgrades: {
-          meleeAttack: 0,
-          rangedAttack: 0,
-          defense: 0,
-          cannibalism: 0
-        },
-        heroPower: 0, // Hero power bar (0-100)
-        heroAbilityActive: false, // Whether hero ability is currently active
-        heroAbilityEndsOnTurn: null // Track when hero ability ends (for Thorgrim)
-      },
-      player2: {
-        id: 'player2',
-        name: 'Player 2',
-        resources: { ...GameConstants.STARTING_RESOURCES },
-        color: player2Color,
-        heroId: player2Hero,
-        upgrades: {
-          meleeAttack: 0,
-          rangedAttack: 0,
-          defense: 0,
-          cannibalism: 0
-        },
-        heroPower: 0, // Hero power bar (0-100)
-        heroAbilityActive: false, // Whether hero ability is currently active
-        heroAbilityEndsOnTurn: null // Track when hero ability ends (for Thorgrim)
-      }
-    },
+    players,
     // Game statistics tracking
-    stats: {
-      player1: {
+    stats: Object.keys(players).reduce((acc, playerId) => {
+      acc[playerId] = {
         damageDealt: 0,
         damageReceived: 0,
         antsHatched: { scout: 0, drone: 0, soldier: 0, tank: 0, spitter: 0, bomber: 0, bombardier: 0, healer: 0, cordyphage: 0 },
@@ -121,104 +145,18 @@ export function createInitialGameState(options = {}) {
         antsLost: 0,
         foodMined: 0,
         mineralsMined: 0
-      },
-      player2: {
-        damageDealt: 0,
-        damageReceived: 0,
-        antsHatched: { scout: 0, drone: 0, soldier: 0, tank: 0, spitter: 0, bomber: 0, bombardier: 0, healer: 0, cordyphage: 0 },
-        antsKilled: 0,
-        antsLost: 0,
-        foodMined: 0,
-        mineralsMined: 0
-      }
-    },
+      };
+      return acc;
+    }, {}),
     // Army strength tracking per turn
-    armyStrengthHistory: {
-      player1: [],
-      player2: []
-    },
-    ants: {
-      // Initial queens - Player 1 at South, Player 2 at North
-      // Position scaled based on grid radius (subtract 1 to keep away from edge)
-      'ant_p1_queen': {
-        id: 'ant_p1_queen',
-        type: 'queen',
-        owner: 'player1',
-        position: new HexCoord(0, gridRadius - 1), // South position
-        health: AntTypes.QUEEN.maxHealth,
-        maxHealth: AntTypes.QUEEN.maxHealth,
-        energy: GameConstants.QUEEN_BASE_ENERGY,
-        maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
-        queenTier: 'queen',
-        heroId: player1Hero
-      },
-      'ant_p2_queen': {
-        id: 'ant_p2_queen',
-        type: 'queen',
-        owner: 'player2',
-        position: new HexCoord(0, -(gridRadius - 1)), // North position
-        health: AntTypes.QUEEN.maxHealth,
-        maxHealth: AntTypes.QUEEN.maxHealth,
-        energy: GameConstants.QUEEN_BASE_ENERGY,
-        maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
-        queenTier: 'queen',
-        heroId: player2Hero
-      },
-      // Starting drones for player 1 (South) - positions scaled to map size
-      'ant_p1_drone1': {
-        id: 'ant_p1_drone1',
-        type: 'drone',
-        owner: 'player1',
-        position: new HexCoord(-1, gridRadius - 1),
-        health: AntTypes.DRONE.maxHealth,
-        maxHealth: AntTypes.DRONE.maxHealth
-      },
-      'ant_p1_drone2': {
-        id: 'ant_p1_drone2',
-        type: 'drone',
-        owner: 'player1',
-        position: new HexCoord(1, gridRadius - 2),
-        health: AntTypes.DRONE.maxHealth,
-        maxHealth: AntTypes.DRONE.maxHealth
-      },
-      // Starting drones for player 2 (North) - positions scaled to map size
-      'ant_p2_drone1': {
-        id: 'ant_p2_drone1',
-        type: 'drone',
-        owner: 'player2',
-        position: new HexCoord(-1, -(gridRadius - 2)),
-        health: AntTypes.DRONE.maxHealth,
-        maxHealth: AntTypes.DRONE.maxHealth
-      },
-      'ant_p2_drone2': {
-        id: 'ant_p2_drone2',
-        type: 'drone',
-        owner: 'player2',
-        position: new HexCoord(1, -(gridRadius - 1)),
-        health: AntTypes.DRONE.maxHealth,
-        maxHealth: AntTypes.DRONE.maxHealth
-      },
-      // Starting scouts - positions scaled to map size
-      'ant_p1_scout1': {
-        id: 'ant_p1_scout1',
-        type: 'scout',
-        owner: 'player1',
-        position: new HexCoord(1, gridRadius - 1),
-        health: AntTypes.SCOUT.maxHealth,
-        maxHealth: AntTypes.SCOUT.maxHealth
-      },
-      'ant_p2_scout1': {
-        id: 'ant_p2_scout1',
-        type: 'scout',
-        owner: 'player2',
-        position: new HexCoord(-1, -(gridRadius - 1)),
-        health: AntTypes.SCOUT.maxHealth,
-        maxHealth: AntTypes.SCOUT.maxHealth
-      }
-    },
+    armyStrengthHistory: Object.keys(players).reduce((acc, playerId) => {
+      acc[playerId] = [];
+      return acc;
+    }, {}),
+    ants: {},
     eggs: {},
     deadAnts: {}, // Dead ants that persist for 2 seconds
-    resources: generateResourceNodes(gridRadius),
+    resources: generateResourceNodesMultiplayer(sideLength, playerCount, mapShape),
     anthills: {}, // Anthills built on resource nodes
     trees: {}, // Trees will be generated after we have occupied positions
     selectedAnt: null,
@@ -227,6 +165,71 @@ export function createInitialGameState(options = {}) {
     winner: null
   };
 
+  // Get starting positions for all players based on map shape
+  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+
+  // Create queens and starting units for each player
+  const playerIds = Object.keys(players);
+  const playerHeroes = [player1Hero, player2Hero, player3Hero, player4Hero];
+
+  playerIds.forEach((playerId, index) => {
+    const playerNum = index + 1;
+    const queenPos = startingPositions[index];
+    const heroId = playerHeroes[index];
+
+    // Create queen
+    const queenId = `ant_p${playerNum}_queen`;
+    initialState.ants[queenId] = {
+      id: queenId,
+      type: 'queen',
+      owner: playerId,
+      position: queenPos,
+      health: AntTypes.QUEEN.maxHealth,
+      maxHealth: AntTypes.QUEEN.maxHealth,
+      energy: GameConstants.QUEEN_BASE_ENERGY,
+      maxEnergy: GameConstants.QUEEN_BASE_ENERGY,
+      queenTier: 'queen',
+      heroId
+    };
+
+    // Get neighbors for starting unit placement
+    const { getNeighbors } = require('./hexUtils');
+    const neighbors = getNeighbors(queenPos);
+
+    // Create 2 drones and 1 scout around queen
+    if (neighbors.length >= 3) {
+      // Drone 1
+      initialState.ants[`ant_p${playerNum}_drone1`] = {
+        id: `ant_p${playerNum}_drone1`,
+        type: 'drone',
+        owner: playerId,
+        position: neighbors[0],
+        health: AntTypes.DRONE.maxHealth,
+        maxHealth: AntTypes.DRONE.maxHealth
+      };
+
+      // Drone 2
+      initialState.ants[`ant_p${playerNum}_drone2`] = {
+        id: `ant_p${playerNum}_drone2`,
+        type: 'drone',
+        owner: playerId,
+        position: neighbors[1],
+        health: AntTypes.DRONE.maxHealth,
+        maxHealth: AntTypes.DRONE.maxHealth
+      };
+
+      // Scout 1
+      initialState.ants[`ant_p${playerNum}_scout1`] = {
+        id: `ant_p${playerNum}_scout1`,
+        type: 'scout',
+        owner: playerId,
+        position: neighbors[2],
+        health: AntTypes.SCOUT.maxHealth,
+        maxHealth: AntTypes.SCOUT.maxHealth
+      };
+    }
+  });
+
   // Collect all occupied positions (ants, eggs, resources)
   const occupiedPositions = [
     ...Object.values(initialState.ants).map(ant => ant.position),
@@ -234,16 +237,19 @@ export function createInitialGameState(options = {}) {
     ...Object.values(initialState.resources).map(res => res.position)
   ];
 
-  // Generate trees avoiding occupied positions (4 per side, mirrored like resources)
-  const treesPerSide = 4;
-  initialState.trees = generateTrees(gridRadius, occupiedPositions, treesPerSide);
+  // Generate trees avoiding occupied positions
+  // For 2-player: 4 per side (8 total)
+  // For 3-player: 2-3 per side with 120° rotation
+  // For 4-player: 2 per side with 90° rotation
+  const treesPerSide = playerCount === 2 ? 4 : 2;
+  initialState.trees = generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide);
 
   // Apply hero bonuses to starting ants
-  if (player1Hero || player2Hero) {
+  if (player1Hero || player2Hero || player3Hero || player4Hero) {
     const { applyHeroBonuses } = require('./heroQueens');
     Object.keys(initialState.ants).forEach(antId => {
       const ant = initialState.ants[antId];
-      const heroId = ant.owner === 'player1' ? player1Hero : player2Hero;
+      const heroId = players[ant.owner]?.heroId;
 
       if (heroId) {
         const antType = AntTypes[ant.type.toUpperCase()];
@@ -442,6 +448,154 @@ function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerS
 
   console.log('Total trees generated:', Object.keys(trees).length);
   console.log('Tree positions:', Object.values(trees).map(t => `${t.side} at (${t.position.q},${t.position.r})`));
+
+  return trees;
+}
+
+// Generate resource nodes for multiplayer (2, 3, or 4 players)
+function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
+  const resources = {};
+
+  if (playerCount === 2 && mapShape === MapShape.RECTANGLE) {
+    // Use existing 2-player generation (backwards compatible)
+    return generateResourceNodes(sideLength);
+  }
+
+  // For 3 and 4 player maps, generate base resources and mirror them
+  const baseResourceCount = Math.floor(GameConstants.RESOURCE_SPAWN_COUNT / playerCount);
+
+  // Generate base positions (avoiding starting positions)
+  const validPositions = [];
+  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+
+  // Get all hexes on the map
+  let allHexes = [];
+  if (mapShape === MapShape.TRIANGLE) {
+    allHexes = generateTriangleGrid(sideLength);
+  } else if (mapShape === MapShape.SQUARE) {
+    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.67)); // 12x8 ratio
+  }
+
+  // Filter out hexes too close to starting positions
+  allHexes.forEach(hex => {
+    const tooClose = startingPositions.some(startPos => {
+      const dist = Math.max(
+        Math.abs(hex.q - startPos.q),
+        Math.abs(hex.r - startPos.r),
+        Math.abs((-hex.q - hex.r) - (-startPos.q - startPos.r))
+      );
+      return dist < 3;
+    });
+
+    if (!tooClose) {
+      validPositions.push(hex);
+    }
+  });
+
+  // Shuffle and select base positions
+  const shuffled = validPositions.sort(() => Math.random() - 0.5);
+  const basePositions = shuffled.slice(0, baseResourceCount);
+
+  // Assign resource types (mix of food and minerals)
+  const numFood = Math.ceil(baseResourceCount / 2);
+
+  let resourceIndex = 0;
+  basePositions.forEach((pos, index) => {
+    const type = index < numFood ? 'food' : 'minerals';
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type,
+      position: pos
+    };
+    resourceIndex++;
+  });
+
+  // Mirror positions using rotational symmetry
+  const mirroredPositions = mirrorPositions(basePositions, playerCount);
+
+  // Add mirrored resources (skip first baseResourceCount as they're already added)
+  mirroredPositions.slice(baseResourceCount).forEach((pos, index) => {
+    const originalIndex = index % baseResourceCount;
+    const originalType = originalIndex < numFood ? 'food' : 'minerals';
+
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type: originalType,
+      position: pos
+    };
+    resourceIndex++;
+  });
+
+  return resources;
+}
+
+// Generate trees for multiplayer (2, 3, or 4 players)
+function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide) {
+  const trees = {};
+
+  if (playerCount === 2 && mapShape === MapShape.RECTANGLE) {
+    // Use existing 2-player generation (backwards compatible)
+    return generateTrees(sideLength, occupiedPositions, treesPerSide);
+  }
+
+  // Create a set of occupied positions for quick lookup
+  const occupiedSet = new Set(occupiedPositions.map(pos => `${pos.q},${pos.r}`));
+  const isOccupied = (hex) => occupiedSet.has(`${hex.q},${hex.r}`);
+
+  // Get all hexes on the map
+  let allHexes = [];
+  if (mapShape === MapShape.TRIANGLE) {
+    allHexes = generateTriangleGrid(sideLength);
+  } else if (mapShape === MapShape.SQUARE) {
+    allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.67));
+  }
+
+  // Filter out occupied positions and positions near starting positions
+  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+  const validPositions = allHexes.filter(hex => {
+    if (isOccupied(hex)) return false;
+
+    // Check distance to starting positions
+    const tooClose = startingPositions.some(startPos => {
+      const dist = Math.max(
+        Math.abs(hex.q - startPos.q),
+        Math.abs(hex.r - startPos.r),
+        Math.abs((-hex.q - hex.r) - (-startPos.q - startPos.r))
+      );
+      return dist < 2;
+    });
+
+    return !tooClose;
+  });
+
+  // Shuffle and select base tree positions
+  const shuffled = validPositions.sort(() => Math.random() - 0.5);
+  const basePositions = shuffled.slice(0, treesPerSide);
+
+  // Add base trees
+  let treeIndex = 0;
+  basePositions.forEach(pos => {
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: pos
+    };
+    treeIndex++;
+  });
+
+  // Mirror positions using rotational symmetry
+  const mirroredPositions = mirrorPositions(basePositions, playerCount);
+
+  // Add mirrored trees (skip first treesPerSide as they're already added)
+  mirroredPositions.slice(treesPerSide).forEach(pos => {
+    // Check if position is valid and not occupied
+    if (!isOccupied(pos)) {
+      trees[`tree_${treeIndex}`] = {
+        id: `tree_${treeIndex}`,
+        position: pos
+      };
+      treeIndex++;
+    }
+  });
 
   return trees;
 }
@@ -650,7 +804,11 @@ export function deductCost(player, antType) {
 
 // End current player's turn
 export function endTurn(gameState) {
-  const nextPlayer = gameState.currentPlayer === 'player1' ? 'player2' : 'player1';
+  // Determine next player based on player count
+  const playerCount = gameState.playerCount || 2;
+  const currentPlayerNum = parseInt(gameState.currentPlayer.replace('player', ''));
+  const nextPlayerNum = (currentPlayerNum % playerCount) + 1;
+  const nextPlayer = `player${nextPlayerNum}`;
   const isNewRound = nextPlayer === 'player1';
 
   // Hatch eggs that are ready

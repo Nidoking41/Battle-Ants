@@ -134,3 +134,120 @@ export function getMovementRange(startHex, range, gridSize, blockedHexes = []) {
   const withPaths = getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes);
   return withPaths.map(item => item.hex);
 }
+
+// Generate equilateral triangle grid (3-player map)
+// sideLength: number of hexes per side (e.g., 15)
+// Returns: array of HexCoord objects forming a triangle
+export function generateTriangleGrid(sideLength) {
+  const hexes = [];
+
+  // Triangle with vertices at:
+  // Top: (0, -(sideLength-1))
+  // Bottom-right: (sideLength-1, 0)
+  // Bottom-left: (-(sideLength-1), sideLength-1)
+
+  for (let q = -(sideLength - 1); q <= (sideLength - 1); q++) {
+    const r1 = Math.max(-(sideLength - 1), -q - (sideLength - 1));
+    const r2 = Math.min(0, -q + (sideLength - 1));
+
+    for (let r = r1; r <= r2; r++) {
+      hexes.push(new HexCoord(q, r));
+    }
+  }
+
+  return hexes;
+}
+
+// Generate square/diamond grid (4-player map)
+// width: number of hexes wide (e.g., 12)
+// height: number of hexes tall (e.g., 8)
+// Returns: array of HexCoord objects forming a square/diamond
+export function generateSquareGrid(width, height) {
+  const hexes = [];
+
+  // Create a diamond shape that appears as a square when rendered
+  const halfWidth = Math.floor(width / 2);
+  const halfHeight = Math.floor(height / 2);
+
+  for (let q = -halfWidth; q <= halfWidth; q++) {
+    const r1 = Math.max(-halfHeight, -q - halfHeight);
+    const r2 = Math.min(halfHeight, -q + halfHeight);
+
+    for (let r = r1; r <= r2; r++) {
+      hexes.push(new HexCoord(q, r));
+    }
+  }
+
+  return hexes;
+}
+
+// Rotate hex coordinates by 120 degrees clockwise around origin
+// Used for 3-player resource/tree mirroring
+export function rotateHex120(hex) {
+  // 120° clockwise rotation: (q, r) -> (-r, -q-r) -> (q+r, q)
+  return new HexCoord(-hex.r, -hex.q - hex.r);
+}
+
+// Rotate hex coordinates by 90 degrees clockwise around origin
+// Used for 4-player resource/tree mirroring
+export function rotateHex90(hex) {
+  // 90° clockwise rotation in axial coordinates
+  // (q, r) -> (-r, q+r)
+  return new HexCoord(-hex.r, hex.q + hex.r);
+}
+
+// Get starting positions for players based on map shape
+export function getPlayerStartingPositions(mapShape, sideLength) {
+  if (mapShape === 'triangle') {
+    // 3 players at triangle corners
+    return [
+      new HexCoord(0, -(sideLength - 1)),           // Player 1: Top
+      new HexCoord(sideLength - 1, 0),              // Player 2: Bottom-right
+      new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
+    ];
+  } else if (mapShape === 'square') {
+    // 4 players at square corners
+    const half = Math.floor(sideLength / 2);
+    return [
+      new HexCoord(0, -half),           // Player 1: Top
+      new HexCoord(half, 0),            // Player 2: Right
+      new HexCoord(0, half),            // Player 3: Bottom
+      new HexCoord(-half, 0)            // Player 4: Left
+    ];
+  } else {
+    // Rectangle (2-player)
+    const radius = sideLength - 1;
+    return [
+      new HexCoord(0, radius),          // Player 1: South
+      new HexCoord(0, -radius)          // Player 2: North
+    ];
+  }
+}
+
+// Mirror resources/trees with rotational symmetry
+export function mirrorPositions(basePositions, playerCount) {
+  if (playerCount === 2) {
+    // 180° rotation for 2-player
+    return basePositions.map(pos => new HexCoord(-pos.q, -pos.r));
+  } else if (playerCount === 3) {
+    // 120° rotations for 3-player
+    const mirrored = [...basePositions];
+    basePositions.forEach(pos => {
+      const rotated1 = rotateHex120(pos);
+      const rotated2 = rotateHex120(rotated1);
+      mirrored.push(rotated1, rotated2);
+    });
+    return mirrored;
+  } else if (playerCount === 4) {
+    // 90° rotations for 4-player
+    const mirrored = [...basePositions];
+    basePositions.forEach(pos => {
+      const rotated1 = rotateHex90(pos);
+      const rotated2 = rotateHex90(rotated1);
+      const rotated3 = rotateHex90(rotated2);
+      mirrored.push(rotated1, rotated2, rotated3);
+    });
+    return mirrored;
+  }
+  return basePositions;
+}

@@ -11,6 +11,7 @@ function OnlineMultiplayerLobby({ onEnterGameLobby, onBack }) {
   const [gameName, setGameName] = useState('');
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
+  const [playerCount, setPlayerCount] = useState(2);
 
   // Browse games state
   const [availableGames, setAvailableGames] = useState([]);
@@ -65,7 +66,8 @@ function OnlineMultiplayerLobby({ onEnterGameLobby, onBack }) {
       // Create lobby with metadata
       await createLobbyWithMetadata(code, playerId, {
         gameName: gameName.trim(),
-        password: usePassword ? password.trim() : null
+        password: usePassword ? password.trim() : null,
+        playerCount: playerCount
       });
 
       // Enter lobby as host
@@ -335,6 +337,47 @@ function OnlineMultiplayerLobby({ onEnterGameLobby, onBack }) {
         </div>
       )}
 
+      {/* Player Count Selection */}
+      <div style={{ marginBottom: '15px' }}>
+        <label style={{
+          display: 'block',
+          marginBottom: '8px',
+          fontWeight: 'bold',
+          color: '#e0e0e0',
+          fontSize: '14px'
+        }}>
+          Number of Players:
+        </label>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {[2, 3, 4].map(num => (
+            <button
+              key={num}
+              onClick={() => setPlayerCount(num)}
+              style={{
+                flex: 1,
+                padding: '12px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                background: playerCount === num ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                color: '#e0e0e0',
+                border: playerCount === num ? '2px solid #aaa' : '2px solid #666',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {num}P
+            </button>
+          ))}
+        </div>
+        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#b0b0b0' }}>
+          {playerCount === 2 && 'Standard 1v1 match'}
+          {playerCount === 3 && 'Triangle map - 1v1v1 or 2v1'}
+          {playerCount === 4 && 'Square map - 1v1v1v1 or 2v2'}
+        </p>
+      </div>
+
       {/* Create Button */}
       <button
         onClick={handleHostGame}
@@ -486,6 +529,7 @@ function OnlineMultiplayerLobby({ onEnterGameLobby, onBack }) {
                 display: 'flex',
                 gap: '15px'
               }}>
+                <span>Players: {game.joinedCount || 1}/{game.playerCount || 2}</span>
                 <span>Map: {game.mapSize}</span>
                 <span>Fog: {game.fogOfWar ? 'On' : 'Off'}</span>
                 <span style={{ fontFamily: 'monospace' }}>#{game.roomCode}</span>

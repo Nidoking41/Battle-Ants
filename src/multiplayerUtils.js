@@ -102,6 +102,12 @@ export async function createLobbyWithMetadata(roomCode, playerId, metadata = {})
       throw new Error('Room code already exists. Please try again.');
     }
 
+    // Player count determines map shape
+    const playerCount = metadata.playerCount || 2;
+    let mapShape = 'rectangle';
+    if (playerCount === 3) mapShape = 'triangle';
+    if (playerCount === 4) mapShape = 'square';
+
     // Create lobby with metadata
     const lobbyData = {
       roomCode: roomCode,
@@ -110,22 +116,48 @@ export async function createLobbyWithMetadata(roomCode, playerId, metadata = {})
       password: metadata.password || null,
       hostId: playerId,
       createdAt: Date.now(),
+      playerCount: playerCount,
+      mapShape: mapShape,
       player1: {
         id: playerId,
         color: '#FF0000',
         hero: 'gorlak',
+        team: null, // Team A, B, or null (FFA)
         ready: false
       },
       player2: {
         id: null,
         color: '#0000FF',
         hero: 'sorlorg',
+        team: null,
         ready: false
       },
       mapSize: 'medium',
       fogOfWar: true,
       gameStarted: false
     };
+
+    // Add player3 slot for 3+ player games
+    if (playerCount >= 3) {
+      lobbyData.player3 = {
+        id: null,
+        color: '#00FF00',
+        hero: 'skrazzit',
+        team: null,
+        ready: false
+      };
+    }
+
+    // Add player4 slot for 4-player games
+    if (playerCount >= 4) {
+      lobbyData.player4 = {
+        id: null,
+        color: '#FFFF00',
+        hero: 'thorgrim',
+        team: null,
+        ready: false
+      };
+    }
 
     await set(lobbyRef, lobbyData);
     return { success: true, roomCode };
@@ -152,22 +184,39 @@ export async function joinLobbyWithPassword(roomCode, playerId, password = null)
       throw new Error('Incorrect password');
     }
 
-    // Check if room is full
-    if (lobbyData.player2.id) {
-      throw new Error('Room is full');
-    }
-
-    // Check if player1 is this player (rejoining)
-    if (lobbyData.player1.id === playerId) {
+    // Check if player is already in the lobby (rejoining)
+    if (lobbyData.player1?.id === playerId) {
       return { playerRole: 'player1', isHost: true };
     }
+    if (lobbyData.player2?.id === playerId) {
+      return { playerRole: 'player2', isHost: false };
+    }
+    if (lobbyData.player3?.id === playerId) {
+      return { playerRole: 'player3', isHost: false };
+    }
+    if (lobbyData.player4?.id === playerId) {
+      return { playerRole: 'player4', isHost: false };
+    }
 
-    // Join as player 2
-    await update(lobbyRef, {
-      'player2/id': playerId
-    });
+    // Find an empty slot based on player count
+    const playerCount = lobbyData.playerCount || 2;
 
-    return { playerRole: 'player2', isHost: false };
+    if (!lobbyData.player2?.id) {
+      await update(lobbyRef, { 'player2/id': playerId });
+      return { playerRole: 'player2', isHost: false };
+    }
+
+    if (playerCount >= 3 && lobbyData.player3 && !lobbyData.player3.id) {
+      await update(lobbyRef, { 'player3/id': playerId });
+      return { playerRole: 'player3', isHost: false };
+    }
+
+    if (playerCount >= 4 && lobbyData.player4 && !lobbyData.player4.id) {
+      await update(lobbyRef, { 'player4/id': playerId });
+      return { playerRole: 'player4', isHost: false };
+    }
+
+    throw new Error('Room is full');
   } catch (error) {
     console.error('Error joining lobby:', error);
     throw error;
@@ -190,13 +239,21 @@ export async function getAvailableLobbies() {
 
     snapshot.forEach((childSnapshot) => {
       const lobby = childSnapshot.val();
+      const maxPlayers = lobby.playerCount || 2;
+
+      // Count how many players have joined
+      let joinedCount = 0;
+      if (lobby.player1?.id) joinedCount++;
+      if (lobby.player2?.id) joinedCount++;
+      if (lobby.player3?.id) joinedCount++;
+      if (lobby.player4?.id) joinedCount++;
 
       // Only show lobbies that:
       // 1. Haven't started yet
-      // 2. Have space (no player2)
+      // 2. Have space for more players
       // 3. Were created within the last hour
       if (!lobby.gameStarted &&
-          !lobby.player2?.id &&
+          joinedCount < maxPlayers &&
           lobby.createdAt > oneHourAgo) {
         lobbies.push({
           roomCode: lobby.roomCode,
@@ -204,7 +261,9 @@ export async function getAvailableLobbies() {
           hasPassword: lobby.hasPassword,
           createdAt: lobby.createdAt,
           mapSize: lobby.mapSize,
-          fogOfWar: lobby.fogOfWar
+          fogOfWar: lobby.fogOfWar,
+          playerCount: maxPlayers,
+          joinedCount: joinedCount
         });
       }
     });
@@ -396,11 +455,30 @@ export async function getAvailableGames() {
 export function getVisibleHexes(gameState, playerId) {
   const visibleHexes = new Set();
 
-  // Get all ants owned by the player
+  // Helper to check if two players are teammates
+  const areTeammates = (id1, id2) => {
+    if (id1 === id2) return true;
+    const player1 = gameState.players?.[id1];
+    const player2 = gameState.players?.[id2];
+    if (!player1?.team || !player2?.team) return false;
+    return player1.team === player2.team;
+  };
+
+  // Get all players who share vision (self + teammates)
+  const sharedVisionPlayers = new Set([playerId]);
+  if (gameState.players) {
+    Object.keys(gameState.players).forEach(otherPlayerId => {
+      if (areTeammates(playerId, otherPlayerId)) {
+        sharedVisionPlayers.add(otherPlayerId);
+      }
+    });
+  }
+
+  // Get all ants owned by the player or teammates
   let playerAntCount = 0;
   if (gameState.ants) {
     Object.values(gameState.ants).forEach(ant => {
-      if (ant.owner === playerId) {
+      if (sharedVisionPlayers.has(ant.owner)) {
         playerAntCount++;
 
         // Base vision
@@ -435,26 +513,28 @@ export function getVisibleHexes(gameState, playerId) {
     });
   }
 
-  // Add player-owned anthills to visible hexes (always visible)
+  // Add player-owned and teammate anthills to visible hexes (always visible)
   if (gameState.anthills) {
     Object.values(gameState.anthills).forEach(anthill => {
-      if (anthill.owner === playerId) {
+      if (sharedVisionPlayers.has(anthill.owner)) {
         visibleHexes.add(`${anthill.position.q},${anthill.position.r}`);
       }
     });
   }
 
-  // Add revealed hexes from Reveal ability (stored as strings like "q,r")
-  if (gameState.players?.[playerId]?.revealedHexes) {
-    gameState.players[playerId].revealedHexes.forEach(hexStr => {
-      visibleHexes.add(hexStr); // hexStr is already in "q,r" format
-    });
-  }
+  // Add revealed hexes from Reveal ability for player and teammates
+  sharedVisionPlayers.forEach(sharedPlayerId => {
+    if (gameState.players?.[sharedPlayerId]?.revealedHexes) {
+      gameState.players[sharedPlayerId].revealedHexes.forEach(hexStr => {
+        visibleHexes.add(hexStr); // hexStr is already in "q,r" format
+      });
+    }
+  });
 
-  // Add vision from dead ants (1 hex radius)
+  // Add vision from dead ants (1 hex radius) - includes teammate dead ants
   if (gameState.deadAnts) {
     Object.values(gameState.deadAnts).forEach(deadAnt => {
-      if (deadAnt.owner === playerId) {
+      if (sharedVisionPlayers.has(deadAnt.owner)) {
         const DEAD_ANT_VISION = 1;
         // Add all hexes within 1 radius of dead ant
         for (let q = -DEAD_ANT_VISION; q <= DEAD_ANT_VISION; q++) {
@@ -478,8 +558,17 @@ export function getVisibleHexes(gameState, playerId) {
 // Check if an enemy ant is obscured by a tree
 // Returns true if the ant should be hidden from the player
 export function isAntObscuredByTree(gameState, ant, playerId) {
-  // Only check enemy ants
-  if (!ant || ant.owner === playerId) {
+  // Helper to check if two players are teammates
+  const areTeammates = (id1, id2) => {
+    if (id1 === id2) return true;
+    const player1 = gameState.players?.[id1];
+    const player2 = gameState.players?.[id2];
+    if (!player1?.team || !player2?.team) return false;
+    return player1.team === player2.team;
+  };
+
+  // Only check enemy ants (not self or teammates)
+  if (!ant || areTeammates(ant.owner, playerId)) {
     return false;
   }
 
@@ -492,19 +581,19 @@ export function isAntObscuredByTree(gameState, ant, playerId) {
     return false; // No tree, not obscured
   }
 
-  // Ant is on a tree - check if player has an adjacent ant
-  const playerAnts = gameState.ants ? Object.values(gameState.ants).filter(
-    a => a.owner === playerId && !a.isDead
+  // Ant is on a tree - check if player or teammates have an adjacent ant
+  const friendlyAnts = gameState.ants ? Object.values(gameState.ants).filter(
+    a => areTeammates(a.owner, playerId) && !a.isDead
   ) : [];
 
-  for (const playerAnt of playerAnts) {
-    const distance = hexDistance(playerAnt.position, ant.position);
+  for (const friendlyAnt of friendlyAnts) {
+    const distance = hexDistance(friendlyAnt.position, ant.position);
     if (distance === 1) {
-      return false; // Player has adjacent ant, enemy is visible
+      return false; // Player or teammate has adjacent ant, enemy is visible
     }
   }
 
-  // No adjacent player ants, enemy is obscured by tree
+  // No adjacent friendly ants, enemy is obscured by tree
   return true;
 }
 
@@ -516,26 +605,45 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     return detectedBurrowed;
   }
 
-  // Get all enemy burrowed ants
+  // Helper to check if two players are teammates
+  const areTeammates = (id1, id2) => {
+    if (id1 === id2) return true;
+    const player1 = gameState.players?.[id1];
+    const player2 = gameState.players?.[id2];
+    if (!player1?.team || !player2?.team) return false;
+    return player1.team === player2.team;
+  };
+
+  // Get all players who share vision (self + teammates)
+  const sharedVisionPlayers = new Set([playerId]);
+  if (gameState.players) {
+    Object.keys(gameState.players).forEach(otherPlayerId => {
+      if (areTeammates(playerId, otherPlayerId)) {
+        sharedVisionPlayers.add(otherPlayerId);
+      }
+    });
+  }
+
+  // Get all enemy burrowed ants (not owned by player or teammates)
   const enemyBurrowedAnts = Object.values(gameState.ants).filter(
-    ant => ant.owner !== playerId && ant.isBurrowed
+    ant => !sharedVisionPlayers.has(ant.owner) && ant.isBurrowed
   );
 
-  // Check if any player scouts can detect them
-  const playerScouts = Object.values(gameState.ants).filter(
-    ant => ant.owner === playerId && ant.type === 'scout'
+  // Check if any friendly scouts can detect them
+  const friendlyScouts = Object.values(gameState.ants).filter(
+    ant => sharedVisionPlayers.has(ant.owner) && ant.type === 'scout'
   );
 
-  playerScouts.forEach(scout => {
+  friendlyScouts.forEach(scout => {
     // Scouts detect in vision range (same as their vision)
     let DETECTION_RADIUS = 2; // Base scout vision
 
-    // Scouts on player-owned anthills get +1 detection bonus (consistent with vision)
+    // Scouts on friendly anthills get +1 detection bonus (consistent with vision)
     if (gameState.anthills) {
       const anthillAtPosition = Object.values(gameState.anthills).find(
         anthill => anthill.position.q === scout.position.q &&
                    anthill.position.r === scout.position.r &&
-                   anthill.owner === playerId
+                   sharedVisionPlayers.has(anthill.owner)
       );
       if (anthillAtPosition) {
         DETECTION_RADIUS += 1; // Scouts on anthills get 3 detection range
@@ -550,11 +658,15 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     });
   });
 
-  // Check revealed hexes - they also detect burrowed units
-  const revealedHexes = gameState.players?.[playerId]?.revealedHexes || [];
+  // Check revealed hexes from player and teammates - they also detect burrowed units
+  const allRevealedHexes = [];
+  sharedVisionPlayers.forEach(sharedPlayerId => {
+    const revealed = gameState.players?.[sharedPlayerId]?.revealedHexes || [];
+    allRevealedHexes.push(...revealed);
+  });
   enemyBurrowedAnts.forEach(burrowedAnt => {
     const hexKey = `${burrowedAnt.position.q},${burrowedAnt.position.r}`;
-    if (revealedHexes.includes(hexKey)) {
+    if (allRevealedHexes.includes(hexKey)) {
       detectedBurrowed.add(burrowedAnt.id);
     }
   });
@@ -647,7 +759,10 @@ export function applyFogOfWar(gameState, playerId) {
         name: player.name,
         color: player.color,
         heroId: player.heroId,
-        resources: { food: '??', minerals: '??' } // Hide actual resource counts
+        resources: { food: '??', minerals: '??' }, // Hide actual resource counts
+        upgrades: player.upgrades || {}, // Keep upgrades for calculations
+        queenTier: player.queenTier, // Keep queen tier
+        energy: player.energy // Keep energy for UI calculations
       };
     }
   });
