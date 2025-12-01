@@ -206,13 +206,15 @@ export function getPlayerStartingPositions(mapShape, sideLength) {
       new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
     ];
   } else if (mapShape === 'square') {
-    // 4 players at square corners
-    const half = Math.floor(sideLength / 2);
+    // 4 players at cardinal directions
+    // For square grid: width=sideLength, height=sideLength*0.67
+    const halfWidth = Math.floor(sideLength / 2);
+    const halfHeight = Math.floor(sideLength * 0.67 / 2);
     return [
-      new HexCoord(0, -half),           // Player 1: Top
-      new HexCoord(half, 0),            // Player 2: Right
-      new HexCoord(0, half),            // Player 3: Bottom
-      new HexCoord(-half, 0)            // Player 4: Left
+      new HexCoord(0, -halfHeight),           // Player 1: Top (north)
+      new HexCoord(halfWidth, 0),             // Player 2: Right (east)
+      new HexCoord(0, halfHeight),            // Player 3: Bottom (south)
+      new HexCoord(-halfWidth, 0)             // Player 4: Left (west)
     ];
   } else {
     // Rectangle (2-player)
