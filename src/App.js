@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, resolveAmbush } from './combatSystem';
-import { AntTypes, Upgrades, GameConstants, QueenTiers } from './antTypes';
+import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
 import OnlineMultiplayerLobby from './OnlineMultiplayerLobby';
@@ -341,7 +341,7 @@ function App() {
             e.preventDefault();
             // Attack action (only for units with attack > 0)
             if (ant) {
-              const antType = AntTypes[ant.type.toUpperCase()];
+              const antType = getAntTypeById(ant.type);
               if (antType.attack > 0) {
                 const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
                 const enemiesInRange = Object.values(gameState.ants).filter(enemy => {
@@ -384,7 +384,7 @@ function App() {
             e.preventDefault();
             // Build action (for drones)
             if (ant && ant.type === 'drone') {
-              const antType = AntTypes[ant.type.toUpperCase()];
+              const antType = getAntTypeById(ant.type);
               if (antType.canBuildAnthill) {
                 handleBuildAnthillAction();
                 return;
@@ -723,7 +723,7 @@ function App() {
     }
 
     const ant = gameState.ants[selectedAnt];
-    const antType = AntTypes[ant.type.toUpperCase()];
+    const antType = getAntTypeById(ant.type);
 
     // Don't show paths if ant has already moved
     if (ant.hasMoved) {
@@ -788,7 +788,8 @@ function App() {
     }
 
     // Get movement range with paths
-    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
+    const startHex = new HexCoord(ant.position.q, ant.position.r);
+    const movesWithPaths = getMovementRangeWithPaths(startHex, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
 
     // Store paths in map
     const pathsMap = new Map();
@@ -1768,7 +1769,7 @@ function App() {
     // Burrowed units cannot attack except soldiers/marauders
     if (ant.isBurrowed && ant.type !== 'soldier') return [];
 
-    const antType = AntTypes[ant.type.toUpperCase()];
+    const antType = getAntTypeById(ant.type);
     const enemies = [];
 
     // Add enemy ants in range
@@ -1827,7 +1828,7 @@ function App() {
     const ant = state.ants?.[antId];
     if (!ant || ant.hasAttacked) return false;
 
-    const antType = AntTypes[ant.type.toUpperCase()];
+    const antType = getAntTypeById(ant.type);
 
     // Check if can attack enemies
     const hasEnemiesInRange = state.ants ? Object.values(state.ants).some(enemyAnt => {
@@ -1946,6 +1947,7 @@ function App() {
 
   // Handle hex click
   const handleHexClick = (hex) => {
+    console.log('handleHexClick:', { hex: hex ? `${hex.q},${hex.r}` : 'null', selectedAction, selectedAnt, pendingEggType });
     const currentState = getGameStateForLogic();
 
     // Allow viewing ant info even when not your turn
@@ -1993,7 +1995,7 @@ function App() {
         // Check if enemy is in range
         if (canAttack(ant, enemyAtHex, currentState)) {
           // Determine if this is a ranged attack
-          const antType = AntTypes[ant.type.toUpperCase()];
+          const antType = getAntTypeById(ant.type);
           const isRanged = antType.attackRange > 1;
 
           // Show attack animation
@@ -2048,7 +2050,7 @@ function App() {
       // If there's an egg and no ant, can attack the egg
       else if (eggAtHex) {
         // Check if egg is in range
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const distance = Math.max(
           Math.abs(ant.position.q - eggAtHex.position.q),
           Math.abs(ant.position.r - eggAtHex.position.r),
@@ -2108,7 +2110,7 @@ function App() {
       // If there's an anthill and no ant/egg, can attack the anthill
       else if (anthillAtHex) {
         // Check if anthill is in range
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const distance = Math.max(
           Math.abs(ant.position.q - anthillAtHex.position.q),
           Math.abs(ant.position.r - anthillAtHex.position.r),
@@ -2217,7 +2219,7 @@ function App() {
       }
 
       // Check if within heal range
-      const antType = AntTypes[healer.type.toUpperCase()];
+      const antType = getAntTypeById(healer.type);
       const healRange = healer.type === 'healer' ? antType.healRange : antType.attackRange;
       const distance = Math.max(
         Math.abs(healer.position.q - friendlyAtHex.position.q),
@@ -2248,7 +2250,9 @@ function App() {
 
     // If laying egg
     if (selectedAction === 'layEgg' && selectedAnt) {
+      console.log('layEgg branch entered');
       const ant = currentState.ants[selectedAnt];
+      console.log('Queen ant:', ant ? { id: ant.id, type: ant.type, position: ant.position } : 'NOT FOUND');
 
       // Only queens can lay eggs
       if (ant.type !== 'queen') {
@@ -2260,6 +2264,13 @@ function App() {
       // Check if hex is in the spawning pool
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
       const isInSpawningPool = spawningPool.some(n => hexEquals(n, hex));
+      console.log('Spawning pool check:', {
+        spawningPoolSize: spawningPool.length,
+        isInSpawningPool,
+        clickedHex: `${hex.q},${hex.r}`,
+        spawningPoolHexes: spawningPool.map(h => `${h.q},${h.r}`),
+        queenPos: ant.position ? `${ant.position.q},${ant.position.r}` : 'undefined'
+      });
 
       if (!isInSpawningPool) {
         const queenTier = QueenTiers[ant.queenTier || 'queen'];
@@ -2270,26 +2281,32 @@ function App() {
       // Check if hex is empty
       const occupied = Object.values(currentState.ants).some(a => hexEquals(a.position, hex)) ||
                        Object.values(currentState.eggs).some(e => hexEquals(e.position, hex));
+      console.log('Occupancy check:', { occupied });
 
       if (occupied) {
         showFeedback('Space is occupied!');
         return;
       }
 
+      console.log('Checking egg type sources:', { selectedEggHex, pendingEggType });
+
       // If we have a selected ant type from clicking a button, lay the egg
       if (selectedEggHex && selectedEggHex.antType) {
+        console.log('Laying egg from selectedEggHex.antType:', selectedEggHex.antType);
         handleLayEgg(selectedEggHex.antType, hex);
         return;
       }
 
       // If we have a pending egg type from Q+key hotkey, lay the egg
       if (pendingEggType) {
+        console.log('Laying egg from pendingEggType:', pendingEggType);
         handleLayEgg(pendingEggType, hex);
         setPendingEggType(null); // Clear pending egg type
         return;
       }
 
       // Store the selected egg hex (selector is always visible now)
+      console.log('No egg type selected, storing hex for selector');
       setSelectedEggHex(hex);
       return;
     }
@@ -2337,7 +2354,7 @@ function App() {
         // Check if we can attack this enemy
         if (canAttack(ant, enemyAtHex, currentState)) {
           // Determine if this is a ranged attack
-          const antType = AntTypes[ant.type.toUpperCase()];
+          const antType = getAntTypeById(ant.type);
           const isRanged = antType.attackRange > 1;
 
           // Show attack animation
@@ -2390,7 +2407,7 @@ function App() {
         }
 
         // Check if egg is in range
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const distance = Math.max(
           Math.abs(ant.position.q - eggAtHex.position.q),
           Math.abs(ant.position.r - eggAtHex.position.r),
@@ -2457,7 +2474,7 @@ function App() {
         }
 
         // Check if anthill is in range
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const distance = Math.max(
           Math.abs(ant.position.q - anthillAtHex.position.q),
           Math.abs(ant.position.r - anthillAtHex.position.r),
@@ -2534,7 +2551,7 @@ function App() {
         return;
       }
 
-      const antType = AntTypes[ant.type.toUpperCase()];
+      const antType = getAntTypeById(ant.type);
       const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius, [], mapShape);
 
       if (validMoves.some(h => hexEquals(h, hex))) {
@@ -2991,7 +3008,7 @@ function App() {
       );
 
       if (clickedEnemy) {
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
 
         // Check if enemy is already in attack range
         if (canAttack(ant, clickedEnemy, currentState)) {
@@ -3231,7 +3248,8 @@ function App() {
   const handleLayEgg = (antType, hexPosition) => {
     const currentState = getGameStateForLogic();
     const currentPlayer = currentState.players[currentState.currentPlayer];
-    const type = antType.toUpperCase();
+    // Keep the ant type in lowercase (matches the id in AntTypes, e.g., 'drone', 'soldier')
+    const type = antType.toLowerCase();
 
     // Find the queen
     const queen = Object.values(currentState.ants).find(
@@ -3347,7 +3365,7 @@ function App() {
     const currentState = getGameStateForLogic();
     if (ant.owner !== currentState.currentPlayer) return false;
 
-    const antType = AntTypes[ant.type.toUpperCase()];
+    const antType = getAntTypeById(ant.type);
 
     // Queens can lay eggs even if they've attacked, as long as they have energy
     if (ant.type === 'queen') {
@@ -3399,14 +3417,17 @@ function App() {
   // Calculate valid moves for selected ant
   const getValidMovesForSelectedAnt = () => {
     if (!selectedAnt || !gameState.ants[selectedAnt]) {
+      console.log('getValidMovesForSelectedAnt: No ant selected or ant not in gameState');
       return [];
     }
     const ant = gameState.ants[selectedAnt];
-    const antType = AntTypes[ant.type.toUpperCase()];
+    const antType = getAntTypeById(ant.type);
+    console.log('getValidMovesForSelectedAnt:', { selectedAnt, selectedAction, antType: antType?.id, hasMoved: ant.hasMoved });
 
     if (selectedAction === 'move') {
       // Don't show movement range if ant has already moved
       if (ant.hasMoved) {
+        console.log('getValidMovesForSelectedAnt: Ant has already moved');
         return [];
       }
 
@@ -3459,7 +3480,10 @@ function App() {
       }
 
       // Get movement range (paths are calculated in useEffect)
-      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
+      const startHex = new HexCoord(ant.position.q, ant.position.r);
+      console.log('getValidMovesForSelectedAnt: Computing movement range', { startHex: startHex.toString(), range, gridRadius, blockedCount: blockedHexes.length, mapShape });
+      const movesWithPaths = getMovementRangeWithPaths(startHex, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
+      console.log('getValidMovesForSelectedAnt: movesWithPaths result:', movesWithPaths.length, 'hexes');
       const validMoveHexes = movesWithPaths.map(item => item.hex);
 
       // Also include tree hexes within range for visual feedback (they show blue but can't be clicked)
@@ -3470,18 +3494,22 @@ function App() {
         return distance <= range;
       });
 
+      console.log('getValidMovesForSelectedAnt: Returning', validMoveHexes.length, 'move hexes +', treeHexesInRange.length, 'tree hexes');
       return [...validMoveHexes, ...treeHexesInRange];
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
+      console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
 
       // Filter out occupied hexes (ants, eggs, and trees)
-      return spawningPool.filter(hex => {
+      const validSpawnHexes = spawningPool.filter(hex => {
         const occupied = Object.values(gameState.ants).some(a => hexEquals(a.position, hex)) ||
                         Object.values(gameState.eggs).some(e => hexEquals(e.position, hex)) ||
                         Object.values(gameState.trees || {}).some(t => hexEquals(t.position, hex));
         return !occupied;
       });
+      console.log('getValidMovesForSelectedAnt: After filtering, valid spawn hexes:', validSpawnHexes.length);
+      return validSpawnHexes;
     }
 
     return [];
@@ -4101,7 +4129,7 @@ function App() {
               // Get blocked hexes
               const blockedHexes = Object.values(gameState.ants)
                 .filter(a => a.id !== ant.id && (!a.burrowed || a.owner !== ant.owner))
-                .map(a => a.position.toString());
+                .map(a => new HexCoord(a.position.q, a.position.r));
 
               // Calculate path from waypoint to destination
               const pathsFromWaypoint = getMovementRangeWithPaths(
@@ -4317,7 +4345,7 @@ function App() {
 
       if (attackAnim) {
         const elapsed = Date.now() - attackAnim.timestamp;
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const isRanged = antType?.attackRange > 1;
         let attackOffset = '';
 
@@ -4433,7 +4461,7 @@ function App() {
               fill="white"
               style={{ pointerEvents: 'none', fontWeight: 'bold', opacity: hasActions ? 1 : 0.5 }}
             >
-              {ant.isBurrowed ? '🕳️' : AntTypes[ant.type.toUpperCase()].icon}
+              {ant.isBurrowed ? '🕳️' : getAntTypeById(ant.type).icon}
             </text>
           )}
           {/* "No moves" indicator */}
@@ -4647,11 +4675,11 @@ function App() {
               <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
-                  .map(id => AntTypes[id.toUpperCase()])
+                  .map(id => getAntTypeById(id))
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
                   const currentPlayer = gameState.players[gameState.currentPlayer];
-                  const affordable = canAfford(currentPlayer, ant.id.toUpperCase());
+                  const affordable = canAfford(currentPlayer, ant.id);
 
                   // Get hero-modified cost for display
                   const { applyHeroCostModifier } = require('./heroQueens');
@@ -4802,6 +4830,7 @@ function App() {
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               onWheel={handleWheel}
+              onClick={(e) => console.log('SVG onClick event', { target: e.target.tagName, clientX: e.clientX, clientY: e.clientY })}
             >
             <defs>
               {/* Clip paths for sprite animations - one per ant */}
@@ -5130,7 +5159,7 @@ function App() {
           {selectedEgg && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
               <h4>Selected Egg</h4>
-              <p><strong>Type:</strong> {AntTypes[selectedEgg.antType.toUpperCase()].icon} {AntTypes[selectedEgg.antType.toUpperCase()].name}</p>
+              <p><strong>Type:</strong> {getAntTypeById(selectedEgg.antType)?.icon} {getAntTypeById(selectedEgg.antType)?.name}</p>
               <p><strong>Owner:</strong> {gameState.players[selectedEgg.owner].name}</p>
               <p><strong>Will hatch on turn:</strong> {selectedEgg.hatchTurn}</p>
               <p><strong>Turns until hatch:</strong> {Math.max(0, selectedEgg.hatchTurn - gameState.turn)}</p>
@@ -5196,14 +5225,14 @@ function App() {
           {selectedAnt && gameState.ants[selectedAnt] && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#e0e0e0', borderRadius: '5px' }}>
               <h4>Selected Ant</h4>
-              <p>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : AntTypes[gameState.ants[selectedAnt].type.toUpperCase()].name}</p>
+              <p>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
               <p>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
               {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer' || gameState.ants[selectedAnt].type === 'cordyphage') && gameState.ants[selectedAnt].maxEnergy && (
                 <p>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
               )}
               {(() => {
                 const ant = gameState.ants[selectedAnt];
-                const antType = AntTypes[ant.type.toUpperCase()];
+                const antType = getAntTypeById(ant.type);
                 const owner = gameState.players[ant.owner];
 
                 // Use getAntAttack and getAntDefense to get actual stats with all bonuses

@@ -1,5 +1,5 @@
 import { HexCoord, generateTriangleGrid, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
-import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams } from './antTypes';
+import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
 
 // Calculate army strength for a player
 // Formula: Fixed base value per ant type + 2 per upgrade tier
@@ -133,7 +133,8 @@ export function createInitialGameState(options = {}) {
     mapSize,
     mapShape,
     playerCount,
-    gridRadius,
+    gridRadius: (mapShape === MapShape.SQUARE || mapShape === MapShape.TRIANGLE) ? sideLength : gridRadius,
+    sideLength, // Store for square/triangle maps
     players,
     // Game statistics tracking
     stats: Object.keys(players).reduce((acc, playerId) => {
@@ -252,7 +253,7 @@ export function createInitialGameState(options = {}) {
       const heroId = players[ant.owner]?.heroId;
 
       if (heroId) {
-        const antType = AntTypes[ant.type.toUpperCase()];
+        const antType = getAntTypeById(ant.type);
         const stats = {
           health: ant.health,
           maxHealth: ant.maxHealth,
@@ -666,7 +667,7 @@ export function respawnResource(gameState, resourceType, isNorthSide) {
 
 // Create a new ant instance
 export function createAnt(type, owner, position, heroId = null) {
-  const antType = AntTypes[type.toUpperCase()];
+  const antType = getAntTypeById(type);
   if (!antType) {
     throw new Error(`Unknown ant type: ${type}`);
   }
@@ -724,7 +725,7 @@ export function createAnt(type, owner, position, heroId = null) {
 
 // Create a new egg
 export function createEgg(antType, owner, position, currentTurn) {
-  const type = AntTypes[antType.toUpperCase()];
+  const type = getAntTypeById(antType);
   if (!type) {
     throw new Error(`Unknown ant type: ${antType}`);
   }
@@ -769,7 +770,7 @@ export function completeAnthill(anthill) {
 
 // Check if player can afford an ant
 export function canAfford(player, antType) {
-  const type = AntTypes[antType.toUpperCase()];
+  const type = getAntTypeById(antType);
   let cost = type.cost;
 
   // Apply hero cost modifier if player has a hero
@@ -784,7 +785,7 @@ export function canAfford(player, antType) {
 
 // Deduct cost from player resources
 export function deductCost(player, antType) {
-  const type = AntTypes[antType.toUpperCase()];
+  const type = getAntTypeById(antType);
   let cost = type.cost;
 
   // Apply hero cost modifier if player has a hero
@@ -1106,7 +1107,7 @@ export function buildAnthill(gameState, droneId, resourceId) {
   if (!drone || !resource) return gameState;
 
   // Check if drone can build anthills
-  const droneType = AntTypes[drone.type.toUpperCase()];
+  const droneType = getAntTypeById(drone.type);
   if (!droneType.canBuildAnthill) return gameState;
 
   // Check if drone is ON the resource node (must be standing on it)
@@ -1252,7 +1253,7 @@ export function purchaseUpgrade(gameState, upgradeId) {
 
 // Get ant's attack with upgrades applied
 export function getAntAttack(ant, player) {
-  const antType = AntTypes[ant.type.toUpperCase()];
+  const antType = getAntTypeById(ant.type);
   let attack = antType.attack;
 
   // Apply hero bonus attack (stored when ant was created)
@@ -1313,7 +1314,7 @@ export function getAntAttack(ant, player) {
 
 // Get ant's defense with upgrades applied
 export function getAntDefense(ant, player, gameState) {
-  const antType = AntTypes[ant.type.toUpperCase()];
+  const antType = getAntTypeById(ant.type);
   let defense = antType.defense;
 
   // Apply defense upgrade: +10% per tier (rounded down, minimum +1 per tier)

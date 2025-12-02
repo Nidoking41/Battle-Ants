@@ -1,4 +1,4 @@
-import { AntTypes, GameConstants } from './antTypes';
+import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
 import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
 import {
@@ -224,7 +224,7 @@ function hatchEggsIfReady(gameState, aiPlayer) {
 
     // Create the ant
     const antId = `ant_ai_${Date.now()}_${Math.random()}`;
-    const antType = AntTypes[egg.antType.toUpperCase()];
+    const antType = getAntTypeById(egg.antType);
 
     state.ants[antId] = {
       id: antId,
@@ -296,7 +296,7 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
 
     // Decide what unit to produce based on difficulty AND strategy
     const unitType = chooseUnitToProduce(state, aiPlayer, config, strategy);
-    const antTypeCost = AntTypes[unitType.toUpperCase()].cost;
+    const antTypeCost = getAntTypeById(unitType).cost;
     console.log(`Chosen unit type: ${unitType}, cost:`, antTypeCost);
 
     // Check if we can afford the ant type
@@ -404,7 +404,7 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
 
     const affordableCombat = Object.entries(combatUnitMix)
       .filter(([type]) => {
-        const antType = AntTypes[type.toUpperCase()];
+        const antType = getAntTypeById(type);
         if (!antType) return false;
         return resources.food >= antType.cost.food && resources.minerals >= antType.cost.minerals;
       });
@@ -425,7 +425,7 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
   // Default: use standard unit mix
   const affordableUnits = Object.entries(config.unitMix)
     .filter(([type]) => {
-      const antType = AntTypes[type.toUpperCase()];
+      const antType = getAntTypeById(type);
       if (!antType) return false;
       return resources.food >= antType.cost.food && resources.minerals >= antType.cost.minerals;
     });
@@ -748,7 +748,7 @@ function handleHealerUnit(gameState, healer, aiPlayer) {
   const injuredAllies = Object.values(state.ants)
     .filter(ant =>
       ant.owner === aiPlayer &&
-      ant.health < AntTypes[ant.type.toUpperCase()].maxHealth &&
+      ant.health < getAntTypeById(ant.type).maxHealth &&
       hexDistance(healer.position, ant.position) <= 1
     );
 
@@ -835,7 +835,7 @@ function findNearestMineralResource(gameState, position, aiPlayer) {
  * Find enemies in attack range of a unit
  */
 function findEnemiesInRange(gameState, unit, aiPlayer) {
-  const antType = AntTypes[unit.type.toUpperCase()];
+  const antType = getAntTypeById(unit.type);
   const attackRange = antType.attackRange;
 
   return Object.values(gameState.ants).filter(ant => {
@@ -864,7 +864,7 @@ function moveUnitToward(gameState, unit, targetPos) {
   }
 
   // Get valid movement range with paths (all ants and eggs block movement)
-  const antType = AntTypes[unit.type.toUpperCase()];
+  const antType = getAntTypeById(unit.type);
   const gridRadius = state.gridRadius || 6;
 
   // Block hexes with other ants (both enemy and friendly)
@@ -883,7 +883,8 @@ function moveUnitToward(gameState, unit, targetPos) {
   // Combine all blocked hexes
   const blockedHexes = [...antHexes, ...eggHexes, ...treeHexes];
 
-  const movesWithPaths = getMovementRangeWithPaths(unit.position, antType.moveRange, gridRadius, blockedHexes);
+  const startHex = new HexCoord(unit.position.q, unit.position.r);
+  const movesWithPaths = getMovementRangeWithPaths(startHex, antType.moveRange, gridRadius, blockedHexes);
   console.log(`Move range has ${movesWithPaths.length} hexes with valid paths`);
 
   if (movesWithPaths.length === 0) {

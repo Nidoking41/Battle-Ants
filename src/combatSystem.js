@@ -1,4 +1,4 @@
-import { AntTypes, GameConstants } from './antTypes';
+import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
 import { hexDistance, getNeighbors } from './hexUtils';
 import { getAntAttack, getAntDefense } from './gameState';
 
@@ -95,7 +95,7 @@ export function attackEgg(gameState, attackerId, eggId) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerType = getAntTypeById(attacker.type);
   const attackerPlayer = gameState.players[attacker.owner];
   const baseAttack = getAntAttack(attacker, attackerPlayer);
 
@@ -154,7 +154,7 @@ export function attackAnthill(gameState, attackerId, anthillId) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerType = getAntTypeById(attacker.type);
   const attackerPlayer = gameState.players[attacker.owner];
   const baseAttack = getAntAttack(attacker, attackerPlayer);
 
@@ -229,7 +229,7 @@ export function detonateBomber(gameState, bomberId) {
   }
 
   adjacentAnts.forEach(target => {
-    const targetType = AntTypes[target.type.toUpperCase()];
+    const targetType = getAntTypeById(target.type);
     const defense = targetType.defense;
     const damage = Math.max(1, bomberType.attack - Math.floor(defense));
     const newHealth = target.health - damage;
@@ -327,7 +327,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
-  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerType = getAntTypeById(attacker.type);
   const damage = calculateDamage(attacker, defender, gameState);
 
   // Track all damage dealt for animations
@@ -463,7 +463,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   }
 
   // Counter-attack: If defender survived and both are in melee range, defender attacks back
-  const defenderType = AntTypes[defender.type.toUpperCase()];
+  const defenderType = getAntTypeById(defender.type);
   const distance = hexDistance(attacker.position, defender.position);
   const defenderSurvived = updatedAnts[defenderId] && updatedAnts[defenderId].health > 0;
   const isMeleeRange = distance <= 1 && attackerType.attackRange <= 1 && defenderType.attackRange <= 1;
@@ -561,7 +561,7 @@ export function canAttack(attacker, defender, gameState) {
   // Burrowed units cannot attack except soldiers/marauders
   if (attacker.isBurrowed && attacker.type !== 'soldier') return false;
 
-  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerType = getAntTypeById(attacker.type);
   const distance = hexDistance(attacker.position, defender.position);
 
   // Get attack range with Sorlorg bonus if active
@@ -592,7 +592,7 @@ export function getValidTargets(antId, gameState) {
   const attacker = gameState.ants[antId];
   if (!attacker) return [];
 
-  const attackerType = AntTypes[attacker.type.toUpperCase()];
+  const attackerType = getAntTypeById(attacker.type);
   const minRange = attackerType.minAttackRange || 0;
 
   return Object.values(gameState.ants).filter(ant => {
@@ -684,7 +684,7 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
 
   // Apply splash damage to all affected ants
   affectedAnts.forEach(target => {
-    const targetType = AntTypes[target.type.toUpperCase()];
+    const targetType = getAntTypeById(target.type);
     const targetPlayer = gameState.players[target.owner];
     const defense = targetType.defense;
 
@@ -773,8 +773,8 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     };
   }
 
-  const movingAntType = AntTypes[movingAnt.type.toUpperCase()];
-  const ambusherType = AntTypes[ambusher.type.toUpperCase()];
+  const movingAntType = getAntTypeById(movingAnt.type);
+  const ambusherType = getAntTypeById(ambusher.type);
 
   let updatedGameState = { ...gameState };
   let damageDealt = [];

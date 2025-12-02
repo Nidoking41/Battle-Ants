@@ -33,8 +33,8 @@ export const AntTypes = {
     icon: '🏃🐜'
   },
 
-  Marauder: {
-    id: 'Marauder',
+  MARAUDER: {
+    id: 'soldier',
     name: 'Marauder',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
@@ -49,8 +49,8 @@ export const AntTypes = {
     icon: '⚔️🐜'
   },
 
-  Bullet: {
-    id: 'Bullet',
+  BULLET: {
+    id: 'tank',
     name: 'Bullet Ant',
     cost: { food: 30, minerals: 15 },
     hatchTime: 2,
@@ -65,8 +65,8 @@ export const AntTypes = {
     icon: '🛡️🐜'
   },
 
- Acid: {
-    id: 'Acid',
+ ACID: {
+    id: 'spitter',
     name: 'Acid Ant',
     cost: { food: 15, minerals: 7 },
     hatchTime: 2,
@@ -135,6 +135,11 @@ export const AntTypes = {
   }
 };
 
+// Helper function to get ant type by ID (e.g., 'soldier', 'tank', 'spitter')
+export function getAntTypeById(id) {
+  return Object.values(AntTypes).find(type => type.id === id);
+}
+
 export const ResourceTypes = {
   FOOD: 'food',
   MINERALS: 'minerals'
@@ -151,21 +156,21 @@ export const GameConstants = {
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
   ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
   ANTHILL_PASSIVE_INCOME: {
-    food: 8,  // Per turn for food anthills
-    minerals: 6 // Per turn for mineral anthills
+    food: 5,  // Per turn for food anthills
+    minerals: 7 // Per turn for mineral anthills
   },
   // Queen energy system
-  QUEEN_BASE_ENERGY: 5,
-  QUEEN_BASE_ENERGY_REGEN: 5,
-  EGG_LAY_ENERGY_COST: 1,
-  HEAL_ENERGY_COST: 2,
+  QUEEN_BASE_ENERGY: 50,
+  QUEEN_BASE_ENERGY_REGEN: 10,
+  EGG_LAY_ENERGY_COST: 5,
+  HEAL_ENERGY_COST: 10,
   HEAL_AMOUNT: 15,
   QUEEN_BASE_FOOD_INCOME: 5,
   // Tree bonuses
   TREE_DEFENSE_BONUS: 2,
   // Cannibalism upgrade
   CANNIBALISM_FOOD_GAIN: 5,
-  CANNIBALISM_MINERAL_GAIN: 2,
+  CANNIBALISM_MINERAL_GAIN: 5,
   // Map sizes for multiplayer
   TRIANGLE_SIDE_LENGTH: 15, // 3-player triangle map (15 hexes per side)
   SQUARE_SIZE: 16 // 4-player square map (16x12 hexes, ~149 hexes)
@@ -230,12 +235,14 @@ export const QueenTiers = {
     name: 'Queen',
     spawningSpots: 2,
     maxEnergy: 50,
+    energyRegen: 5,
     foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
     spawningSpots: 4,
     maxEnergy: 75,
+    energyRegen: 5,
     foodIncome: 6,
     cost: { food: 25, minerals: 15 }
   },
@@ -243,6 +250,7 @@ export const QueenTiers = {
     name: 'Swarm Queen',
     spawningSpots: 6,
     maxEnergy: 100,
+    energyRegen: 5,
     foodIncome: 7,
     cost: { food: 30, minerals: 20 }
   }
