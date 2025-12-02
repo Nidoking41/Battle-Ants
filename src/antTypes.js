@@ -6,9 +6,9 @@ export const AntTypes = {
     name: 'Queen',
     cost: { food: 0, minerals: 0 }, // Queens start on the map
     hatchTime: 0,
-    maxHealth: 100,
+    maxHealth: 60,
     attack: 15,
-    defense: 5,
+    defense: 2,
     moveSpeed: 1,
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
@@ -33,9 +33,9 @@ export const AntTypes = {
     icon: '🏃🐜'
   },
 
-  SOLDIER: {
-    id: 'soldier',
-    name: 'Soldier Ant',
+  Marauder: {
+    id: 'Marauder',
+    name: 'Marauder',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
     maxHealth: 45,
@@ -49,9 +49,9 @@ export const AntTypes = {
     icon: '⚔️🐜'
   },
 
-  TANK: {
-    id: 'tank',
-    name: 'Tank Ant',
+  Bullet: {
+    id: 'Bullet',
+    name: 'Bullet Ant',
     cost: { food: 30, minerals: 15 },
     hatchTime: 2,
     maxHealth: 80,
@@ -65,9 +65,9 @@ export const AntTypes = {
     icon: '🛡️🐜'
   },
 
-  SPITTER: {
-    id: 'spitter',
-    name: 'Acid Spitter',
+ Acid: {
+    id: 'Acid',
+    name: 'Acid Ant',
     cost: { food: 15, minerals: 7 },
     hatchTime: 2,
     maxHealth: 25,

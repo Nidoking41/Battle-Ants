@@ -86,17 +86,37 @@ function hexRound(q, r) {
 }
 
 // Check if hex is valid on the board
-export function isValidHex(hex, gridSize) {
-  return Math.abs(hex.q) <= gridSize &&
-         Math.abs(hex.r) <= gridSize &&
-         Math.abs(hex.q + hex.r) <= gridSize;
+// For diamond grids (2-player rectangle maps)
+export function isValidHex(hex, gridSize, mapShape = 'rectangle') {
+  if (mapShape === 'square') {
+    // For 4-player rectangular maps, use offset coordinate bounds
+    const width = gridSize; // gridSize is sideLength for square maps
+    const height = Math.floor(gridSize * 0.75);
+    return isValidSquareHex(hex, width, height);
+  } else if (mapShape === 'triangle') {
+    // For 3-player triangle maps
+    const sideLength = gridSize;
+    // Check if hex is within the triangle bounds
+    // Triangle has vertices at (0, -(sideLength-1)), (sideLength-1, 0), (-(sideLength-1), sideLength-1)
+    const s = -hex.q - hex.r;
+    return hex.r <= 0 &&
+           hex.q >= -(sideLength - 1) &&
+           hex.q <= (sideLength - 1) &&
+           s >= -(sideLength - 1) &&
+           s <= (sideLength - 1);
+  } else {
+    // Default diamond grid (2-player)
+    return Math.abs(hex.q) <= gridSize &&
+           Math.abs(hex.r) <= gridSize &&
+           Math.abs(hex.q + hex.r) <= gridSize;
+  }
 }
 
 // Get all valid hexes in movement range (with paths)
 // Returns: { hex: HexCoord, path: HexCoord[] }[]
 // blockedHexes: hexes you cannot path through (enemy units)
 // cannotEndHexes: hexes you can path through but cannot end movement on (friendly units, eggs)
-export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes = [], cannotEndHexes = []) {
+export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes = [], cannotEndHexes = [], mapShape = 'rectangle') {
   const visited = new Set();
   const frontier = [[startHex, 0, []]]; // [hex, distance, path]
   visited.add(startHex.toString());
@@ -117,7 +137,7 @@ export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexe
         const key = neighbor.toString();
         // Can path through cannotEndHexes, just can't pathfind through blockedHexes
         if (!visited.has(key) &&
-            isValidHex(neighbor, gridSize) &&
+            isValidHex(neighbor, gridSize, mapShape) &&
             !blockedHexes.some(blocked => blocked.equals(neighbor))) {
           visited.add(key);
           frontier.push([neighbor, distance + 1, [...path, current]]);
@@ -130,8 +150,8 @@ export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexe
 }
 
 // Get all valid hexes in movement range (backwards compatible)
-export function getMovementRange(startHex, range, gridSize, blockedHexes = []) {
-  const withPaths = getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes);
+export function getMovementRange(startHex, range, gridSize, blockedHexes = [], mapShape = 'rectangle') {
+  const withPaths = getMovementRangeWithPaths(startHex, range, gridSize, blockedHexes, [], mapShape);
   return withPaths.map(item => item.hex);
 }
 

@@ -87,18 +87,17 @@ function App() {
     };
 
     // Generate random color for each hex using a seeded random based on position
+    // Cover a large enough range to handle all map types
     const colors = new Map();
-    const gridRadius = 6; // Match the default grid size
-    for (let q = -gridRadius; q <= gridRadius; q++) {
-      for (let r = -gridRadius; r <= gridRadius; r++) {
+    const maxRange = 20; // Large enough to cover any map type
+    for (let q = -maxRange; q <= maxRange; q++) {
+      for (let r = -maxRange; r <= maxRange; r++) {
         const s = -q - r;
-        if (Math.abs(s) <= gridRadius) {
-          // Use position as seed for consistent but varied colors
-          const seed = q * 7919 + r * 7907 + s * 7901; // Large primes for better distribution
-          const randomValue = seededRandom(seed);
-          const colorIndex = Math.floor(randomValue * earthyTones.length);
-          colors.set(`${q},${r}`, earthyTones[colorIndex]);
-        }
+        // Use position as seed for consistent but varied colors
+        const seed = q * 7919 + r * 7907 + s * 7901; // Large primes for better distribution
+        const randomValue = seededRandom(seed);
+        const colorIndex = Math.floor(randomValue * earthyTones.length);
+        colors.set(`${q},${r}`, earthyTones[colorIndex]);
       }
     }
     return colors;
@@ -178,8 +177,9 @@ function App() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Drag start position
 
   const hexSize = 50;
-  // Get gridRadius from gameState (defaults to 6 if not set)
+  // Get gridRadius and mapShape from gameState
   const gridRadius = gameState.gridRadius || 6;
+  const mapShape = gameState.mapShape || 'rectangle';
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 2.0;
 
@@ -788,7 +788,7 @@ function App() {
     }
 
     // Get movement range with paths
-    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes);
+    const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
 
     // Store paths in map
     const pathsMap = new Map();
@@ -796,7 +796,7 @@ function App() {
       pathsMap.set(hex.toString(), path);
     });
     setMovementPaths(pathsMap);
-  }, [selectedAnt, selectedAction, gameState, gridRadius]);
+  }, [selectedAnt, selectedAction, gameState, gridRadius, mapShape]);
 
   // Clear waypoint when ant or action changes
   useEffect(() => {
@@ -2535,7 +2535,7 @@ function App() {
       }
 
       const antType = AntTypes[ant.type.toUpperCase()];
-      const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius);
+      const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius, [], mapShape);
 
       if (validMoves.some(h => hexEquals(h, hex))) {
         // Validate the path is clear (no ants blocking the way)
@@ -2571,7 +2571,8 @@ function App() {
                 remainingRange,
                 gridRadius,
                 enemyHexes,
-                [...friendlyHexes, ...eggHexes]
+                [...friendlyHexes, ...eggHexes],
+                mapShape
               );
 
               const pathFromWaypointToHex = pathsFromWaypoint.find(
@@ -3008,7 +3009,7 @@ function App() {
         }
 
         // Enemy not in range - find positions we can move to that would put enemy in range
-        const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius);
+        const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius, [], mapShape);
         const attackablePositions = validMoves.filter(movePos => {
           // Check if this position is occupied by a friendly unit
           const occupiedByFriendly = Object.values(currentState.ants).some(
@@ -3458,7 +3459,7 @@ function App() {
       }
 
       // Get movement range (paths are calculated in useEffect)
-      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes);
+      const movesWithPaths = getMovementRangeWithPaths(ant.position, range, gridRadius, blockedHexes, cannotEndHexes, mapShape);
       const validMoveHexes = movesWithPaths.map(item => item.hex);
 
       // Also include tree hexes within range for visual feedback (they show blue but can't be clicked)
@@ -4107,7 +4108,9 @@ function App() {
                 pathWaypoint,
                 remainingRange,
                 gridRadius,
-                blockedHexes
+                blockedHexes,
+                [],
+                mapShape
               );
 
               const pathFromWaypointToHover = pathsFromWaypoint.find(
