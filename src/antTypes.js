@@ -132,6 +132,62 @@ export const AntTypes = {
     resourceGatherRate: 5,
     description: 'Poor combatant but can build anthills to generate passive income.',
     icon: '⛏️🐜'
+  },
+
+  HEALER: {
+    id: 'healer',
+    name: 'Weaver Ant',
+    cost: { food: 20, minerals: 15 },
+    hatchTime: 1,
+    maxHealth: 20,
+    attack: 0, // Cannot attack
+    defense: 1,
+    moveSpeed: 2,
+    moveRange: 2,
+    attackRange: 0, // No attack range
+    resourceGatherRate: 0,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    // Energy system for abilities
+    maxEnergy: 50,
+    energyRegen: 10,
+    // Abilities
+    healRange: 1, // Melee range healing
+    healAmount: 20,
+    healEnergyCost: 15,
+    ensnareRange: 3,
+    ensnareDuration: 3, // turns
+    ensnareEnergyCost: 20,
+    cordycepsRange: 2, // Range for mind control
+    cordycepsEnergyCost: 35, // Expensive ability
+    description: 'Support unit that can heal allies, ensnare enemies, and mind control with Cordyceps Purge. Requires Swarm Queen.',
+    icon: '✨🐜'
+  },
+
+  CORDYPHAGE: {
+    id: 'cordyphage',
+    name: 'Cordyphage',
+    cost: { food: 25, minerals: 20 },
+    hatchTime: 2,
+    maxHealth: 25,
+    attack: 0, // Cannot attack
+    defense: 1,
+    moveSpeed: 2,
+    moveRange: 2,
+    attackRange: 0, // No attack range
+    resourceGatherRate: 0,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    // Energy system for abilities
+    maxEnergy: 50,
+    energyRegen: 10,
+    // Abilities
+    cordycepsRange: 2, // Range for mind control
+    cordycepsEnergyCost: 35, // Expensive ability
+    plagueRange: 3, // Range for plague
+    plagueDuration: 3, // turns
+    plagueHealthLoss: 0.20, // 20% health per turn
+    plagueEnergyCost: 25,
+    description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
+    icon: '☠️🐜'
   }
 };
 
