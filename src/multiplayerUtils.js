@@ -20,9 +20,13 @@ export function serializeGameState(gameState) {
     deadAnts: {}
   };
 
-  // Serialize ants
+  // Serialize ants - skip any with undefined position
   if (gameState.ants) {
     Object.entries(gameState.ants).forEach(([id, ant]) => {
+      if (!ant || !ant.position) {
+        console.warn('Skipping ant with undefined position:', id, ant);
+        return;
+      }
       serialized.ants[id] = {
         ...ant,
         position: { q: ant.position.q, r: ant.position.r }
@@ -30,9 +34,13 @@ export function serializeGameState(gameState) {
     });
   }
 
-  // Serialize eggs
+  // Serialize eggs - skip any with undefined position
   if (gameState.eggs) {
     Object.entries(gameState.eggs).forEach(([id, egg]) => {
+      if (!egg || !egg.position) {
+        console.warn('Skipping egg with undefined position:', id, egg);
+        return;
+      }
       serialized.eggs[id] = {
         ...egg,
         position: { q: egg.position.q, r: egg.position.r }
@@ -40,9 +48,13 @@ export function serializeGameState(gameState) {
     });
   }
 
-  // Serialize resources
+  // Serialize resources - skip any with undefined position
   if (gameState.resources) {
     Object.entries(gameState.resources).forEach(([id, resource]) => {
+      if (!resource || !resource.position) {
+        console.warn('Skipping resource with undefined position:', id, resource);
+        return;
+      }
       serialized.resources[id] = {
         ...resource,
         position: { q: resource.position.q, r: resource.position.r }
@@ -50,9 +62,13 @@ export function serializeGameState(gameState) {
     });
   }
 
-  // Serialize anthills
+  // Serialize anthills - skip any with undefined position
   if (gameState.anthills) {
     Object.entries(gameState.anthills).forEach(([id, anthill]) => {
+      if (!anthill || !anthill.position) {
+        console.warn('Skipping anthill with undefined position:', id, anthill);
+        return;
+      }
       serialized.anthills[id] = {
         ...anthill,
         position: { q: anthill.position.q, r: anthill.position.r }
@@ -60,9 +76,13 @@ export function serializeGameState(gameState) {
     });
   }
 
-  // Serialize trees
+  // Serialize trees - skip any with undefined position
   if (gameState.trees) {
     Object.entries(gameState.trees).forEach(([id, tree]) => {
+      if (!tree || !tree.position) {
+        console.warn('Skipping tree with undefined position:', id, tree);
+        return;
+      }
       serialized.trees[id] = {
         ...tree,
         position: { q: tree.position.q, r: tree.position.r }
@@ -70,9 +90,13 @@ export function serializeGameState(gameState) {
     });
   }
 
-  // Serialize dead ants
+  // Serialize dead ants - skip any with undefined position
   if (gameState.deadAnts) {
     Object.entries(gameState.deadAnts).forEach(([id, deadAnt]) => {
+      if (!deadAnt || !deadAnt.position) {
+        console.warn('Skipping dead ant with undefined position:', id, deadAnt);
+        return;
+      }
       serialized.deadAnts[id] = {
         ...deadAnt,
         position: { q: deadAnt.position.q, r: deadAnt.position.r }
