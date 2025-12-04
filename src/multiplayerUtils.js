@@ -828,7 +828,9 @@ export function applyFogOfWar(gameState, playerId) {
         resources: { food: '??', minerals: '??' }, // Hide actual resource counts
         upgrades: player.upgrades || {}, // Keep upgrades for calculations
         queenTier: player.queenTier, // Keep queen tier
-        energy: player.energy // Keep energy for UI calculations
+        energy: player.energy, // Keep energy for UI calculations
+        heroAbilityActive: player.heroAbilityActive, // Show hero ability aura for both players
+        heroPower: player.heroPower // Show hero power meter
       };
     }
   });
