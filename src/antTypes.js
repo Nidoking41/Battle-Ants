@@ -38,7 +38,7 @@ export const AntTypes = {
     name: 'Marauder',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
-    maxHealth: 45,
+    maxHealth: 35,
     attack: 10,
     defense: 1,
     moveSpeed: 2,
@@ -54,7 +54,7 @@ export const AntTypes = {
     name: 'Bullet Ant',
     cost: { food: 30, minerals: 15 },
     hatchTime: 2,
-    maxHealth: 80,
+    maxHealth: 65,
     attack: 20,
     defense: 2,
     moveSpeed: 2,
@@ -69,9 +69,9 @@ export const AntTypes = {
     id: 'spitter',
     name: 'Acid Ant',
     cost: { food: 15, minerals: 7 },
-    hatchTime: 2,
+    hatchTime: 1,
     maxHealth: 25,
-    attack: 12,
+    attack: 8,
     defense: 0,
     attackRange: 2,
     moveSpeed: 2,
@@ -167,7 +167,7 @@ export const AntTypes = {
     id: 'cordyphage',
     name: 'Cordyphage',
     cost: { food: 25, minerals: 20 },
-    hatchTime: 2,
+    hatchTime: 1,
     maxHealth: 25,
     attack: 0, // Cannot attack
     defense: 1,
@@ -267,6 +267,58 @@ export const Upgrades = {
       { food: 20, minerals: 15 }, // Tier 1
       { food: 25, minerals: 20 }, // Tier 2
       { food: 30, minerals: 25 }  // Tier 3
+    ]
+  },
+  CANNIBALISM: {
+    id: 'cannibalism',
+    name: 'Cannibalism',
+    description: '+3 Food and +3 Minerals when melee units kill',
+    icon: '🍖',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 10 }  // Tier 1
+    ]
+  },
+  BURROW: {
+    id: 'burrow',
+    name: 'Burrow',
+    description: 'Unlock burrow ability for all units (except Tank/Bombardier)',
+    icon: '🕳️',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
+    ]
+  },
+  CONNECTED_TUNNELS: {
+    id: 'connectedTunnels',
+    name: 'Connected Tunnels',
+    description: 'Units on anthills can teleport to other friendly anthills',
+    icon: '🌀',
+    maxTier: 1,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
+    ]
+  },
+  CORDYCEPS_PURGE: {
+    id: 'cordycepsPurge',
+    name: 'Cordyceps Purge',
+    description: 'Unlocks mind control ability for Weaver Ants and Cordyphage (35⚡, Range 2)',
+    icon: '🧠',
+    maxTier: 1,
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    costs: [
+      { food: 20, minerals: 20 } // Single expensive unlock
+    ]
+  },
+  REVEAL: {
+    id: 'reveal',
+    name: 'Pheromone Pulse',
+    description: 'Unlocks Reveal ability for Queens (30⚡). Reveals any hex and its 6 adjacent hexes. Detects burrowed units for 1 turn.',
+    icon: '👁️',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 15 }
     ]
   }
 };
