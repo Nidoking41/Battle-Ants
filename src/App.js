@@ -3675,6 +3675,19 @@ function App() {
       const hexKey = `${q},${r}`;
       const isVisible = !visibleHexes || visibleHexes.has(hexKey);
 
+      // Check if tree should be visible - only show tree if player has a unit adjacent to it
+      // This prevents revealing that an enemy might be hiding under a tree
+      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+      const isTreeVisible = !tree || !visibleHexes || (() => {
+        // Get neighbors of this tree hex
+        const treeNeighbors = getNeighbors(hex);
+        // Check if any of the player's units are adjacent to the tree
+        return Object.values(gameState.ants).some(a =>
+          a.owner === currentPlayerId &&
+          treeNeighbors.some(neighbor => hexEquals(neighbor, a.position))
+        );
+      })();
+
       // Check if this hex is in the spawning pool of any queen
       let isBirthingPool = false;
       let birthingPoolOwner = null;
@@ -3967,8 +3980,8 @@ function App() {
                 </g>
               ) : null;
             })()}
-            {/* Tree rendering - always visible, below ants */}
-            {tree && (
+            {/* Tree rendering - only visible if player has adjacent unit */}
+            {tree && isTreeVisible && (
               <image
                 x={-32}
                 y={-32}
