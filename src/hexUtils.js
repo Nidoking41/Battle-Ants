@@ -233,14 +233,40 @@ export function rotateHex90(hex) {
 }
 
 // Get starting positions for players based on map shape
-export function getPlayerStartingPositions(mapShape, sideLength) {
-  if (mapShape === 'triangle') {
-    // 3 players at triangle corners
-    return [
-      new HexCoord(0, -(sideLength - 1)),           // Player 1: Top
-      new HexCoord(sideLength - 1, 0),              // Player 2: Bottom-right
-      new HexCoord(-(sideLength - 1), sideLength - 1) // Player 3: Bottom-left
-    ];
+export function getPlayerStartingPositions(mapShape, sideLength, playerCount = 2) {
+  if (mapShape === 'triangle' || (mapShape === 'rectangle' && playerCount === 3)) {
+    // 3 players on a hexagon map at 2 o'clock, 6 o'clock, and 10 o'clock positions
+    // Using the same hexagon grid as 2-player but with 3 spawn points
+    // The hexagon has 6 sides, we place players at sides 2, 4, and 6 (counting clockwise from top)
+    const radius = sideLength - 1;
+
+    // In axial coordinates for a pointy-top hexagon:
+    // Top vertex: (0, -radius)
+    // Top-right edge center (2 o'clock): roughly (radius, -radius) direction
+    // Right vertex: (radius, 0) - but we want the edge between top-right and bottom-right
+    // Bottom-right edge center (4 o'clock): roughly (radius, radius/2) direction
+    // Bottom vertex: (0, radius)
+    // Bottom-left edge center (6 o'clock): roughly (-radius, radius) direction
+    // Left vertex: (-radius, radius)
+    // Top-left edge center (10 o'clock): roughly (-radius, 0) direction
+
+    // For 120° rotational symmetry on a hexagon:
+    // Position 1 (2 o'clock): edge between top and bottom-right - around (radius-1, -(radius-1)/2)
+    // Position 2 (6 o'clock): bottom - (0, radius-1)
+    // Position 3 (10 o'clock): edge between left and top - around (-(radius-1), 0)
+
+    // Using proper 120° rotation points on hexagon edges:
+    // Player 1: 2 o'clock position
+    // Player 2: 6 o'clock position (bottom)
+    // Player 3: 10 o'clock position
+
+    // Calculate positions at 120° intervals
+    // Start with one position and rotate by 120° twice
+    const pos1 = new HexCoord(radius - 1, -(radius - 1));  // 2 o'clock (top-right area)
+    const pos2 = new HexCoord(0, radius - 1);               // 6 o'clock (bottom)
+    const pos3 = new HexCoord(-(radius - 1), 0);            // 10 o'clock (left)
+
+    return [pos1, pos2, pos3];
   } else if (mapShape === 'square') {
     // 4 players at cardinal directions of the rectangular grid
     // width=sideLength, height=sideLength*0.75

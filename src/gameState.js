@@ -1,4 +1,4 @@
-import { HexCoord, generateTriangleGrid, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
+import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
 
 // Calculate army strength for a player
@@ -83,9 +83,17 @@ export function createInitialGameState(options = {}) {
   const gridRadius = gridSizeMap[mapSize] || 6;
 
   // Determine map dimensions based on shape
+  // For 3-player games, use the same hexagon map as 2-player (large rectangle)
   let sideLength = gridRadius;
+  let effectiveMapShape = mapShape;
   console.log('createInitialGameState called with:', { playerCount, mapShape, mapSize });
-  if (mapShape === MapShape.TRIANGLE) {
+
+  if (playerCount === 3) {
+    // 3-player games use the large 2-player hexagon map with 3 spawn points
+    sideLength = gridSizeMap['large']; // Always use large map for 3-player
+    effectiveMapShape = MapShape.RECTANGLE;
+    console.log('Using HEXAGON map for 3-player, gridRadius:', sideLength);
+  } else if (mapShape === MapShape.TRIANGLE) {
     sideLength = GameConstants.TRIANGLE_SIDE_LENGTH; // 15
     console.log('Using TRIANGLE map, sideLength:', sideLength);
   } else if (mapShape === MapShape.SQUARE) {
@@ -131,9 +139,9 @@ export function createInitialGameState(options = {}) {
     turn: 1,
     currentPlayer: 'player1',
     mapSize,
-    mapShape,
+    mapShape: effectiveMapShape,
     playerCount,
-    gridRadius: (mapShape === MapShape.SQUARE || mapShape === MapShape.TRIANGLE) ? sideLength : gridRadius,
+    gridRadius: (effectiveMapShape === MapShape.SQUARE) ? sideLength : gridRadius,
     sideLength, // Store for square/triangle maps
     players,
     // Game statistics tracking
@@ -157,7 +165,7 @@ export function createInitialGameState(options = {}) {
     ants: {},
     eggs: {},
     deadAnts: {}, // Dead ants that persist for 2 seconds
-    resources: generateResourceNodesMultiplayer(sideLength, playerCount, mapShape),
+    resources: generateResourceNodesMultiplayer(sideLength, playerCount, effectiveMapShape),
     anthills: {}, // Anthills built on resource nodes
     trees: {}, // Trees will be generated after we have occupied positions
     selectedAnt: null,
@@ -167,7 +175,7 @@ export function createInitialGameState(options = {}) {
   };
 
   // Get starting positions for all players based on map shape
-  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+  const startingPositions = getPlayerStartingPositions(effectiveMapShape, sideLength, playerCount);
 
   // Create queens and starting units for each player
   const playerIds = Object.keys(players);
@@ -240,10 +248,10 @@ export function createInitialGameState(options = {}) {
 
   // Generate trees avoiding occupied positions
   // For 2-player: 4 per side (8 total)
-  // For 3-player: 2-3 per side with 120° rotation
+  // For 3-player: 3 trees per "sector" with 120° rotation (9 total)
   // For 4-player: 2 per side with 90° rotation
-  const treesPerSide = playerCount === 2 ? 4 : 2;
-  initialState.trees = generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide);
+  const treesPerSide = playerCount === 2 ? 4 : (playerCount === 3 ? 3 : 2);
+  initialState.trees = generateTreesMultiplayer(sideLength, playerCount, effectiveMapShape, occupiedPositions, treesPerSide);
 
   // Apply hero bonuses to starting ants
   if (player1Hero || player2Hero || player3Hero || player4Hero) {
@@ -462,18 +470,21 @@ function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
     return generateResourceNodes(sideLength);
   }
 
-  // For 3 and 4 player maps, generate base resources and mirror them
+  // For 3-player on hexagon map, use 120° rotational symmetry
+  if (playerCount === 3 && mapShape === MapShape.RECTANGLE) {
+    return generateResourceNodes3Player(sideLength);
+  }
+
+  // For 4 player maps, generate base resources and mirror them
   const baseResourceCount = Math.floor(GameConstants.RESOURCE_SPAWN_COUNT / playerCount);
 
   // Generate base positions (avoiding starting positions)
   const validPositions = [];
-  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+  const startingPositions = getPlayerStartingPositions(mapShape, sideLength, playerCount);
 
   // Get all hexes on the map
   let allHexes = [];
-  if (mapShape === MapShape.TRIANGLE) {
-    allHexes = generateTriangleGrid(sideLength);
-  } else if (mapShape === MapShape.SQUARE) {
+  if (mapShape === MapShape.SQUARE) {
     allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75)); // 16x12 ratio
   }
 
@@ -530,6 +541,103 @@ function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
   return resources;
 }
 
+// Generate resource nodes for 3-player hexagon map with 120° rotational symmetry
+function generateResourceNodes3Player(gridRadius = 6) {
+  const resources = {};
+  const { rotateHex120 } = require('./hexUtils');
+
+  // Get starting positions to avoid
+  const startingPositions = getPlayerStartingPositions(MapShape.RECTANGLE, gridRadius, 3);
+
+  // Generate valid positions in one "sector" (120° wedge of the hexagon)
+  // We'll pick positions and then rotate them by 120° twice for symmetry
+  const sectorPositions = [];
+
+  // Generate all valid hexes in the map
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    for (let r = -gridRadius; r <= gridRadius; r++) {
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
+
+        // Check if too close to any starting position
+        const tooClose = startingPositions.some(startPos => {
+          const dist = Math.max(
+            Math.abs(hex.q - startPos.q),
+            Math.abs(hex.r - startPos.r),
+            Math.abs(s - (-startPos.q - startPos.r))
+          );
+          return dist < 3;
+        });
+
+        if (!tooClose) {
+          // Only include positions in one sector (roughly 1/3 of the map)
+          // Use angle-based sector selection: sector 1 is roughly 0° to 120°
+          // In axial coords, we can check if the hex is in a specific angular range
+          // Sector 1: where r < 0 and q >= 0 (top-right area)
+          if (r < 0 && q >= 0) {
+            sectorPositions.push(hex);
+          }
+        }
+      }
+    }
+  }
+
+  console.log('Valid sector positions for 3-player:', sectorPositions.length);
+
+  // Shuffle and select positions for one sector
+  // 4 food + 2 minerals per sector = 6 resources per sector = 18 total
+  const numFoodPerSector = 4;
+  const numMineralsPerSector = 2;
+  const totalPerSector = numFoodPerSector + numMineralsPerSector;
+
+  const shuffled = sectorPositions.sort(() => Math.random() - 0.5);
+  const selectedSector = shuffled.slice(0, totalPerSector);
+
+  let resourceIndex = 0;
+
+  // Add resources for all 3 sectors (original + 2 rotations)
+  selectedSector.forEach((pos, index) => {
+    const type = index < numFoodPerSector ? 'food' : 'minerals';
+
+    // Sector 1 (original position)
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type,
+      position: pos
+    };
+    resourceIndex++;
+
+    // Sector 2 (120° rotation)
+    const rotated1 = rotateHex120(pos);
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type,
+      position: rotated1
+    };
+    resourceIndex++;
+
+    // Sector 3 (240° rotation = 120° twice)
+    const rotated2 = rotateHex120(rotated1);
+    resources[`resource_${resourceIndex}`] = {
+      id: `resource_${resourceIndex}`,
+      type,
+      position: rotated2
+    };
+    resourceIndex++;
+  });
+
+  console.log('Total resources generated for 3-player:', Object.keys(resources).length);
+  console.log('Resources by type:',
+    Object.values(resources).reduce((acc, r) => {
+      acc[r.type] = (acc[r.type] || 0) + 1;
+      return acc;
+    }, {})
+  );
+
+  return resources;
+}
+
 // Generate trees for multiplayer (2, 3, or 4 players)
 function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide) {
   const trees = {};
@@ -539,20 +647,23 @@ function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPos
     return generateTrees(sideLength, occupiedPositions, treesPerSide);
   }
 
+  // For 3-player on hexagon map, use 120° rotational symmetry
+  if (playerCount === 3 && mapShape === MapShape.RECTANGLE) {
+    return generateTrees3Player(sideLength, occupiedPositions, treesPerSide);
+  }
+
   // Create a set of occupied positions for quick lookup
   const occupiedSet = new Set(occupiedPositions.map(pos => `${pos.q},${pos.r}`));
   const isOccupied = (hex) => occupiedSet.has(`${hex.q},${hex.r}`);
 
   // Get all hexes on the map
   let allHexes = [];
-  if (mapShape === MapShape.TRIANGLE) {
-    allHexes = generateTriangleGrid(sideLength);
-  } else if (mapShape === MapShape.SQUARE) {
+  if (mapShape === MapShape.SQUARE) {
     allHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
   }
 
   // Filter out occupied positions and positions near starting positions
-  const startingPositions = getPlayerStartingPositions(mapShape, sideLength);
+  const startingPositions = getPlayerStartingPositions(mapShape, sideLength, playerCount);
   const validPositions = allHexes.filter(hex => {
     if (isOccupied(hex)) return false;
 
@@ -597,6 +708,92 @@ function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPos
       treeIndex++;
     }
   });
+
+  return trees;
+}
+
+// Generate trees for 3-player hexagon map with 120° rotational symmetry
+function generateTrees3Player(gridRadius, occupiedPositions, treesPerSector) {
+  const trees = {};
+  const { rotateHex120 } = require('./hexUtils');
+
+  // Create a set of occupied positions for quick lookup
+  const occupiedSet = new Set(occupiedPositions.map(pos => `${pos.q},${pos.r}`));
+  const isOccupied = (hex) => occupiedSet.has(`${hex.q},${hex.r}`);
+
+  // Get starting positions to avoid
+  const startingPositions = getPlayerStartingPositions(MapShape.RECTANGLE, gridRadius, 3);
+
+  // Generate valid positions in one sector
+  const sectorPositions = [];
+
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    for (let r = -gridRadius; r <= gridRadius; r++) {
+      const s = -q - r;
+      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+        const hex = new HexCoord(q, r);
+
+        if (isOccupied(hex)) continue;
+
+        // Check if too close to any starting position
+        const tooClose = startingPositions.some(startPos => {
+          const dist = Math.max(
+            Math.abs(hex.q - startPos.q),
+            Math.abs(hex.r - startPos.r),
+            Math.abs(s - (-startPos.q - startPos.r))
+          );
+          return dist < 2;
+        });
+
+        if (!tooClose) {
+          // Only include positions in one sector (top-right area)
+          if (r < 0 && q >= 0) {
+            sectorPositions.push(hex);
+          }
+        }
+      }
+    }
+  }
+
+  // Shuffle and select tree positions for one sector
+  const shuffled = sectorPositions.sort(() => Math.random() - 0.5);
+  const selectedSector = shuffled.slice(0, treesPerSector);
+
+  let treeIndex = 0;
+
+  // Add trees for all 3 sectors (original + 2 rotations)
+  selectedSector.forEach(pos => {
+    // Sector 1 (original position)
+    if (!isOccupied(pos)) {
+      trees[`tree_${treeIndex}`] = {
+        id: `tree_${treeIndex}`,
+        position: pos
+      };
+      treeIndex++;
+    }
+
+    // Sector 2 (120° rotation)
+    const rotated1 = rotateHex120(pos);
+    if (!isOccupied(rotated1)) {
+      trees[`tree_${treeIndex}`] = {
+        id: `tree_${treeIndex}`,
+        position: rotated1
+      };
+      treeIndex++;
+    }
+
+    // Sector 3 (240° rotation)
+    const rotated2 = rotateHex120(rotated1);
+    if (!isOccupied(rotated2)) {
+      trees[`tree_${treeIndex}`] = {
+        id: `tree_${treeIndex}`,
+        position: rotated2
+      };
+      treeIndex++;
+    }
+  });
+
+  console.log('Total trees generated for 3-player:', Object.keys(trees).length);
 
   return trees;
 }
