@@ -579,9 +579,12 @@ function generateResourceNodes3Player(gridRadius = 8) {
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
-        // Only include positions in one sector (top-right quadrant where s < 0 and r <= 0)
-        // This gives us approximately 1/3 of the hexagon
-        if (s < 0 && r <= 0) {
+        // Only include positions in player 1's sector (top-right, near position (radius-1, -(radius-1)))
+        // Use the "dominant coordinate" method for perfect 120° sectors:
+        // Sector 1 (player 1): q is the largest of (q, r, s) where s = -q-r
+        // This means: q >= r AND q >= s = -q-r → q >= r AND 2q + r >= 0
+        // Exclude origin (0,0) to avoid resource at center
+        if (q >= r && (2*q + r) >= 0 && !(q === 0 && r === 0)) {
           // Check if this position AND its rotations are all valid and not too close to starts
           const rotated1 = rotateHex120(hex);
           const rotated2 = rotateHex120(rotated1);
@@ -768,8 +771,11 @@ function generateTrees3Player(gridRadius, occupiedPositions, treesPerSector) {
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
-        // Only include positions in one sector (where s < 0 and r <= 0)
-        if (s < 0 && r <= 0) {
+        // Only include positions in player 1's sector using "dominant coordinate" method
+        // Sector 1 (player 1): q is the largest of (q, r, s) where s = -q-r
+        // This means: q >= r AND q >= s = -q-r → q >= r AND 2q + r >= 0
+        // Exclude origin (0,0) to avoid trees at center
+        if (q >= r && (2*q + r) >= 0 && !(q === 0 && r === 0)) {
           const rotated1 = rotateHex120(hex);
           const rotated2 = rotateHex120(rotated1);
 
