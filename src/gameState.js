@@ -141,7 +141,7 @@ export function createInitialGameState(options = {}) {
     mapSize,
     mapShape: effectiveMapShape,
     playerCount,
-    gridRadius: (effectiveMapShape === MapShape.SQUARE) ? sideLength : gridRadius,
+    gridRadius: (effectiveMapShape === MapShape.SQUARE || playerCount === 3) ? sideLength : gridRadius,
     sideLength, // Store for square/triangle maps
     players,
     // Game statistics tracking
