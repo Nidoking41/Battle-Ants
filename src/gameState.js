@@ -645,9 +645,6 @@ function generateResourceNodes3Player(gridRadius = 8) {
       position: rotated2
     };
     resourceIndex++;
-
-    // Debug: show rotation results
-    console.log(`Resource ${index}: (${pos.q},${pos.r}) -> rot1:(${rotated1.q},${rotated1.r}) -> rot2:(${rotated2.q},${rotated2.r})`);
   });
 
   console.log('Total resources generated for 3-player:', Object.keys(resources).length);
