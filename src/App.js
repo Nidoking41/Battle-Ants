@@ -3700,16 +3700,16 @@ function App() {
       const hexKey = `${q},${r}`;
       const isVisible = !visibleHexes || visibleHexes.has(hexKey);
 
-      // Check if tree should be visible - only show tree if player has a unit adjacent to it
+      // Check if tree should be visible - only show tree if player has a unit ON or adjacent to it
       // This prevents revealing that an enemy might be hiding under a tree
       const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
       const isTreeVisible = !tree || !visibleHexes || (() => {
         // Get neighbors of this tree hex
         const treeNeighbors = getNeighbors(hex);
-        // Check if any of the player's units are adjacent to the tree
+        // Check if any of the player's units are ON or adjacent to the tree
         return Object.values(gameState.ants).some(a =>
           a.owner === currentPlayerId &&
-          treeNeighbors.some(neighbor => hexEquals(neighbor, a.position))
+          (hexEquals(a.position, hex) || treeNeighbors.some(neighbor => hexEquals(neighbor, a.position)))
         );
       })();
 
