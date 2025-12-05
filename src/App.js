@@ -175,6 +175,7 @@ function App() {
   const [zoomLevel, setZoomLevel] = useState(1.0); // Zoom level (0.5 to 2.0)
   const [isDragging, setIsDragging] = useState(false); // Is user dragging the view
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // Drag start position
+  const [hasCenteredOnQueen, setHasCenteredOnQueen] = useState(false); // Track if we've centered camera
 
   const hexSize = 50;
   // Get gridRadius and mapShape from gameState
@@ -692,24 +693,38 @@ function App() {
 
   // Center camera on queen when game starts
   useEffect(() => {
-    // Only center if we have a valid game mode and ants exist
-    if (gameMode && typeof gameMode === 'object' && gameState.ants && Object.keys(gameState.ants).length > 0) {
-      // Find the current player's queen
-      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : 'player1';
-      const queen = Object.values(gameState.ants).find(
-        ant => ant.type === 'queen' && ant.owner === currentPlayerId
-      );
-
-      if (queen) {
-        const queenPixel = hexToPixel(queen.position, hexSize);
-        // Position queen in bottom third of viewport
-        setCameraOffset({
-          x: -queenPixel.x,
-          y: -queenPixel.y + 150
-        });
-      }
+    // Reset the centered flag when going back to lobby/menu
+    if (!gameMode || typeof gameMode !== 'object') {
+      setHasCenteredOnQueen(false);
+      return;
     }
-  }, [gameMode?.isMultiplayer, gameMode?.isAI, gameMode?.playerRole, Object.keys(gameState.ants || {}).length]); // Run when game starts or player role is assigned
+
+    // Only center once per game session
+    if (hasCenteredOnQueen) return;
+
+    // Wait for ants to be loaded
+    if (!gameState.ants || Object.keys(gameState.ants).length === 0) return;
+
+    // For multiplayer, wait for playerRole to be set
+    if (gameMode.isMultiplayer && !gameMode.playerRole) return;
+
+    // Find the current player's queen
+    const currentPlayerId = gameMode.isMultiplayer ? gameMode.playerRole : 'player1';
+    const queen = Object.values(gameState.ants).find(
+      ant => ant.type === 'queen' && ant.owner === currentPlayerId
+    );
+
+    if (queen) {
+      console.log('Centering camera on queen for', currentPlayerId, 'at position', queen.position);
+      const queenPixel = hexToPixel(queen.position, hexSize);
+      // Position queen in bottom third of viewport
+      setCameraOffset({
+        x: -queenPixel.x,
+        y: -queenPixel.y + 150
+      });
+      setHasCenteredOnQueen(true);
+    }
+  }, [gameMode, gameState.ants, hasCenteredOnQueen]); // Run when game mode, ants, or centered flag changes
 
   // Track window resizing for responsive SVG
   useEffect(() => {
