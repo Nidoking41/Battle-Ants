@@ -119,6 +119,19 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
 
+  // Clear selection if the selected ant no longer exists or doesn't belong to us
+  useEffect(() => {
+    if (selectedAnt) {
+      const ant = gameState.ants[selectedAnt];
+      const myRole = gameMode.isMultiplayer ? gameMode.playerRole : 'player1';
+      if (!ant || ant.owner !== myRole) {
+        console.log('Clearing stale selection: ant missing or not ours', { selectedAnt, antExists: !!ant, antOwner: ant?.owner, myRole });
+        setSelectedAnt(null);
+        setSelectedAction(null);
+      }
+    }
+  }, [gameState.ants, selectedAnt, gameMode.isMultiplayer, gameMode.playerRole]);
+
   // Initialize all eggs with idle animation
   useEffect(() => {
     Object.values(gameState.eggs || {}).forEach(egg => {
@@ -3446,10 +3459,20 @@ function App() {
   // Calculate valid moves for selected ant
   const getValidMovesForSelectedAnt = () => {
     if (!selectedAnt || !gameState.ants[selectedAnt]) {
-      console.log('getValidMovesForSelectedAnt: No ant selected or ant not in gameState');
+      // Only log if we actually have a selectedAnt but it's missing from gameState
+      if (selectedAnt) {
+        console.log('getValidMovesForSelectedAnt: Selected ant not in gameState, clearing');
+      }
       return [];
     }
     const ant = gameState.ants[selectedAnt];
+
+    // Don't compute valid moves for ants that aren't ours (can happen during state transitions)
+    const myRole = gameMode.isMultiplayer ? gameMode.playerRole : 'player1';
+    if (ant.owner !== myRole) {
+      return [];
+    }
+
     const antType = getAntTypeById(ant.type);
     console.log('getValidMovesForSelectedAnt:', { selectedAnt, selectedAction, antType: antType?.id, hasMoved: ant.hasMoved });
 
