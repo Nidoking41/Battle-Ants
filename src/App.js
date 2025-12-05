@@ -714,8 +714,9 @@ function App() {
       ant => ant.type === 'queen' && ant.owner === currentPlayerId
     );
 
-    if (queen) {
-      console.log('Centering camera on queen for', currentPlayerId, 'at position', queen.position);
+    // Make sure queen exists and has a valid position (wait for Firebase data for non-host)
+    if (queen && queen.position && typeof queen.position.q === 'number' && typeof queen.position.r === 'number') {
+      console.log('Centering camera on queen for', currentPlayerId, 'at position', queen.position.q, queen.position.r);
       const queenPixel = hexToPixel(queen.position, hexSize);
       // Position queen in bottom third of viewport
       setCameraOffset({
