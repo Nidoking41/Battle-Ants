@@ -1156,7 +1156,7 @@ function App() {
         }
         
         // Apply fog of war for multiplayer games or AI games with fog of war enabled
-        const shouldApplyFog = gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false);
+        const shouldApplyFog = (gameMode.isMultiplayer && gameMode.fogOfWar !== false) || (gameMode.isAI && gameMode.fogOfWar !== false);
         let filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1') : modifiedState;
 
         // Protect currently animating ants from being overwritten by Firebase updates
@@ -1335,10 +1335,14 @@ function App() {
       // Don't wait for Firebase subscription callback
       setFullGameState(newState);
 
-      // Apply fog of war filtering for current player
+      // Apply fog of war filtering for current player (if fog of war is enabled)
       const currentPlayerId = gameMode.playerRole || 'player1';
-      const filteredState = applyFogOfWar(newState, currentPlayerId);
-      setGameState(filteredState);
+      if (gameMode.fogOfWar !== false) {
+        const filteredState = applyFogOfWar(newState, currentPlayerId);
+        setGameState(filteredState);
+      } else {
+        setGameState(newState);
+      }
 
       // THEN send to Firebase for syncing with other player
       if (gameMode.gameId) {
@@ -3621,8 +3625,8 @@ function App() {
     let visibleHexes = null;
     const stateForFog = fullGameState || gameState;
     if (stateForFog && gameMode) {
-      // For multiplayer, use player role
-      if (gameMode.isMultiplayer && gameMode.playerRole) {
+      // For multiplayer with fog of war enabled, use player role
+      if (gameMode.isMultiplayer && gameMode.playerRole && gameMode.fogOfWar !== false) {
         visibleHexes = getVisibleHexes(stateForFog, gameMode.playerRole);
       }
       // For AI games with fog of war enabled, show player1's vision
