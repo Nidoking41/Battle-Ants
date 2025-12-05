@@ -220,8 +220,9 @@ export function isValidSquareHex(hex, width, height) {
 // Rotate hex coordinates by 120 degrees clockwise around origin
 // Used for 3-player resource/tree mirroring
 export function rotateHex120(hex) {
-  // 120° clockwise rotation: (q, r) -> (-r, -q-r) -> (q+r, q)
-  return new HexCoord(-hex.r, -hex.q - hex.r);
+  // 120° clockwise rotation: (q, r) -> (-q-r, q)
+  // Verified: (7,-7) -> (0,7) -> (-7,0) -> (7,-7)
+  return new HexCoord(-hex.q - hex.r, hex.q);
 }
 
 // Rotate hex coordinates by 90 degrees clockwise around origin
