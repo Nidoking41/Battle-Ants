@@ -89,10 +89,10 @@ export function createInitialGameState(options = {}) {
   console.log('createInitialGameState called with:', { playerCount, mapShape, mapSize });
 
   if (playerCount === 3) {
-    // 3-player games use the large 2-player hexagon map with 3 spawn points
-    sideLength = gridSizeMap['large']; // Always use large map for 3-player
+    // 3-player games use an XL hexagon map (radius 8) with 3 spawn points
+    sideLength = 8; // XL map for 3-player (2 larger than large)
     effectiveMapShape = MapShape.RECTANGLE;
-    console.log('Using HEXAGON map for 3-player, gridRadius:', sideLength);
+    console.log('Using XL HEXAGON map for 3-player, gridRadius:', sideLength);
   } else if (mapShape === MapShape.TRIANGLE) {
     sideLength = GameConstants.TRIANGLE_SIDE_LENGTH; // 15
     console.log('Using TRIANGLE map, sideLength:', sideLength);
@@ -542,15 +542,34 @@ function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
 }
 
 // Generate resource nodes for 3-player hexagon map with 120° rotational symmetry
-function generateResourceNodes3Player(gridRadius = 6) {
+function generateResourceNodes3Player(gridRadius = 8) {
   const resources = {};
   const { rotateHex120 } = require('./hexUtils');
 
   // Get starting positions to avoid
   const startingPositions = getPlayerStartingPositions(MapShape.RECTANGLE, gridRadius, 3);
 
+  // Helper to check if hex is valid on the map
+  const isValidOnMap = (hex) => {
+    const s = -hex.q - hex.r;
+    return Math.abs(hex.q) <= gridRadius && Math.abs(hex.r) <= gridRadius && Math.abs(s) <= gridRadius;
+  };
+
+  // Helper to check if hex is too close to any starting position
+  const isTooCloseToStart = (hex) => {
+    const s = -hex.q - hex.r;
+    return startingPositions.some(startPos => {
+      const dist = Math.max(
+        Math.abs(hex.q - startPos.q),
+        Math.abs(hex.r - startPos.r),
+        Math.abs(s - (-startPos.q - startPos.r))
+      );
+      return dist < 3;
+    });
+  };
+
   // Generate valid positions in one "sector" (120° wedge of the hexagon)
-  // We'll pick positions and then rotate them by 120° twice for symmetry
+  // We need positions where all 3 rotations are valid and not too close to starts
   const sectorPositions = [];
 
   // Generate all valid hexes in the map
@@ -560,22 +579,17 @@ function generateResourceNodes3Player(gridRadius = 6) {
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
-        // Check if too close to any starting position
-        const tooClose = startingPositions.some(startPos => {
-          const dist = Math.max(
-            Math.abs(hex.q - startPos.q),
-            Math.abs(hex.r - startPos.r),
-            Math.abs(s - (-startPos.q - startPos.r))
-          );
-          return dist < 3;
-        });
+        // Only include positions in one sector (top-right quadrant where s < 0 and r <= 0)
+        // This gives us approximately 1/3 of the hexagon
+        if (s < 0 && r <= 0) {
+          // Check if this position AND its rotations are all valid and not too close to starts
+          const rotated1 = rotateHex120(hex);
+          const rotated2 = rotateHex120(rotated1);
 
-        if (!tooClose) {
-          // Only include positions in one sector (roughly 1/3 of the map)
-          // Use angle-based sector selection: sector 1 is roughly 0° to 120°
-          // In axial coords, we can check if the hex is in a specific angular range
-          // Sector 1: where r < 0 and q >= 0 (top-right area)
-          if (r < 0 && q >= 0) {
+          const allValid = isValidOnMap(hex) && isValidOnMap(rotated1) && isValidOnMap(rotated2);
+          const noneCloseToStart = !isTooCloseToStart(hex) && !isTooCloseToStart(rotated1) && !isTooCloseToStart(rotated2);
+
+          if (allValid && noneCloseToStart) {
             sectorPositions.push(hex);
           }
         }
@@ -583,7 +597,7 @@ function generateResourceNodes3Player(gridRadius = 6) {
     }
   }
 
-  console.log('Valid sector positions for 3-player:', sectorPositions.length);
+  console.log('Valid sector positions for 3-player (all rotations valid):', sectorPositions.length);
 
   // Shuffle and select positions for one sector
   // 4 food + 2 minerals per sector = 6 resources per sector = 18 total
@@ -593,6 +607,8 @@ function generateResourceNodes3Player(gridRadius = 6) {
 
   const shuffled = sectorPositions.sort(() => Math.random() - 0.5);
   const selectedSector = shuffled.slice(0, totalPerSector);
+
+  console.log('Selected sector positions:', selectedSector.length);
 
   let resourceIndex = 0;
 
@@ -724,7 +740,26 @@ function generateTrees3Player(gridRadius, occupiedPositions, treesPerSector) {
   // Get starting positions to avoid
   const startingPositions = getPlayerStartingPositions(MapShape.RECTANGLE, gridRadius, 3);
 
-  // Generate valid positions in one sector
+  // Helper to check if hex is valid on the map
+  const isValidOnMap = (hex) => {
+    const s = -hex.q - hex.r;
+    return Math.abs(hex.q) <= gridRadius && Math.abs(hex.r) <= gridRadius && Math.abs(s) <= gridRadius;
+  };
+
+  // Helper to check if hex is too close to any starting position
+  const isTooCloseToStart = (hex) => {
+    const s = -hex.q - hex.r;
+    return startingPositions.some(startPos => {
+      const dist = Math.max(
+        Math.abs(hex.q - startPos.q),
+        Math.abs(hex.r - startPos.r),
+        Math.abs(s - (-startPos.q - startPos.r))
+      );
+      return dist < 2;
+    });
+  };
+
+  // Generate valid positions in one sector where all rotations are valid
   const sectorPositions = [];
 
   for (let q = -gridRadius; q <= gridRadius; q++) {
@@ -733,21 +768,17 @@ function generateTrees3Player(gridRadius, occupiedPositions, treesPerSector) {
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
-        if (isOccupied(hex)) continue;
+        // Only include positions in one sector (where s < 0 and r <= 0)
+        if (s < 0 && r <= 0) {
+          const rotated1 = rotateHex120(hex);
+          const rotated2 = rotateHex120(rotated1);
 
-        // Check if too close to any starting position
-        const tooClose = startingPositions.some(startPos => {
-          const dist = Math.max(
-            Math.abs(hex.q - startPos.q),
-            Math.abs(hex.r - startPos.r),
-            Math.abs(s - (-startPos.q - startPos.r))
-          );
-          return dist < 2;
-        });
+          // Check all 3 positions are valid, not occupied, and not too close to starts
+          const allValid = isValidOnMap(hex) && isValidOnMap(rotated1) && isValidOnMap(rotated2);
+          const noneOccupied = !isOccupied(hex) && !isOccupied(rotated1) && !isOccupied(rotated2);
+          const noneCloseToStart = !isTooCloseToStart(hex) && !isTooCloseToStart(rotated1) && !isTooCloseToStart(rotated2);
 
-        if (!tooClose) {
-          // Only include positions in one sector (top-right area)
-          if (r < 0 && q >= 0) {
+          if (allValid && noneOccupied && noneCloseToStart) {
             sectorPositions.push(hex);
           }
         }
@@ -764,33 +795,27 @@ function generateTrees3Player(gridRadius, occupiedPositions, treesPerSector) {
   // Add trees for all 3 sectors (original + 2 rotations)
   selectedSector.forEach(pos => {
     // Sector 1 (original position)
-    if (!isOccupied(pos)) {
-      trees[`tree_${treeIndex}`] = {
-        id: `tree_${treeIndex}`,
-        position: pos
-      };
-      treeIndex++;
-    }
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: pos
+    };
+    treeIndex++;
 
     // Sector 2 (120° rotation)
     const rotated1 = rotateHex120(pos);
-    if (!isOccupied(rotated1)) {
-      trees[`tree_${treeIndex}`] = {
-        id: `tree_${treeIndex}`,
-        position: rotated1
-      };
-      treeIndex++;
-    }
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: rotated1
+    };
+    treeIndex++;
 
     // Sector 3 (240° rotation)
     const rotated2 = rotateHex120(rotated1);
-    if (!isOccupied(rotated2)) {
-      trees[`tree_${treeIndex}`] = {
-        id: `tree_${treeIndex}`,
-        position: rotated2
-      };
-      treeIndex++;
-    }
+    trees[`tree_${treeIndex}`] = {
+      id: `tree_${treeIndex}`,
+      position: rotated2
+    };
+    treeIndex++;
   });
 
   console.log('Total trees generated for 3-player:', Object.keys(trees).length);
