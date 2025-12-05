@@ -692,15 +692,24 @@ function App() {
 
   // Center camera on queen when game starts
   useEffect(() => {
-    // Only center if we have a valid game mode (not null, 'lobby', 'localSetup', or 'aiSetup')
-    if (gameMode && typeof gameMode === 'object' && gameState.ants) {
-      // Small delay to ensure game state is fully loaded
-      const timer = setTimeout(() => {
-        centerOnQueen();
-      }, 100);
-      return () => clearTimeout(timer);
+    // Only center if we have a valid game mode and ants exist
+    if (gameMode && typeof gameMode === 'object' && gameState.ants && Object.keys(gameState.ants).length > 0) {
+      // Find the current player's queen
+      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : 'player1';
+      const queen = Object.values(gameState.ants).find(
+        ant => ant.type === 'queen' && ant.owner === currentPlayerId
+      );
+
+      if (queen) {
+        const queenPixel = hexToPixel(queen.position, hexSize);
+        // Position queen in bottom third of viewport
+        setCameraOffset({
+          x: -queenPixel.x,
+          y: -queenPixel.y + 150
+        });
+      }
     }
-  }, [gameMode?.isMultiplayer, gameMode?.isAI]); // Only run when gameMode changes to a game object
+  }, [gameMode?.isMultiplayer, gameMode?.isAI, gameMode?.playerRole, Object.keys(gameState.ants || {}).length]); // Run when game starts or player role is assigned
 
   // Track window resizing for responsive SVG
   useEffect(() => {
