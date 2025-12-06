@@ -1679,9 +1679,9 @@ export function revealArea(gameState, queenId, targetHex) {
   const queenType = AntTypes.QUEEN;
   if (!hasEnoughEnergy(queen, queenType.revealEnergyCost)) return gameState;
 
-  // Check if Reveal upgrade has been purchased
-  const playerUpgrades = gameState.players[queen.owner]?.upgrades || {};
-  if (!playerUpgrades.reveal || playerUpgrades.reveal < 1) return gameState;
+  // Check if queen is at least Brood Queen tier (Reveal is innate to Brood Queen)
+  const queenTier = queen.queenTier || 'queen';
+  if (queenTier === 'queen') return gameState; // Need Brood Queen or higher
 
   // Get all hexes in the reveal area (center + 6 adjacent = 7 hexes)
   const { getNeighbors } = require('./hexUtils');

@@ -12,6 +12,7 @@ export const AntTypes = {
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
     resourceGatherRate: 0,
+    revealEnergyCost: 30, // Energy cost for Reveal ability (unlocked at Brood Queen)
     description: 'The heart of your colony. If she dies, you lose!',
     icon: '👑🐜'
   },
@@ -298,17 +299,8 @@ export const Upgrades = {
     costs: [
       { food: 20, minerals: 20 } // Single expensive unlock
     ]
-  },
-  REVEAL: {
-    id: 'reveal',
-    name: 'Pheromone Pulse',
-    description: 'Unlocks Reveal ability for Queens (30⚡). Reveals any hex and its 6 adjacent hexes. Detects burrowed units for 1 turn.',
-    icon: '👁️',
-    maxTier: 1,
-    costs: [
-      { food: 15, minerals: 15 }
-    ]
   }
+  // REVEAL upgrade removed - Reveal is now innate to Brood Queen tier
 };
 
 // Map shapes for multiplayer

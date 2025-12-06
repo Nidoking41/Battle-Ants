@@ -5602,7 +5602,7 @@ function App() {
                       >
                         Heal (H, 25⚡)
                       </button>
-                      {gameState.players[gameState.currentPlayer].upgrades.reveal > 0 && (
+                      {(gameState.ants[selectedAnt]?.queenTier === 'broodQueen' || gameState.ants[selectedAnt]?.queenTier === 'swarmQueen') && (
                         <button
                           onClick={() => setSelectedAction('reveal')}
                           disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}

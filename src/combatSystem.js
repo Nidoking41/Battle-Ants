@@ -688,8 +688,8 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
     const targetPlayer = gameState.players[target.owner];
     const defense = targetType.defense;
 
-    // Splash damage uses splashAttack value
-    const damage = Math.max(1, attackerType.splashAttack - Math.floor(defense));
+    // Splash damage uses attack value
+    const damage = Math.max(1, attackerType.attack - Math.floor(defense));
     const newHealth = target.health - damage;
 
     damageDealt.push({ damage, position: target.position });
