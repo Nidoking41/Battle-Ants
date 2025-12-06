@@ -7,12 +7,12 @@ export const AntTypes = {
     cost: { food: 0, minerals: 0 }, // Queens start on the map
     hatchTime: 0,
     maxHealth: 60,
-    attack: 15,
+    attack: 6,
     defense: 2,
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
     resourceGatherRate: 0,
-    revealEnergyCost: 30, // Energy cost for Reveal ability (unlocked at Brood Queen)
+    revealEnergyCost: 20, // Energy cost for Reveal ability (unlocked at Brood Queen)
     description: 'The heart of your colony. If she dies, you lose!',
     icon: '👑🐜'
   },
@@ -323,14 +323,14 @@ export const QueenTiers = {
     name: 'Queen',
     spawningSpots: 2,
     maxEnergy: 50,
-    energyRegen: 5,
+    energyRegen: 7,
     foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
     spawningSpots: 4,
     maxEnergy: 75,
-    energyRegen: 5,
+    energyRegen: 10,
     foodIncome: 6,
     cost: { food: 25, minerals: 15 }
   },
@@ -338,7 +338,7 @@ export const QueenTiers = {
     name: 'Swarm Queen',
     spawningSpots: 6,
     maxEnergy: 100,
-    energyRegen: 5,
+    energyRegen: 12,
     foodIncome: 7,
     cost: { food: 30, minerals: 20 }
   }
