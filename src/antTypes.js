@@ -52,7 +52,7 @@ export const AntTypes = {
     name: 'Bullet Ant',
     cost: { food: 30, minerals: 15 },
     hatchTime: 2,
-    maxHealth: 65,
+    maxHealth: 55,
     attack: 20,
     defense: 2,
     moveRange: 2,
@@ -229,9 +229,9 @@ export const Upgrades = {
     icon: '⚔️',
     maxTier: 3,
     costs: [
-      { food: 20, minerals: 15 }, // Tier 1
-      { food: 25, minerals: 20 }, // Tier 2
-      { food: 30, minerals: 25 }  // Tier 3
+      { food: 15, minerals: 10 }, // Tier 1
+      { food: 20, minerals: 15 }, // Tier 2
+      { food: 25, minerals: 20 }  // Tier 3
     ]
   },
   RANGED_ATTACK: {
@@ -241,9 +241,9 @@ export const Upgrades = {
     icon: '🏹',
     maxTier: 3,
     costs: [
-      { food: 20, minerals: 15 }, // Tier 1
-      { food: 25, minerals: 20 }, // Tier 2
-      { food: 30, minerals: 25 }  // Tier 3
+      { food: 15, minerals: 10 }, // Tier 1
+      { food: 20, minerals: 15 }, // Tier 2
+      { food: 25, minerals: 20 }  // Tier 3
     ]
   },
   DEFENSE: {
