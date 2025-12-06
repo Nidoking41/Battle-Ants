@@ -3307,6 +3307,14 @@ function App() {
       setSelectedAction(null);
       return;
     }
+
+    // Clicked on empty hex - deselect everything
+    if (selectedAnt || selectedAnthill) {
+      setSelectedAnt(null);
+      setSelectedAction(null);
+      setSelectedAnthill(null);
+      setSelectedEgg(null);
+    }
   };
 
   // Handle laying egg with selected ant type
