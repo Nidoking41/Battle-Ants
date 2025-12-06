@@ -50,7 +50,7 @@ export const AntTypes = {
   BULLET: {
     id: 'tank',
     name: 'Bullet Ant',
-    cost: { food: 30, minerals: 15 },
+    cost: { food: 35, minerals: 15 },
     hatchTime: 2,
     maxHealth: 55,
     attack: 20,
@@ -80,7 +80,7 @@ export const AntTypes = {
   BOMBER: {
     id: 'bomber',
     name: 'Acid Bomber',
-    cost: { food: 10, minerals: 9 },
+    cost: { food: 8, minerals: 12 },
     hatchTime: 1,
     maxHealth: 20,
     attack: 18,
@@ -97,7 +97,7 @@ export const AntTypes = {
   BOMBARDIER: {
     id: 'bombardier',
     name: 'Bombardier',
-    cost: { food: 25, minerals: 20 },
+    cost: { food: 20, minerals: 15},
     hatchTime: 1,
     maxHealth: 30,
     attack: 15,
@@ -130,7 +130,7 @@ export const AntTypes = {
   HEALER: {
     id: 'healer',
     name: 'Weaver Ant',
-    cost: { food: 20, minerals: 15 },
+    cost: { food: 15, minerals: 20 },
     hatchTime: 1,
     maxHealth: 20,
     attack: 0, // Cannot attack
@@ -141,6 +141,7 @@ export const AntTypes = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
     maxEnergy: 50,
+    startingEnergy: 25, // Starts at half energy
     energyRegen: 10,
     // Abilities
     healRange: 1, // Melee range healing
@@ -156,7 +157,7 @@ export const AntTypes = {
   CORDYPHAGE: {
     id: 'cordyphage',
     name: 'Cordyphage',
-    cost: { food: 25, minerals: 20 },
+    cost: { food: 15, minerals: 25 },
     hatchTime: 1,
     maxHealth: 25,
     attack: 0, // Cannot attack
@@ -167,6 +168,7 @@ export const AntTypes = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
     maxEnergy: 50,
+    startingEnergy: 25, // Starts at half energy
     energyRegen: 10,
     // Abilities
     cordycepsRange: 1, // Melee range for mind control

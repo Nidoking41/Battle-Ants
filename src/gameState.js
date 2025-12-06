@@ -939,7 +939,7 @@ export function createAnt(type, owner, position, heroId = null) {
 
   // Add energy system for units that have it (like healers and queens)
   if (antType.maxEnergy) {
-    ant.energy = antType.maxEnergy;
+    ant.energy = antType.startingEnergy !== undefined ? antType.startingEnergy : antType.maxEnergy;
     ant.maxEnergy = antType.maxEnergy;
   }
 

@@ -234,7 +234,7 @@ function hatchEggsIfReady(gameState, aiPlayer) {
       health: antType.maxHealth,
       hasMoved: false,
       hasAttacked: false,
-      energy: antType.maxEnergy || 0,
+      energy: antType.startingEnergy !== undefined ? antType.startingEnergy : (antType.maxEnergy || 0),
       isBurrowed: false
     };
 
