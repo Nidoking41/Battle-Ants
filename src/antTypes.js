@@ -9,7 +9,6 @@ export const AntTypes = {
     maxHealth: 60,
     attack: 15,
     defense: 2,
-    moveSpeed: 1,
     moveRange: 1,
     attackRange: 2, // Queens can attack 2 spaces away
     resourceGatherRate: 0,
@@ -25,7 +24,6 @@ export const AntTypes = {
     maxHealth: 25,
     attack: 8,
     defense: 0,
-    moveSpeed: 3,
     moveRange: 3,
     attackRange: 1,
     resourceGatherRate: 3,
@@ -41,7 +39,6 @@ export const AntTypes = {
     maxHealth: 35,
     attack: 10,
     defense: 1,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 3,
@@ -57,7 +54,6 @@ export const AntTypes = {
     maxHealth: 65,
     attack: 20,
     defense: 2,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 0.5,
@@ -65,7 +61,7 @@ export const AntTypes = {
     icon: '🛡️🐜'
   },
 
- ACID: {
+  ACID: {
     id: 'spitter',
     name: 'Acid Ant',
     cost: { food: 15, minerals: 7 },
@@ -73,9 +69,8 @@ export const AntTypes = {
     maxHealth: 25,
     attack: 8,
     defense: 0,
-    attackRange: 2,
-    moveSpeed: 2,
     moveRange: 2,
+    attackRange: 2,
     resourceGatherRate: 0.5,
     description: 'Ranged glass cannon. High damage from a distance but fragile.',
     icon: '💧🐜'
@@ -85,11 +80,10 @@ export const AntTypes = {
     id: 'bomber',
     name: 'Acid Bomber',
     cost: { food: 10, minerals: 9 },
-    hatchTime: 2,
-    maxHealth: 40,
-    attack: 20,
+    hatchTime: 1,
+    maxHealth: 20,
+    attack: 18,
     defense: 0,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 2,
     splashDamage: true,
@@ -103,12 +97,11 @@ export const AntTypes = {
     id: 'bombardier',
     name: 'Bombardier',
     cost: { food: 25, minerals: 20 },
-    hatchTime: 2,
+    hatchTime: 1,
     maxHealth: 30,
     attack: 15,
     defense: 0,
-    moveSpeed: 1,
-    moveRange: 1,
+    moveRange: 2,
     attackRange: 3,
     minAttackRange: 2, // Cannot attack adjacent enemies
     cannotMoveAndAttack: true, // Cannot move and attack in same turn
@@ -121,11 +114,10 @@ export const AntTypes = {
     id: 'drone',
     name: 'Worker Drone',
     cost: { food: 10, minerals: 0 },
-    hatchTime: 1,
+    hatchTime: 0,
     maxHealth: 15,
     attack: 5,
     defense: 0,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 1,
     canBuildAnthill: true, // Drones can build anthills on resource nodes
@@ -142,7 +134,6 @@ export const AntTypes = {
     maxHealth: 20,
     attack: 0, // Cannot attack
     defense: 1,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 0, // No attack range
     resourceGatherRate: 0,
@@ -157,9 +148,7 @@ export const AntTypes = {
     ensnareRange: 3,
     ensnareDuration: 3, // turns
     ensnareEnergyCost: 20,
-    cordycepsRange: 2, // Range for mind control
-    cordycepsEnergyCost: 35, // Expensive ability
-    description: 'Support unit that can heal allies, ensnare enemies, and mind control with Cordyceps Purge. Requires Swarm Queen.',
+    description: 'Support unit that can heal allies and ensnare enemies. Requires Swarm Queen.',
     icon: '✨🐜'
   },
 
@@ -171,7 +160,6 @@ export const AntTypes = {
     maxHealth: 25,
     attack: 0, // Cannot attack
     defense: 1,
-    moveSpeed: 2,
     moveRange: 2,
     attackRange: 0, // No attack range
     resourceGatherRate: 0,
@@ -180,12 +168,12 @@ export const AntTypes = {
     maxEnergy: 50,
     energyRegen: 10,
     // Abilities
-    cordycepsRange: 2, // Range for mind control
-    cordycepsEnergyCost: 35, // Expensive ability
+    cordycepsRange: 1, // Melee range for mind control
+    cordycepsEnergyCost: 50, // Expensive ability
     plagueRange: 3, // Range for plague
     plagueDuration: 3, // turns
     plagueHealthLoss: 0.20, // 20% health per turn
-    plagueEnergyCost: 25,
+    plagueEnergyCost: 35,
     description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
     icon: '☠️🐜'
   }
@@ -223,7 +211,7 @@ export const GameConstants = {
   HEAL_AMOUNT: 15,
   QUEEN_BASE_FOOD_INCOME: 5,
   // Tree bonuses
-  TREE_DEFENSE_BONUS: 2,
+  TREE_DEFENSE_BONUS: 1,
   // Cannibalism upgrade
   CANNIBALISM_FOOD_GAIN: 5,
   CANNIBALISM_MINERAL_GAIN: 5,
@@ -303,7 +291,7 @@ export const Upgrades = {
   CORDYCEPS_PURGE: {
     id: 'cordycepsPurge',
     name: 'Cordyceps Purge',
-    description: 'Unlocks mind control ability for Weaver Ants and Cordyphage (35⚡, Range 2)',
+    description: 'Unlocks mind control ability for Cordyphage (50⚡, Melee Range)',
     icon: '🧠',
     maxTier: 1,
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen

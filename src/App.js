@@ -119,18 +119,18 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
 
-  // Clear selection if the selected ant no longer exists or doesn't belong to us
+  // Clear selection if the selected ant no longer exists
+  // Note: We allow selecting enemy ants to view their info, just can't take actions with them
   useEffect(() => {
-    if (selectedAnt) {
+    if (selectedAnt && gameMode) {
       const ant = gameState.ants[selectedAnt];
-      const myRole = gameMode.isMultiplayer ? gameMode.playerRole : 'player1';
-      if (!ant || ant.owner !== myRole) {
-        console.log('Clearing stale selection: ant missing or not ours', { selectedAnt, antExists: !!ant, antOwner: ant?.owner, myRole });
+      if (!ant) {
+        console.log('Clearing stale selection: ant no longer exists', { selectedAnt });
         setSelectedAnt(null);
         setSelectedAction(null);
       }
     }
-  }, [gameState.ants, selectedAnt, gameMode.isMultiplayer, gameMode.playerRole]);
+  }, [gameState.ants, selectedAnt, gameMode]);
 
   // Initialize all eggs with idle animation
   useEffect(() => {
@@ -2594,7 +2594,15 @@ function App() {
       }
 
       const antType = getAntTypeById(ant.type);
-      const validMoves = getMovementRange(ant.position, antType.moveRange, gridRadius, [], mapShape);
+      let moveRange = antType.moveRange;
+
+      // Apply Gorlak's hero ability movement bonus for melee units
+      const currentPlayerData = currentState.players[ant.owner];
+      if (currentPlayerData?.heroAbilityActive && currentPlayerData?.heroId === 'gorlak' && antType.attackRange <= 1) {
+        moveRange += 1;
+      }
+
+      const validMoves = getMovementRange(ant.position, moveRange, gridRadius, [], mapShape);
 
       if (validMoves.some(h => hexEquals(h, hex))) {
         // Validate the path is clear (no ants blocking the way)
@@ -3727,18 +3735,9 @@ function App() {
       const hexKey = `${q},${r}`;
       const isVisible = !visibleHexes || visibleHexes.has(hexKey);
 
-      // Check if tree should be visible - only show tree if player has a unit ON or adjacent to it
-      // This prevents revealing that an enemy might be hiding under a tree
-      const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
-      const isTreeVisible = !tree || !visibleHexes || (() => {
-        // Get neighbors of this tree hex
-        const treeNeighbors = getNeighbors(hex);
-        // Check if any of the player's units are ON or adjacent to the tree
-        return Object.values(gameState.ants).some(a =>
-          a.owner === currentPlayerId &&
-          (hexEquals(a.position, hex) || treeNeighbors.some(neighbor => hexEquals(neighbor, a.position)))
-        );
-      })();
+      // Trees are always visible as terrain features
+      // What's hidden is enemy ants UNDER trees - that logic is handled in ant rendering
+      const isTreeVisible = true;
 
       // Check if this hex is in the spawning pool of any queen
       let isBirthingPool = false;
@@ -4373,9 +4372,37 @@ function App() {
 
   const renderAntsOverlay = () => {
     const ants = [];
+    const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : 'player1';
+
+    // Calculate visible hexes for fog of war check
+    let fogEnabled = false;
+    if (gameMode) {
+      if (gameMode.isMultiplayer && gameMode.playerRole && gameMode.fogOfWar !== false) {
+        fogEnabled = true;
+      } else if (gameMode.isAI && gameMode.fogOfWar !== false) {
+        fogEnabled = true;
+      }
+    }
 
     Object.values(gameState.ants).forEach(ant => {
       if (!ant || !ant.type) return;
+
+      // Check if this ant should be hidden (enemy ant under a tree, not adjacent to our units)
+      const isEnemyAnt = ant.owner !== currentPlayerId;
+      const isOnTree = Object.values(gameState.trees || {}).some(t => hexEquals(t.position, ant.position));
+
+      if (isEnemyAnt && isOnTree && fogEnabled) {
+        // Enemy ant is on a tree - only show if we have a unit ON or adjacent to that tree
+        const antHex = ant.position;
+        const treeNeighbors = getNeighbors(antHex);
+        const canSeeUnderTree = Object.values(gameState.ants).some(a =>
+          a.owner === currentPlayerId &&
+          (hexEquals(a.position, antHex) || treeNeighbors.some(neighbor => hexEquals(neighbor, a.position)))
+        );
+        if (!canSeeUnderTree) {
+          return; // Don't render this enemy ant - it's hidden under the tree
+        }
+      }
 
       const { x, y } = hexToPixel(ant.position, hexSize);
 
