@@ -2659,22 +2659,36 @@ function App() {
           return;
         }
 
-        // Check for ambush: if clicking directly on a hidden enemy in fog of war
+        // Check for ambush: check entire path for hidden enemies in fog of war
         const isMultiplayerWithFog = (gameMode.mode === 'online' || gameMode.mode === 'local') && fullGameState;
-        if (isMultiplayerWithFog && hexEquals(hex, path[path.length - 1])) {
-          // Check if destination hex has a hidden enemy (exists in fullGameState but not in currentState)
-          const hiddenEnemy = Object.values(fullGameState.ants || {}).find(
-            a => hexEquals(a.position, hex) && a.owner !== ant.owner
-          );
+        if (isMultiplayerWithFog) {
+          // Check each hex in the path for a hidden enemy
+          let hiddenEnemy = null;
+          let ambushPathIndex = -1;
 
-          const visibleEnemy = Object.values(currentState.ants || {}).find(
-            a => hexEquals(a.position, hex) && a.owner !== ant.owner
-          );
+          for (let i = 0; i < path.length; i++) {
+            const pathHex = path[i];
 
-          // If there's an enemy in full state but not in filtered state, it's hidden = ambush!
-          if (hiddenEnemy && !visibleEnemy) {
-            // Ambush! Move one hex short of destination
-            const shortPath = path.slice(0, -1);
+            // Check if this hex has an enemy in fullGameState but not in currentState (hidden)
+            const enemyAtHex = Object.values(fullGameState.ants || {}).find(
+              a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
+            );
+
+            const visibleEnemyAtHex = Object.values(currentState.ants || {}).find(
+              a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
+            );
+
+            // If there's an enemy in full state but not in filtered state, it's hidden = ambush!
+            if (enemyAtHex && !visibleEnemyAtHex) {
+              hiddenEnemy = enemyAtHex;
+              ambushPathIndex = i;
+              break; // Stop at first hidden enemy encountered
+            }
+          }
+
+          if (hiddenEnemy && ambushPathIndex >= 0) {
+            // Ambush! Move to the hex just before the hidden enemy
+            const shortPath = path.slice(0, ambushPathIndex);
 
             if (shortPath.length === 0) {
               // Can't ambush from adjacent hex - treat as blocked
@@ -2696,7 +2710,8 @@ function App() {
             setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
             // After animation completes, trigger ambush
-            const animationDuration = (shortPath.length - 1) * 600;
+            // Ensure minimum duration so animation is visible before ambush triggers
+            const animationDuration = Math.max((shortPath.length - 1) * 600, 100);
             setTimeout(async () => {
               // Move ant to stop position
               let newState = moveAnt(fullGameState, selectedAnt, stopPosition);
