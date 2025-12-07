@@ -810,9 +810,9 @@ function App() {
 
     // Burrowed units have limited movement
     if (ant.isBurrowed) {
-      // Only soldiers can move while burrowed (1 hex)
+      // Only soldiers (marauders) can move while burrowed (2 hexes)
       if (ant.type === 'soldier') {
-        range = 1;
+        range = 2;
       } else {
         // Other burrowed units cannot move
         setMovementPaths(new Map());
@@ -3547,9 +3547,9 @@ function App() {
 
       // Burrowed units have limited movement
       if (ant.isBurrowed) {
-        // Only soldiers can move while burrowed (1 hex)
+        // Only soldiers (marauders) can move while burrowed (2 hexes)
         if (ant.type === 'soldier') {
-          range = 1;
+          range = 2;
         } else {
           // Other burrowed units cannot move
           return [];
@@ -6667,12 +6667,14 @@ function App() {
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Queen Mechanics</h2>
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                <li><strong>Energy System:</strong> Queens start with {GameConstants.QUEEN_BASE_ENERGY} energy, regenerate {GameConstants.QUEEN_BASE_ENERGY_REGEN} per round</li>
-                <li><strong>Laying Eggs:</strong> Costs {GameConstants.EGG_LAY_ENERGY_COST} energy (reduced with upgrades). Eggs hatch after their incubation time</li>
-                <li><strong>Spawning Pool:</strong> Queens can only lay eggs in adjacent hexes (2 spots initially, increases with upgrades)</li>
+                <li><strong>Energy System:</strong> Queens start with {QueenTiers.queen.maxEnergy} energy, regenerate {QueenTiers.queen.energyRegen} per round</li>
+                <li><strong>Laying Eggs:</strong> Costs {GameConstants.EGG_LAY_ENERGY_COST} energy. Eggs hatch after their incubation time and have 10 HP</li>
+                <li><strong>Spawning Pool:</strong> Queens can only lay eggs in adjacent hexes ({QueenTiers.queen.spawningSpots} spots initially, increases with tier upgrades)</li>
                 <li><strong>Healing:</strong> Costs {GameConstants.HEAL_ENERGY_COST} energy to heal a friendly unit for {GameConstants.HEAL_AMOUNT} HP within range 2</li>
-                <li><strong>Passive Income:</strong> Queens generate {GameConstants.QUEEN_BASE_FOOD_INCOME} food per turn (increases with upgrades)</li>
-                <li><strong>Queen Upgrades:</strong> Upgrade to Brood Queen (+2 spots, -5 egg cost, +3 food/turn) then Swarm Queen (+2 more spots, -5 more egg cost, +3 food/turn)</li>
+                <li><strong>Passive Income:</strong> Queens generate {QueenTiers.queen.foodIncome} food per turn (increases with tier)</li>
+                <li><strong>Vision:</strong> Queens have 2 hex vision range (same as Scouts)</li>
+                <li><strong>Brood Queen:</strong> {QueenTiers.broodQueen.cost.food}🍃 {QueenTiers.broodQueen.cost.minerals}💎 - {QueenTiers.broodQueen.spawningSpots} spawn spots, {QueenTiers.broodQueen.maxEnergy} max energy, {QueenTiers.broodQueen.energyRegen} regen, {QueenTiers.broodQueen.foodIncome} food/turn, unlocks Reveal ability ({AntTypes.QUEEN.revealEnergyCost} energy)</li>
+                <li><strong>Swarm Queen:</strong> {QueenTiers.swarmQueen.cost.food}🍃 {QueenTiers.swarmQueen.cost.minerals}💎 - {QueenTiers.swarmQueen.spawningSpots} spawn spots, {QueenTiers.swarmQueen.maxEnergy} max energy, {QueenTiers.swarmQueen.energyRegen} regen, {QueenTiers.swarmQueen.foodIncome} food/turn, unlocks Weaver Ant & Cordyphage</li>
               </ul>
             </section>
 
@@ -6704,6 +6706,19 @@ function App() {
               </div>
             </section>
 
+            {/* Burrow Mechanic */}
+            <section style={{ marginBottom: '25px' }}>
+              <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Burrow Mechanic</h2>
+              <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
+                <li><strong>Unlock:</strong> Requires the Burrow upgrade (10🍃 10💎)</li>
+                <li><strong>Burrowing:</strong> Most units can burrow underground, becoming invisible to enemies</li>
+                <li><strong>Movement:</strong> Burrowed units cannot move, except Marauders who can move 2 hexes while burrowed</li>
+                <li><strong>Ambush:</strong> Burrowed units automatically unburrow and attack when enemies move adjacent</li>
+                <li><strong>Healing:</strong> Burrowed units heal 5% of max HP per turn. Marauders heal 10% per turn while burrowed</li>
+                <li><strong>Restrictions:</strong> Bullet Ants and Bombardiers cannot burrow</li>
+              </ul>
+            </section>
+
             {/* Tips & Strategy */}
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Tips & Strategy</h2>
@@ -6711,11 +6726,13 @@ function App() {
                 <li>Send scouts early to explore and claim resource nodes</li>
                 <li>Build anthills for passive income - economy wins games!</li>
                 <li>Protect your Queen at all costs - losing her means defeat</li>
-                <li>Use tanks to hold the frontline while ranged units deal damage</li>
+                <li>Use Bullet Ants to hold the frontline while ranged units deal damage</li>
                 <li>Bombardiers are powerful but vulnerable - keep them protected</li>
                 <li>Upgrade your units to gain combat advantages</li>
                 <li>Cannibalism upgrade turns aggressive play into resource generation</li>
                 <li>Position units on anthills for the +2 defense bonus in key fights</li>
+                <li>Use Burrow to set up ambushes and heal damaged units</li>
+                <li>Burrowed Marauders make excellent mobile ambush units</li>
               </ul>
             </section>
 

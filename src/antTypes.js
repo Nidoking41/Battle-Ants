@@ -231,9 +231,9 @@ export const Upgrades = {
     icon: '⚔️',
     maxTier: 3,
     costs: [
-      { food: 15, minerals: 10 }, // Tier 1
-      { food: 20, minerals: 15 }, // Tier 2
-      { food: 25, minerals: 20 }  // Tier 3
+      { food: 10, minerals: 5 }, // Tier 1
+      { food: 15, minerals: 10 }, // Tier 2
+      { food: 20, minerals: 15 }  // Tier 3
     ]
   },
   RANGED_ATTACK: {
@@ -243,9 +243,9 @@ export const Upgrades = {
     icon: '🏹',
     maxTier: 3,
     costs: [
-      { food: 15, minerals: 10 }, // Tier 1
-      { food: 20, minerals: 15 }, // Tier 2
-      { food: 25, minerals: 20 }  // Tier 3
+      { food: 10, minerals: 5 }, // Tier 1
+      { food: 15, minerals: 10 }, // Tier 2
+      { food: 20, minerals: 15 }  // Tier 3
     ]
   },
   DEFENSE: {
@@ -255,9 +255,9 @@ export const Upgrades = {
     icon: '🛡️',
     maxTier: 3,
     costs: [
-      { food: 20, minerals: 15 }, // Tier 1
-      { food: 25, minerals: 20 }, // Tier 2
-      { food: 30, minerals: 25 }  // Tier 3
+      { food: 15, minerals: 10 }, // Tier 1
+      { food: 20, minerals: 15 }, // Tier 2
+      { food: 25, minerals: 20 }  // Tier 3
     ]
   },
   CANNIBALISM: {
@@ -267,17 +267,17 @@ export const Upgrades = {
     icon: '🍖',
     maxTier: 1,
     costs: [
-      { food: 15, minerals: 10 }  // Tier 1
+      { food: 10, minerals: 10 }  // Tier 1
     ]
   },
   BURROW: {
     id: 'burrow',
     name: 'Burrow',
-    description: 'Unlock burrow ability for all units (except Tank/Bombardier)',
+    description: 'Unlock burrow for ambush & healing (5%/turn, Marauders 10%). Marauders move 2 hexes while burrowed',
     icon: '🕳️',
     maxTier: 1,
     costs: [
-      { food: 15, minerals: 15 }  // Tier 1
+      { food: 10, minerals: 10 }  // Tier 1
     ]
   },
   CONNECTED_TUNNELS: {
@@ -288,7 +288,7 @@ export const Upgrades = {
     maxTier: 1,
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
-      { food: 15, minerals: 15 }  // Tier 1
+      { food: 10, minerals: 10 }  // Tier 1
     ]
   },
   CORDYCEPS_PURGE: {
@@ -299,7 +299,7 @@ export const Upgrades = {
     maxTier: 1,
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
-      { food: 20, minerals: 20 } // Single expensive unlock
+      { food: 10, minerals: 15 }
     ]
   }
   // REVEAL upgrade removed - Reveal is now innate to Brood Queen tier

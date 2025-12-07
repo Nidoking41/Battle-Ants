@@ -1217,6 +1217,14 @@ export function endTurn(gameState) {
         }
       }
 
+      // Heal burrowed units at the start of their turn
+      // Marauders (soldiers) heal 10% per turn, other burrowed units heal 5%
+      if (ant.isBurrowed && ant.health < ant.maxHealth) {
+        const healPercent = ant.type === 'soldier' ? 0.10 : 0.05;
+        const healAmount = Math.ceil(ant.maxHealth * healPercent);
+        updates.health = Math.min(ant.maxHealth, updates.health + healAmount);
+      }
+
       // Apply plague damage and decrease duration
       if (ant.plagued && ant.plagued > 0) {
         const cordyphageType = AntTypes.CORDYPHAGE;
