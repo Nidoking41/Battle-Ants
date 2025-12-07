@@ -263,7 +263,7 @@ export const Upgrades = {
   CANNIBALISM: {
     id: 'cannibalism',
     name: 'Cannibalism',
-    description: '+3 Food and +3 Minerals when melee units kill',
+    description: '+5 Food and +5 Minerals when melee units kill',
     icon: '🍖',
     maxTier: 1,
     costs: [
