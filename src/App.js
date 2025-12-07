@@ -4050,6 +4050,25 @@ function App() {
                       </text>
                     </g>
                   )}
+                  {/* Health bar for eggs */}
+                  <g transform="translate(0, 25)">
+                    <rect
+                      x="-20"
+                      y="0"
+                      width="40"
+                      height="4"
+                      fill="#333"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    <rect
+                      x="-20"
+                      y="0"
+                      width={40 * (egg.health / (egg.maxHealth || 10))}
+                      height="4"
+                      fill={egg.health > (egg.maxHealth || 10) * 0.5 ? '#2ecc71' : egg.health > (egg.maxHealth || 10) * 0.25 ? '#f39c12' : '#e74c3c'}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </g>
                 </g>
               ) : null;
             })()}

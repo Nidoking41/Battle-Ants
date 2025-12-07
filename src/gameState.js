@@ -964,8 +964,8 @@ export function createEgg(antType, owner, position, currentTurn) {
     owner,
     position,
     hatchTurn: currentTurn + type.hatchTime,
-    health: 5, // Eggs have 5 health and can be targeted
-    maxHealth: 5
+    health: 10, // Eggs have 10 health and can be targeted
+    maxHealth: 10
   };
 }
 
