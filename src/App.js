@@ -1576,21 +1576,20 @@ function App() {
       delete updatedAnts[concedeQueenId];
     }
 
+    // For concede, find the opponent to credit as winner
+    const opponentId = Object.keys(gameState.players).find(pid => pid !== currentPlayerId);
+
     // Check win conditions (handles team games)
     const tempGameState = { ...gameState, ants: updatedAnts };
-    const winResult = checkWinCondition(tempGameState, null, currentPlayerId);
+    const winResult = checkWinCondition(tempGameState, opponentId, currentPlayerId);
 
-    // If no winner yet (team game where teammates remain), find opponent to credit
-    let winner = winResult.winner;
-    if (!winner && winResult.gameOver) {
-      // Find any opponent
-      winner = Object.keys(gameState.players).find(pid => pid !== currentPlayerId);
-    }
+    // Use the winner from winResult, or fallback to opponent for 2-player games
+    let winner = winResult.winner || opponentId;
 
     const updatedState = {
       ...gameState,
       ants: updatedAnts,
-      gameOver: winResult.gameOver,
+      gameOver: true, // Concede always ends the game for the conceding player
       winner: winner,
       winningTeam: winResult.winningTeam
     };
