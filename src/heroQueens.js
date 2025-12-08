@@ -8,6 +8,7 @@ export const HeroQueens = {
     description: 'Melee units gain +20% attack, ranged units do 10% less',
     icon: '🗡️',
     portraitImage: 'hero_red.png',
+    chargeRequired: 150,
     bonuses: {
       meleeAttackBonus: 0.20,  // +20% attack for melee (rounded up)
       rangedAttackPenalty: -0.10,  // -10% attack for ranged
@@ -26,6 +27,7 @@ export const HeroQueens = {
     description: 'Ranged units gain +20% attack, melee units do 10% less',
     icon: '🎯',
     portraitImage: 'hero_green.png',
+    chargeRequired: 150,
     bonuses: {
       rangedAttackBonus: 0.20,  // +20% attack for ranged
       meleeAttackPenalty: -0.10  // -10% attack for melee
@@ -43,6 +45,7 @@ export const HeroQueens = {
     description: 'Units are 25% cheaper but 20% weaker attack, 10% weaker health. Start with 3 spawning spots',
     icon: '🐜',
     portraitImage: 'hero_blue.png',
+    chargeRequired: 150,
     bonuses: {
       costMultiplier: 0.75,     // 25% cheaper (0.75x cost)
       attackMultiplier: 0.80,   // 20% weaker attack (0.80x attack)
@@ -62,6 +65,7 @@ export const HeroQueens = {
     description: 'Units are 25% more expensive but 20% stronger in attack and health',
     icon: '⚔️',
     portraitImage: 'hero_yellow.png',
+    chargeRequired: 150,
     bonuses: {
       costMultiplier: 1.25,     // 25% more expensive (1.25x cost)
       attackMultiplier: 1.20,   // 20% stronger attack (1.20x attack)
@@ -81,14 +85,15 @@ export const HeroQueens = {
     description: 'Healing is 50% cheaper and queens can heal twice per turn',
     icon: '💚',
     portraitImage: 'hero_black.png',
+    chargeRequired: 200,
     bonuses: {
       healCostMultiplier: 0.50,  // 50% cheaper healing (0.50x energy cost)
       queenDoubleHeal: true      // Queens can heal twice per turn
     },
     heroAbility: {
       name: 'Divine Restoration',
-      description: 'All units restored to full health and energy, gain +10% attack boost',
-      fullHeal: true,
+      description: 'All units heal 15 health and restore full energy, gain +10% attack boost',
+      healAmount: 15,
       fullEnergy: true,
       attackBonus: 0.10
     }

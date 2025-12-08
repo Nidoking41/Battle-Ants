@@ -5997,58 +5997,63 @@ function App() {
               })()}
             </div>
             {/* Power Bar */}
-            <div style={{
-              width: '100%',
-              height: '22px',
-              backgroundColor: '#34495e',
-              borderRadius: '11px',
-              overflow: 'hidden',
-              border: '2px solid #1a252f',
-              marginBottom: '6px',
-              position: 'relative'
-            }}>
-              <div style={{
-                width: `${gameState.players[gameState.currentPlayer]?.heroPower || 0}%`,
-                height: '100%',
-                backgroundColor: gameState.players[gameState.currentPlayer]?.heroPower >= 100 ? '#f39c12' : '#3498db',
-                transition: 'width 0.3s ease'
-              }}>
-              </div>
-            </div>
-            {/* Activate Button */}
-            <button
-              onClick={() => {
-                const { activateHeroAbility } = require('./gameState');
-                // Get fresh state for multiplayer consistency
-                const currentState = getGameStateForLogic();
-                const newState = activateHeroAbility(currentState, currentState.currentPlayer);
-                updateGame(newState);
-              }}
-              disabled={
-                !isMyTurn() ||
-                (gameState.players[gameState.currentPlayer]?.heroPower || 0) < 100 ||
-                gameState.players[gameState.currentPlayer]?.heroAbilityActive
-              }
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                backgroundColor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '#f39c12' : '#95a5a6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: (gameState.players[gameState.currentPlayer]?.heroPower || 0) >= 100 && isMyTurn() && !gameState.players[gameState.currentPlayer]?.heroAbilityActive ? 'pointer' : 'not-allowed',
-                width: '100%',
-                opacity: isMyTurn() ? 1 : 0.6
-              }}
-              title={(() => {
-                const { getHeroById } = require('./heroQueens');
-                const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
-                return hero?.heroAbility?.description || 'Hero Ability';
-              })()}
-            >
-              {gameState.players[gameState.currentPlayer]?.heroAbilityActive ? '✓ ACTIVE' : '⚡ ACTIVATE ABILITY'}
-            </button>
+            {(() => {
+              const { getHeroById } = require('./heroQueens');
+              const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
+              const chargeRequired = hero?.chargeRequired || 150;
+              const heroPower = gameState.players[gameState.currentPlayer]?.heroPower || 0;
+              const isReady = heroPower >= chargeRequired;
+              const isActive = gameState.players[gameState.currentPlayer]?.heroAbilityActive;
+
+              return (
+                <>
+                  <div style={{
+                    width: '100%',
+                    height: '22px',
+                    backgroundColor: '#34495e',
+                    borderRadius: '11px',
+                    overflow: 'hidden',
+                    border: '2px solid #1a252f',
+                    marginBottom: '6px',
+                    position: 'relative'
+                  }}>
+                    <div style={{
+                      width: `${(heroPower / chargeRequired) * 100}%`,
+                      height: '100%',
+                      backgroundColor: isReady ? '#f39c12' : '#3498db',
+                      transition: 'width 0.3s ease'
+                    }}>
+                    </div>
+                  </div>
+                  {/* Activate Button */}
+                  <button
+                    onClick={() => {
+                      const { activateHeroAbility } = require('./gameState');
+                      // Get fresh state for multiplayer consistency
+                      const currentState = getGameStateForLogic();
+                      const newState = activateHeroAbility(currentState, currentState.currentPlayer);
+                      updateGame(newState);
+                    }}
+                    disabled={!isMyTurn() || !isReady || isActive}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      backgroundColor: isReady && isMyTurn() && !isActive ? '#f39c12' : '#95a5a6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: isReady && isMyTurn() && !isActive ? 'pointer' : 'not-allowed',
+                      width: '100%',
+                      opacity: isMyTurn() ? 1 : 0.6
+                    }}
+                    title={hero?.heroAbility?.description || 'Hero Ability'}
+                  >
+                    {isActive ? '✓ ACTIVE' : '⚡ ACTIVATE ABILITY'}
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

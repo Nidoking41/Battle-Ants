@@ -1,5 +1,6 @@
 import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
+import { getHeroById } from './heroQueens';
 
 // Calculate army strength for a player
 // Formula: Fixed base value per ant type + 2 per upgrade tier
@@ -2252,15 +2253,17 @@ export function updateHeroPower(gameState, playerId, damageAmount, multiplier = 
   if (!gameState.players[playerId]) return gameState;
 
   const player = gameState.players[playerId];
+  const hero = getHeroById(player.heroId);
+  const chargeRequired = hero?.chargeRequired || 150;
 
-  // Don't add power if ability is already at 100% or active
-  if (player.heroPower >= 100) return gameState;
+  // Don't add power if ability is already at max or active
+  if (player.heroPower >= chargeRequired) return gameState;
 
-  // Calculate new hero power: 150 total damage = 100% power
-  // So each point of damage = 100/150 = 0.6667% power
+  // Calculate new hero power based on hero's charge requirement
+  // 150 total damage = chargeRequired power (ready to activate)
   // Apply multiplier (1.0 for dealt, 0.65 for received)
-  const powerGain = (damageAmount / 150) * 100 * multiplier;
-  const newPower = Math.min(100, (player.heroPower || 0) + powerGain);
+  const powerGain = (damageAmount / 150) * chargeRequired * multiplier;
+  const newPower = Math.min(chargeRequired, (player.heroPower || 0) + powerGain);
 
   return {
     ...gameState,
@@ -2277,13 +2280,17 @@ export function updateHeroPower(gameState, playerId, damageAmount, multiplier = 
 // Activate hero ability
 export function activateHeroAbility(gameState, playerId) {
   const player = gameState.players[playerId];
-  
+
   if (!player) return gameState;
-  if (player.heroPower < 100) return gameState; // Need full hero power
-  if (player.heroAbilityActive) return gameState; // Already active
 
   const heroId = player.heroId;
   if (!heroId) return gameState;
+
+  const hero = getHeroById(heroId);
+  const chargeRequired = hero?.chargeRequired || 150;
+
+  if (player.heroPower < chargeRequired) return gameState; // Need full hero power
+  if (player.heroAbilityActive) return gameState; // Already active
 
   const updatedAnts = { ...gameState.ants };
   const updatedPlayers = { ...gameState.players };
@@ -2332,11 +2339,11 @@ export function activateHeroAbility(gameState, playerId) {
       break;
 
     case "vexxara":
-      // Restore all units to full health and energy
+      // Heal all units 15 HP and restore full energy
       playerAnts.forEach(ant => {
         const updatedAnt = {
           ...ant,
-          health: ant.maxHealth
+          health: Math.min(ant.maxHealth, ant.health + 15)
         };
 
         // Only set energy if the ant has maxEnergy (queens, healers, cordyphages)

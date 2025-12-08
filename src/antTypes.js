@@ -37,8 +37,8 @@ export const AntTypes = {
     name: 'Marauder',
     cost: { food: 20, minerals: 5 },
     hatchTime: 1,
-    maxHealth: 35,
-    attack: 10,
+    maxHealth: 33,
+    attack: 11,
     defense: 1,
     moveRange: 2,
     attackRange: 1,
@@ -65,10 +65,10 @@ export const AntTypes = {
   ACID: {
     id: 'spitter',
     name: 'Acid Ant',
-    cost: { food: 15, minerals: 7 },
+    cost: { food: 12, minerals: 7 },
     hatchTime: 1,
-    maxHealth: 25,
-    attack: 8,
+    maxHealth: 18,
+    attack: 9,
     defense: 0,
     moveRange: 2,
     attackRange: 2,
@@ -99,7 +99,7 @@ export const AntTypes = {
     name: 'Bombardier',
     cost: { food: 20, minerals: 15},
     hatchTime: 1,
-    maxHealth: 30,
+    maxHealth: 25,
     attack: 15,
     defense: 0,
     moveRange: 2,
@@ -130,7 +130,7 @@ export const AntTypes = {
   HEALER: {
     id: 'healer',
     name: 'Weaver Ant',
-    cost: { food: 15, minerals: 20 },
+    cost: { food: 10, minerals: 15 },
     hatchTime: 1,
     maxHealth: 20,
     attack: 0, // Cannot attack
@@ -157,7 +157,7 @@ export const AntTypes = {
   CORDYPHAGE: {
     id: 'cordyphage',
     name: 'Cordyphage',
-    cost: { food: 15, minerals: 25 },
+    cost: { food: 15, minerals: 20 },
     hatchTime: 1,
     maxHealth: 25,
     attack: 0, // Cannot attack
@@ -167,16 +167,16 @@ export const AntTypes = {
     resourceGatherRate: 0,
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
-    maxEnergy: 50,
+    maxEnergy: 60,
     startingEnergy: 25, // Starts at half energy
-    energyRegen: 10,
+    energyRegen: 15,
     // Abilities
     cordycepsRange: 1, // Melee range for mind control
     cordycepsEnergyCost: 50, // Expensive ability
     plagueRange: 3, // Range for plague
     plagueDuration: 3, // turns
     plagueHealthLoss: 0.20, // 20% health per turn
-    plagueEnergyCost: 35,
+    plagueEnergyCost: 25,
     description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
     icon: '☠️🐜'
   }
