@@ -5211,12 +5211,22 @@ function App() {
             {gameState.players?.[gameState.currentPlayer]?.name || 'Loading...'}'s Turn
           </h3>
 
-          {/* Resources */}
+          {/* Resources - Always show YOUR resources, never opponent's */}
           <div style={{ marginBottom: '20px' }}>
             <h4>Your Resources</h4>
             {(() => {
-              const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
-              const player = gameState.players?.[currentPlayerId];
+              // In multiplayer, ALWAYS use your playerRole, never the current turn player
+              // In AI mode, use player1 (human). In local mode, use current player.
+              let myPlayerId;
+              if (gameMode?.isMultiplayer) {
+                myPlayerId = gameMode.playerRole;
+              } else if (gameMode?.isAI) {
+                myPlayerId = 'player1'; // Human is always player1 in AI mode
+              } else {
+                myPlayerId = gameState.currentPlayer;
+              }
+
+              const player = gameState.players?.[myPlayerId];
 
               // Guard against player not existing yet (waiting for Firebase sync)
               if (!player) {
@@ -5229,7 +5239,7 @@ function App() {
               let foodIncome = 0;
               let mineralIncome = 0;
               Object.values(gameState.anthills || {}).forEach(anthill => {
-                if (anthill.owner === currentPlayerId && anthill.isComplete) {
+                if (anthill.owner === myPlayerId && anthill.isComplete) {
                   if (anthill.resourceType === 'food') {
                     foodIncome += GameConstants.ANTHILL_PASSIVE_INCOME.food;
                   } else {
@@ -5240,7 +5250,7 @@ function App() {
 
               // Add queen food income
               const queen = Object.values(gameState.ants || {}).find(
-                ant => ant.type === 'queen' && ant.owner === currentPlayerId
+                ant => ant.type === 'queen' && ant.owner === myPlayerId
               );
               if (queen) {
                 const queenTier = queen.queenTier || 'queen';
