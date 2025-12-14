@@ -109,6 +109,9 @@ function App() {
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
   const lastProcessedAntPositions = useRef({});
+  // Selection lock to prevent race conditions in multiplayer
+  const selectionLockRef = useRef(false);
+  const lastSelectionChangeRef = useRef(0);
 
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
@@ -121,16 +124,21 @@ function App() {
 
   // Clear selection if the selected ant no longer exists
   // Note: We allow selecting enemy ants to view their info, just can't take actions with them
+  // IMPORTANT: In multiplayer, check fullGameState since gameState is filtered for fog of war
   useEffect(() => {
     if (selectedAnt && gameMode) {
-      const ant = gameState.ants[selectedAnt];
+      // Use fullGameState in multiplayer/AI with fog, otherwise use gameState
+      const stateToCheck = (gameMode.isMultiplayer || (gameMode.isAI && gameMode.fogOfWar !== false))
+        ? (fullGameState || gameState)
+        : gameState;
+      const ant = stateToCheck.ants[selectedAnt];
       if (!ant) {
-        console.log('Clearing stale selection: ant no longer exists', { selectedAnt });
+        console.log('Clearing stale selection: ant no longer exists', { selectedAnt, isMultiplayer: gameMode.isMultiplayer });
         setSelectedAnt(null);
         setSelectedAction(null);
       }
     }
-  }, [gameState.ants, selectedAnt, gameMode]);
+  }, [gameState.ants, fullGameState?.ants, selectedAnt, gameMode]);
 
   // Initialize all eggs with idle animation
   useEffect(() => {
@@ -1988,6 +1996,19 @@ function App() {
 
   // Handle hex click
   const handleHexClick = (hex) => {
+    // Prevent rapid clicks that could cause selection cycling in multiplayer
+    const clickTime = Date.now();
+    if (clickTime - lastSelectionChangeRef.current < 50) {
+      console.log('Ignoring rapid click, time since last:', clickTime - lastSelectionChangeRef.current);
+      return;
+    }
+
+    // Check selection lock to prevent race conditions
+    if (selectionLockRef.current) {
+      console.log('Selection locked, ignoring click');
+      return;
+    }
+
     console.log('handleHexClick:', { hex: hex ? `${hex.q},${hex.r}` : 'null', selectedAction, selectedAnt, pendingEggType });
     const currentState = getGameStateForLogic();
 
@@ -3225,11 +3246,16 @@ function App() {
         }
 
         // Otherwise, deselect the ant
+        // Lock selection to prevent race conditions during deselection
+        selectionLockRef.current = true;
+        lastSelectionChangeRef.current = Date.now();
         setSelectedAnt(null);
         setSelectedAction(null);
         setSelectedEgg(null);
         // Track that this ant was just deselected to prevent immediate reselection
         setLastDeselectedAnt({ antId: clickedAnt.id, time: now });
+        // Unlock selection after a brief delay
+        setTimeout(() => { selectionLockRef.current = false; }, 100);
         return;
       }
 
@@ -3239,12 +3265,13 @@ function App() {
         return;
       }
 
-      // Prevent immediate reselection of an ant that was just deselected (within 100ms)
+      // Prevent immediate reselection of an ant that was just deselected (within 300ms)
       // This prevents infinite reselection loops but allows normal reselection after a brief delay
+      // Increased from 100ms to 300ms to account for network latency in multiplayer
       const wasJustDeselected = lastDeselectedAnt.antId === clickedAnt.id &&
-                                (now - lastDeselectedAnt.time) < 100;
+                                (now - lastDeselectedAnt.time) < 300;
       if (wasJustDeselected) {
-        console.log('Preventing reselection of ant that was just deselected:', clickedAnt.id);
+        console.log('Preventing reselection of ant that was just deselected:', clickedAnt.id, 'time since deselect:', now - lastDeselectedAnt.time);
         return; // Ignore this click to prevent reselection loop
       }
 
@@ -3262,6 +3289,10 @@ function App() {
       });
 
       if (isOwnAnt && isMyTurn()) {
+        // Lock selection to prevent race conditions
+        selectionLockRef.current = true;
+        lastSelectionChangeRef.current = Date.now();
+
         setSelectedAnt(clickedAnt.id);
 
         // Only auto-select action if the unit can still perform actions
@@ -3287,9 +3318,15 @@ function App() {
           });
           setSelectedAction(null);
         }
+
+        // Unlock selection after a brief delay to allow state to settle
+        setTimeout(() => { selectionLockRef.current = false; }, 100);
       } else {
         // Enemy ant or not your turn - just select for viewing info, no actions
+        selectionLockRef.current = true;
+        lastSelectionChangeRef.current = Date.now();
         setSelectedAnt(clickedAnt.id);
+        setTimeout(() => { selectionLockRef.current = false; }, 100);
         setSelectedAction(null);
       }
 
