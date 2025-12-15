@@ -337,9 +337,9 @@ function generateResourceNodes(gridRadius = 6) {
   // Shuffle the positions
   const shuffled = northPositions.sort(() => Math.random() - 0.5);
 
-  // Fixed resource distribution: 4 food and 2 minerals per side (12 total)
-  const numFoodPerSide = 4;
-  const numMineralsPerSide = 2;
+  // Fixed resource distribution: 5 food and 3 minerals per side (16 total)
+  const numFoodPerSide = 5;
+  const numMineralsPerSide = 3;
   const totalResourcesPerSide = numFoodPerSide + numMineralsPerSide;
 
   // Select positions for resources

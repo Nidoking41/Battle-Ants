@@ -334,7 +334,7 @@ export const QueenTiers = {
     maxEnergy: 75,
     energyRegen: 10,
     foodIncome: 6,
-    cost: { food: 25, minerals: 15 }
+    cost: { food: 20, minerals: 10 }
   },
   swarmQueen: {
     name: 'Swarm Queen',
@@ -342,6 +342,6 @@ export const QueenTiers = {
     maxEnergy: 100,
     energyRegen: 12,
     foodIncome: 7,
-    cost: { food: 30, minerals: 20 }
+    cost: { food: 20, minerals: 15 }
   }
 };
