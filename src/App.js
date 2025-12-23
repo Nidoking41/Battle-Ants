@@ -57,6 +57,8 @@ function App() {
   const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
   const [showTurnPopup, setShowTurnPopup] = useState(false); // Show "Your Turn!" popup
   const [pheromoneAnimations, setPheromoneAnimations] = useState([]); // Array of {id, centerHex, currentStep, timestamp} for pheromone pulse animations
+  const [ambientMusic, setAmbientMusic] = useState(null); // Audio object for ambient music
+  const [ambientEnabled, setAmbientEnabled] = useState(true); // Whether ambient music is enabled
 
   // Window size for responsive SVG
   const [windowSize, setWindowSize] = useState({
@@ -64,9 +66,9 @@ function App() {
     height: window.innerHeight
   });
 
-  // Store random hex colors for earthy terrain
+  // Store random hex colors for terrain - natural earthy tones
   const [hexColors] = useState(() => {
-    // Earthy tone colors: light browns and greens
+    // Natural earthy tones for the hex grid
     const earthyTones = [
       '#8B7355', // Light brown
       '#A0826D', // Tan
@@ -270,26 +272,21 @@ function App() {
     }
   };
 
+  // Panel widths - left panel wider to show all ant types
+  const leftPanelWidth = 200;
+  const rightPanelWidth = 180;
+  const fontSize = '11px';
+  const smallFontSize = '10px';
+
   // Calculate dynamic SVG size based on available screen space
   const calculateSvgSize = () => {
-    const leftPanelWidth = 250;
-    const rightPanelWidth = 300;
-    const padding = 60; // margins and gaps
+    const availableWidth = windowSize.width - leftPanelWidth - rightPanelWidth - 40;
+    const availableHeight = windowSize.height - 20;
 
-    // Available width after panels
-    const availableWidth = windowSize.width - leftPanelWidth - rightPanelWidth - padding;
-
-    // Available height (subtract header and some padding)
-    const availableHeight = windowSize.height - 100;
-
-    // Keep 4:3 aspect ratio (width:height = 1200:900 = 4:3)
-    // Use the smaller dimension to ensure it fits
-    const maxWidth = Math.min(availableWidth, (availableHeight * 4) / 3);
-    const maxHeight = (maxWidth * 3) / 4;
-
-    // Clamp between min (400x300) and max (1200x900)
-    const width = Math.max(400, Math.min(1200, maxWidth));
-    const height = (width * 3) / 4;
+    // Keep aspect ratio but fit within available space
+    const maxWidth = Math.min(availableWidth, availableHeight * 1.2);
+    const width = Math.max(300, maxWidth);
+    const height = Math.min(availableHeight, width * 0.85);
 
     return { width, height };
   };
@@ -345,7 +342,8 @@ function App() {
       // Check if it's my turn
       const myTurn = !gameMode || !gameMode.isMultiplayer || gameState.currentPlayer === gameMode.playerRole;
 
-      console.log('Key pressed:', e.key, 'selectedAnt:', selectedAnt, 'myTurn:', myTurn);
+      // Ignore modifier keys to prevent console spam
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
 
       // Ignore repeated keydown events from holding keys (except for camera panning)
       if (e.repeat && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
@@ -949,6 +947,17 @@ function App() {
     };
     setAttackAnimations(prev => [...prev, newAnimation]);
 
+    // Play melee attack sound for melee attacks
+    if (!isRanged) {
+      try {
+        const meleeSound = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/melee.mp3`);
+        meleeSound.volume = 0.5;
+        meleeSound.play().catch(e => console.log('Could not play melee sound:', e));
+      } catch (e) {
+        console.log('Error creating melee sound:', e);
+      }
+    }
+
     // Trigger attack sprite animation
     // Use passed attackerInfo for multiplayer, or look up from current state
     const attacker = attackerInfo || gameState.ants[attackerId] || fullGameState?.ants?.[attackerId];
@@ -1012,10 +1021,71 @@ function App() {
     };
     setAmbushAlerts(prev => [...prev, newAlert]);
 
+    // Play ambush sound
+    try {
+      const ambushSound = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/ambush.mp3`);
+      ambushSound.volume = 0.5;
+      ambushSound.play().catch(e => console.log('Could not play ambush sound:', e));
+    } catch (e) {
+      console.log('Error creating ambush sound:', e);
+    }
+
     // Remove after animation completes (1 second)
     setTimeout(() => {
       setAmbushAlerts(prev => prev.filter(a => a.id !== id));
     }, 1000);
+  };
+
+  // Start ambient music at a random point (0, 5, 10, 15, or 20 minutes in)
+  const startAmbientMusic = () => {
+    try {
+      // Stop any existing ambient music
+      if (ambientMusic) {
+        ambientMusic.pause();
+        ambientMusic.currentTime = 0;
+      }
+
+      const audio = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/Ambient.mp3`);
+      audio.loop = true;
+      audio.volume = 0.3;
+
+      // Randomly choose start time: 0, 5, 10, 15, or 20 minutes
+      const startTimes = [0, 5 * 60, 10 * 60, 15 * 60, 20 * 60];
+      const randomStartTime = startTimes[Math.floor(Math.random() * startTimes.length)];
+      audio.currentTime = randomStartTime;
+
+      setAmbientMusic(audio);
+
+      if (ambientEnabled) {
+        audio.play().catch(e => console.log('Could not play ambient music:', e));
+      }
+    } catch (e) {
+      console.log('Error starting ambient music:', e);
+    }
+  };
+
+  // Toggle ambient music on/off
+  const toggleAmbientMusic = () => {
+    setAmbientEnabled(prev => {
+      const newEnabled = !prev;
+      if (ambientMusic) {
+        if (newEnabled) {
+          ambientMusic.play().catch(e => console.log('Could not play ambient music:', e));
+        } else {
+          ambientMusic.pause();
+        }
+      }
+      return newEnabled;
+    });
+  };
+
+  // Stop ambient music when returning to menu
+  const stopAmbientMusic = () => {
+    if (ambientMusic) {
+      ambientMusic.pause();
+      ambientMusic.currentTime = 0;
+      setAmbientMusic(null);
+    }
   };
 
   // Animate damage numbers
@@ -1202,6 +1272,15 @@ function App() {
       return () => unsubscribe();
     }
   }, [gameMode]);
+
+  // Watch for game over state and show victory modal
+  // This handles cases where gameOver comes from Firebase (opponent conceded, etc.)
+  useEffect(() => {
+    if (gameState.gameOver && !showVictoryModal) {
+      console.log('Game over detected - showing victory modal', { winner: gameState.winner });
+      setShowVictoryModal(true);
+    }
+  }, [gameState.gameOver, gameState.winner, showVictoryModal]);
 
   // Automatically execute AI turn when it's the AI's turn
   useEffect(() => {
@@ -1555,9 +1634,13 @@ function App() {
       const newGameState = createInitialGameState(gameOptions);
       setGameState(newGameState);
     }
+
+    // Start ambient music when game begins
+    // startAmbientMusic(); // Disabled - audio quality too low
   };
 
   const handleBackToMenu = () => {
+    // stopAmbientMusic(); // Disabled - audio quality too low
     setGameMode(null);
     setLobbySettings(null);
     setGameState(createInitialGameState());
@@ -1947,6 +2030,12 @@ function App() {
     // Only drones can build anthills
     if (drone.type !== 'drone') {
       showFeedback('Only drones can build anthills!');
+      return;
+    }
+
+    // Check if drone has already acted this turn (built or attacked)
+    if (drone.hasBuilt || drone.hasAttacked) {
+      showFeedback('This drone has already acted this turn!');
       return;
     }
 
@@ -2377,8 +2466,12 @@ function App() {
     if (selectedAction === 'move' && selectedAnt) {
       const ant = currentState.ants[selectedAnt];
 
+      // For UI visibility checks (what player can see/click), use fog-filtered gameState
+      // This ensures hidden enemies in fog don't trigger auto-attack - they trigger ambush instead
+      const visibleState = gameState;
+
       // Check if clicked on a friendly ant - if so, select that ant instead of moving
-      const friendlyAtHex = Object.values(currentState.ants).find(
+      const friendlyAtHex = Object.values(visibleState.ants).find(
         a => hexEquals(a.position, hex) && a.owner === ant.owner && a.id !== ant.id
       );
       if (friendlyAtHex) {
@@ -2390,18 +2483,18 @@ function App() {
         return;
       }
 
-      // Check if clicking on an enemy to attack
-      const enemyAtHex = Object.values(currentState.ants).find(
+      // Check if clicking on a VISIBLE enemy to attack (hidden enemies should trigger ambush, not auto-attack)
+      const enemyAtHex = Object.values(visibleState.ants).find(
         a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
       // Check if clicking on an enemy egg to attack
-      const eggAtHex = Object.values(currentState.eggs || {}).find(
+      const eggAtHex = Object.values(visibleState.eggs || {}).find(
         e => hexEquals(e.position, hex) && e.owner !== ant.owner
       );
 
       // Check if clicking on an enemy anthill to attack (complete or incomplete)
-      const anthillAtHex = Object.values(currentState.anthills || {}).find(
+      const anthillAtHex = Object.values(visibleState.anthills || {}).find(
         a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
@@ -2680,7 +2773,9 @@ function App() {
         }
 
         // Check for ambush: check entire path for hidden enemies in fog of war
-        const isMultiplayerWithFog = (gameMode.mode === 'online' || gameMode.mode === 'local') && fullGameState;
+        // Note: gameMode.isMultiplayer is true for online games, gameMode.isAI for AI games with fog
+        const isMultiplayerWithFog = (gameMode?.isMultiplayer || gameMode?.isAI) && fullGameState;
+
         if (isMultiplayerWithFog) {
           // Check each hex in the path for a hidden enemy
           let hiddenEnemy = null;
@@ -2689,16 +2784,17 @@ function App() {
           for (let i = 0; i < path.length; i++) {
             const pathHex = path[i];
 
-            // Check if this hex has an enemy in fullGameState but not in currentState (hidden)
+            // Check if this hex has an enemy in fullGameState but not in gameState (hidden in fog)
             const enemyAtHex = Object.values(fullGameState.ants || {}).find(
               a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
             );
 
-            const visibleEnemyAtHex = Object.values(currentState.ants || {}).find(
+            // Use fog-filtered gameState to check visibility (NOT currentState which is fullGameState)
+            const visibleEnemyAtHex = Object.values(gameState.ants || {}).find(
               a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
             );
 
-            // If there's an enemy in full state but not in filtered state, it's hidden = ambush!
+            // If there's an enemy in full state but not in fog-filtered state, it's hidden = ambush!
             if (enemyAtHex && !visibleEnemyAtHex) {
               hiddenEnemy = enemyAtHex;
               ambushPathIndex = i;
@@ -2783,8 +2879,8 @@ function App() {
               }, selectedAnt);
 
               // Update full state for multiplayer
-              if (gameMode.mode === 'online' && gameMode.sessionId) {
-                await updateGameState(gameMode.sessionId, finalState);
+              if (gameMode?.isMultiplayer && gameMode.gameId) {
+                await updateGameState(gameMode.gameId, finalState);
               }
 
               // Update local state with fog of war
@@ -2801,12 +2897,13 @@ function App() {
           }
         }
 
-        // Check each hex in the path to ensure it's not occupied by enemies
+        // Check each hex in the path to ensure it's not occupied by VISIBLE enemies
+        // Use fog-filtered gameState so hidden enemies don't block (they trigger ambush instead)
         for (let i = 0; i < path.length; i++) {
           const pathHex = path[i];
 
-          // Check if there's an ENEMY ant at this position in the path
-          const enemyAtPathHex = Object.values(currentState.ants).find(
+          // Check if there's a VISIBLE enemy ant at this position in the path
+          const enemyAtPathHex = Object.values(gameState.ants).find(
             a => hexEquals(a.position, pathHex) && a.owner !== ant.owner
           );
 
@@ -2816,7 +2913,7 @@ function App() {
           }
 
           // Check if there's an enemy egg at this position in the path
-          const enemyEggAtPathHex = Object.values(currentState.eggs).find(
+          const enemyEggAtPathHex = Object.values(gameState.eggs).find(
             e => hexEquals(e.position, pathHex) && e.owner !== ant.owner
           );
           if (enemyEggAtPathHex) {
@@ -3085,10 +3182,11 @@ function App() {
       return;
     }
 
-    // If an ant is selected and user clicks on an enemy, handle smart attack
+    // If an ant is selected and user clicks on a VISIBLE enemy, handle smart attack
+    // Note: Use fog-filtered gameState to only see visible enemies. Hidden enemies trigger ambush instead.
     if (selectedAnt && selectedAction === 'move') {
       const ant = currentState.ants[selectedAnt];
-      const clickedEnemy = Object.values(currentState.ants).find(
+      const clickedEnemy = Object.values(gameState.ants).find(
         a => hexEquals(a.position, hex) && a.owner !== ant.owner
       );
 
@@ -4800,29 +4898,30 @@ function App() {
   };
 
   return (
-    <div className="App" style={{ padding: '10px', backgroundColor: '#f0f0f0', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* Feedback Message Area */}
+    <div className="App" style={{
+      backgroundColor: '#1a1a2e',
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'row',
+      padding: '5px',
+      boxSizing: 'border-box',
+      gap: '5px'
+    }}>
+      {/* Ant Types Panel - Left Side */}
       <div style={{
-        margin: '0 0 10px 0',
-        fontSize: '20px',
-        fontWeight: 'bold',
-        minHeight: '30px',
-        color: feedbackMessage ? '#d32f2f' : 'transparent',
-        backgroundColor: feedbackMessage ? 'rgba(211, 47, 47, 0.1)' : 'transparent',
-        padding: '5px 15px',
+        width: `${leftPanelWidth}px`,
+        flexShrink: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        padding: '8px',
         borderRadius: '8px',
-        border: feedbackMessage ? '2px solid #d32f2f' : '2px solid transparent',
-        transition: 'all 0.3s ease',
-        textAlign: 'center'
+        overflow: 'hidden',
+        fontSize,
+        boxSizing: 'border-box'
       }}>
-        {feedbackMessage || '\u00A0'}
-      </div>
-
-      <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'flex-start', width: '100%' }}>
-        {/* Ant Types Panel - Left Side */}
-        <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
-          {isMyTurn() ? (
-            <>
+        {isMyTurn() ? (
+          <>
               {/* Upgrades Button */}
               <button
                 onClick={() => setShowUpgradesModal(true)}
@@ -4831,18 +4930,19 @@ function App() {
                   padding: '15px',
                   fontSize: '16px',
                   fontWeight: 'bold',
-                  backgroundColor: '#9C27B0',
-                  color: 'white',
-                  border: 'none',
+                  background: 'linear-gradient(145deg, #6a4c93, #4a3663)',
+                  color: '#e0e0e0',
+                  border: '2px solid #8a6cb3',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  marginBottom: '20px'
+                  marginBottom: '20px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
                 }}
               >
                 ⚡ Upgrades
               </button>
 
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Build Ants</h3>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#e0e0e0' }}>Build Ants</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
                   .map(id => getAntTypeById(id))
@@ -4924,13 +5024,14 @@ function App() {
                       style={{
                         padding: '8px 10px',
                         fontSize: '14px',
-                        backgroundColor: isLocked ? '#999' : (affordable ? '#4CAF50' : '#ccc'),
-                        color: (isLocked || !affordable) ? '#666' : 'white',
-                        border: 'none',
+                        background: isLocked ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : (affordable ? 'linear-gradient(145deg, #4a4a4a, #2a2a2a)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)'),
+                        color: (isLocked || !affordable) ? '#888' : '#e0e0e0',
+                        border: affordable && !isLocked ? '2px solid #666' : '2px solid #444',
                         borderRadius: '6px',
                         cursor: (affordable && isMyTurn() && !isLocked) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -4954,11 +5055,11 @@ function App() {
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{ant.name} {hotkey && `(${hotkey})`}</div>
-                          <div style={{ fontSize: '12px', marginTop: '3px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#e0e0e0' }}>{ant.name} {hotkey && `(${hotkey})`}</div>
+                          <div style={{ fontSize: '12px', marginTop: '3px', color: '#b0b0b0' }}>
                             Cost: {displayCost.food}🍃 {displayCost.minerals}💎
                           </div>
-                          <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2' }}>
+                          <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2', color: '#999' }}>
                             {ant.description}
                           </div>
                         </div>
@@ -4970,24 +5071,30 @@ function App() {
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#888' }}>Opponent's Turn</h3>
-              <p style={{ fontSize: '14px', color: '#666' }}>Waiting for opponent...</p>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#b0b0b0' }}>Opponent's Turn</h3>
+              <p style={{ fontSize: '14px', color: '#888' }}>Waiting for opponent...</p>
             </div>
           )}
 
         </div>
 
         {/* Game Board */}
-        <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', minWidth: 0 }}>
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minWidth: 0,
+          overflow: 'hidden'
+        }}>
           <div style={{
+            background: 'linear-gradient(145deg, #2a2a2a, #1a1a1a)',
             backgroundImage: `url(${forestFloorImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            border: '2px solid #333',
-            display: 'inline-block',
-            maxWidth: '100%',
-            maxHeight: 'calc(100vh - 80px)',
+            border: '2px solid #444',
+            borderRadius: '8px',
             overflow: 'hidden'
           }}>
             <svg
@@ -5080,19 +5187,20 @@ function App() {
               const progress = elapsed / 1000; // 0 to 1 over 1 second
 
               // Pop in then fade out with scale
-              const scale = progress < 0.2 ? (progress / 0.2) * 2 : 2 - (progress - 0.2) / 0.8; // Quick pop in, slow fade
-              const opacity = 1 - progress; // Fade out
+              const scale = progress < 0.2 ? (progress / 0.2) * 2.5 : 2.5 - (progress - 0.2) / 0.8 * 0.5; // Quick pop in, slight shrink
+              const opacity = progress < 0.3 ? 1 : 1 - (progress - 0.3) / 0.7; // Hold, then fade out
+              const floatY = -progress * hexSize * 1.5; // Float upward
 
               return (
                 <g
                   key={id}
-                  transform={`translate(${x}, ${y})`}
+                  transform={`translate(${x}, ${y + floatY})`}
                   style={{ pointerEvents: 'none' }}
                 >
                   <text
                     textAnchor="middle"
                     dy="0.3em"
-                    fontSize={32 * scale}
+                    fontSize={40 * scale}
                     fontWeight="bold"
                     fill="#ff0000"
                     stroke="#ffff00"
@@ -5197,23 +5305,32 @@ function App() {
         </div>
 
         {/* Game Info Panel - Right Side */}
-        <div style={{ width: '250px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto', overflowX: 'hidden', paddingBottom: '200px' }}>
+        <div style={{
+          width: `${rightPanelWidth}px`,
+          flexShrink: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          padding: '8px',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          fontSize,
+          boxSizing: 'border-box'
+        }}>
           {gameMode.isMultiplayer && (
-            <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#ecf0f1', borderRadius: '5px' }}>
-              <p><strong>Game Mode:</strong> Online</p>
-              <p><strong>You are:</strong> {gameMode.playerRole === 'player1' ? 'Player 1 (Red)' : 'Player 2 (Cyan)'}</p>
-              {!isMyTurn() && <p style={{ color: '#e74c3c' }}><strong>Waiting for opponent...</strong></p>}
+            <div style={{ marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '6px' }}>
+              <p style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: smallFontSize }}><strong>Mode:</strong> Online</p>
+              <p style={{ color: '#b0b0b0', margin: '0 0 3px 0', fontSize: smallFontSize }}><strong>You:</strong> {gameMode.playerRole === 'player1' ? 'Player 1' : 'Player 2'}</p>
+              {!isMyTurn() && <p style={{ color: '#ff6b6b', margin: 0, fontSize: smallFontSize }}><strong>Waiting...</strong></p>}
             </div>
           )}
 
-          <h2>Turn {gameState.turn}</h2>
-          <h3 style={{ color: gameState.players?.[gameState.currentPlayer]?.color || '#000' }}>
+          <h3 style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: '13px' }}>Turn {gameState.turn}</h3>
+          <p style={{ color: gameState.players?.[gameState.currentPlayer]?.color || '#e0e0e0', margin: '0 0 8px 0', fontSize: '11px', fontWeight: 'bold' }}>
             {gameState.players?.[gameState.currentPlayer]?.name || 'Loading...'}'s Turn
-          </h3>
+          </p>
 
           {/* Resources - Always show YOUR resources, never opponent's */}
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Your Resources</h4>
+          <div style={{ marginBottom: '8px' }}>
+            <h4 style={{ color: '#e0e0e0', margin: '0 0 4px 0', fontSize: '11px' }}>Your Resources</h4>
             {(() => {
               // In multiplayer, ALWAYS use your playerRole, never the current turn player
               // In AI mode, use player1 (human). In local mode, use current player.
@@ -5259,13 +5376,13 @@ function App() {
 
               return (
                 <>
-                  <p>
+                  <p style={{ color: '#e0e0e0', margin: '5px 0' }}>
                     🍃 Food: {player.resources.food}
-                    {foodIncome > 0 && <span style={{ color: '#27ae60', fontWeight: 'bold' }}> (+{foodIncome}/turn)</span>}
+                    {foodIncome > 0 && <span style={{ color: '#4ade80', fontWeight: 'bold' }}> (+{foodIncome}/turn)</span>}
                   </p>
-                  <p>
+                  <p style={{ color: '#e0e0e0', margin: '5px 0' }}>
                     💎 Minerals: {player.resources.minerals}
-                    {mineralIncome > 0 && <span style={{ color: '#3498db', fontWeight: 'bold' }}> (+{mineralIncome}/turn)</span>}
+                    {mineralIncome > 0 && <span style={{ color: '#60a5fa', fontWeight: 'bold' }}> (+{mineralIncome}/turn)</span>}
                   </p>
                 </>
               );
@@ -5290,8 +5407,8 @@ function App() {
             const affordable = canAffordQueenUpgrade(currentState, queen.id);
 
             return (
-              <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid #ddd' }}>
-                <h4>Queen Upgrade</h4>
+              <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
+                <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Queen Upgrade</h4>
                 <button
                   onClick={() => {
                     if (!affordable) {
@@ -5310,21 +5427,22 @@ function App() {
                   style={{
                     padding: '12px',
                     fontSize: '15px',
-                    backgroundColor: affordable ? '#FF6B00' : '#ccc',
-                    color: 'white',
-                    border: 'none',
+                    background: affordable ? 'linear-gradient(145deg, #c75000, #8a3800)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)',
+                    color: '#e0e0e0',
+                    border: affordable ? '2px solid #ff8c00' : '2px solid #444',
                     borderRadius: '8px',
                     cursor: (affordable && isMyTurn()) ? 'pointer' : 'not-allowed',
                     textAlign: 'left',
                     width: '100%',
-                    opacity: isMyTurn() ? 1 : 0.6
+                    opacity: isMyTurn() ? 1 : 0.6,
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
-                  <div style={{ fontSize: '13px', marginTop: '5px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
+                  <div style={{ fontSize: '13px', marginTop: '5px', color: '#b0b0b0' }}>
                     Cost: {nextTierData.cost.food}🍃 {nextTierData.cost.minerals}💎
                   </div>
-                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>
+                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
                     • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
                     • +5 Energy Regen/Turn<br/>
@@ -5337,20 +5455,20 @@ function App() {
 
           {/* Selected Egg Info */}
           {selectedEgg && (
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#fff3cd', borderRadius: '5px', border: '2px solid #ffc107' }}>
-              <h4>Selected Egg</h4>
-              <p><strong>Type:</strong> {getAntTypeById(selectedEgg.antType)?.icon} {getAntTypeById(selectedEgg.antType)?.name}</p>
-              <p><strong>Owner:</strong> {gameState.players[selectedEgg.owner].name}</p>
-              <p><strong>Will hatch on turn:</strong> {selectedEgg.hatchTurn}</p>
-              <p><strong>Turns until hatch:</strong> {Math.max(0, selectedEgg.hatchTurn - gameState.turn)}</p>
+            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(255, 193, 7, 0.5)' }}>
+              <h4 style={{ color: '#ffc107', margin: '0 0 10px 0' }}>Selected Egg</h4>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {getAntTypeById(selectedEgg.antType)?.icon} {getAntTypeById(selectedEgg.antType)?.name}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedEgg.owner].name}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Will hatch on turn:</strong> {selectedEgg.hatchTurn}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Turns until hatch:</strong> {Math.max(0, selectedEgg.hatchTurn - gameState.turn)}</p>
               <button
                 onClick={() => setSelectedEgg(null)}
                 style={{
                   marginTop: '10px',
                   padding: '5px 10px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
+                  background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                  color: '#e0e0e0',
+                  border: '2px solid #666',
                   borderRadius: '4px',
                   cursor: 'pointer'
                 }}
@@ -5362,25 +5480,26 @@ function App() {
 
           {/* Selected Anthill Info */}
           {selectedAnthill && (
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#d4edda', borderRadius: '5px', border: '2px solid #28a745' }}>
-              <h4>Anthill Info</h4>
-              <p><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? '🍃 Food' : '💎 Minerals'}</p>
-              <p><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
-              <p><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
-              <p><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / 75</p>
-              <p><strong>Remaining:</strong> {75 - (selectedAnthill.resourcesGathered || 0)}</p>
+            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(40, 167, 69, 0.5)' }}>
+              <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>Anthill Info</h4>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? '🍃 Food' : '💎 Minerals'}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / 75</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {75 - (selectedAnthill.resourcesGathered || 0)}</p>
               <div style={{
                 width: '100%',
                 height: '20px',
-                backgroundColor: '#e0e0e0',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
                 borderRadius: '10px',
                 overflow: 'hidden',
-                marginTop: '10px'
+                marginTop: '10px',
+                border: '1px solid rgba(192, 192, 192, 0.2)'
               }}>
                 <div style={{
                   width: `${((selectedAnthill.resourcesGathered || 0) / 75) * 100}%`,
                   height: '100%',
-                  backgroundColor: selectedAnthill.resourceType === 'food' ? '#4CAF50' : '#2196F3',
+                  backgroundColor: selectedAnthill.resourceType === 'food' ? '#4ade80' : '#60a5fa',
                   transition: 'width 0.3s ease'
                 }} />
               </div>
@@ -5389,9 +5508,9 @@ function App() {
                 style={{
                   marginTop: '10px',
                   padding: '5px 10px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
+                  background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                  color: '#e0e0e0',
+                  border: '2px solid #666',
                   borderRadius: '4px',
                   cursor: 'pointer'
                 }}
@@ -5403,12 +5522,12 @@ function App() {
 
           {/* Selected Ant Info */}
           {selectedAnt && gameState.ants[selectedAnt] && (
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#e0e0e0', borderRadius: '5px' }}>
-              <h4>Selected Ant</h4>
-              <p>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
-              <p>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
+            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(192, 192, 192, 0.3)' }}>
+              <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Selected Ant</h4>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
               {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer' || gameState.ants[selectedAnt].type === 'cordyphage') && gameState.ants[selectedAnt].maxEnergy && (
-                <p>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
+                <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
               )}
               {(() => {
                 const ant = gameState.ants[selectedAnt];
@@ -5428,17 +5547,17 @@ function App() {
                 return (
                   <>
                     {baseAttack > 0 && (
-                      <p>Attack: {totalAttack} {attackBonus > 0 && <span style={{ color: '#27ae60' }}>(+{attackBonus})</span>}</p>
+                      <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Attack: {totalAttack} {attackBonus > 0 && <span style={{ color: '#4ade80' }}>(+{attackBonus})</span>}</p>
                     )}
-                    <p>Defense: {totalDefense} {defenseBonus > 0 && <span style={{ color: '#27ae60' }}>(+{defenseBonus})</span>}</p>
+                    <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Defense: {totalDefense} {defenseBonus > 0 && <span style={{ color: '#4ade80' }}>(+{defenseBonus})</span>}</p>
                   </>
                 );
               })()}
               {gameState.ants[selectedAnt].ensnared && gameState.ants[selectedAnt].ensnared > 0 && (
-                <p style={{ color: '#f39c12', fontWeight: 'bold' }}>🕸️ Ensnared ({gameState.ants[selectedAnt].ensnared} turns)</p>
+                <p style={{ color: '#fbbf24', fontWeight: 'bold', margin: '5px 0' }}>🕸️ Ensnared ({gameState.ants[selectedAnt].ensnared} turns)</p>
               )}
               {gameState.ants[selectedAnt].plagued && gameState.ants[selectedAnt].plagued > 0 && (
-                <p style={{ color: '#8e44ad', fontWeight: 'bold' }}>☠️ Plagued ({gameState.ants[selectedAnt].plagued} turns)</p>
+                <p style={{ color: '#a78bfa', fontWeight: 'bold', margin: '5px 0' }}>☠️ Plagued ({gameState.ants[selectedAnt].plagued} turns)</p>
               )}
 
               {/* Only show action buttons if this ant belongs to the current player AND it's your turn */}
@@ -5451,12 +5570,13 @@ function App() {
                     style={{
                       marginRight: '5px',
                       padding: '8px 12px',
-                      backgroundColor: selectedAction === 'move' ? '#3498db' : '#ecf0f1',
-                      color: selectedAction === 'move' ? 'white' : 'black',
-                      border: 'none',
+                      background: selectedAction === 'move' ? 'linear-gradient(145deg, #3498db, #2980b9)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      color: '#e0e0e0',
+                      border: selectedAction === 'move' ? '2px solid #5dade2' : '2px solid #666',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontWeight: selectedAction === 'move' ? 'bold' : 'normal'
+                      fontWeight: selectedAction === 'move' ? 'bold' : 'normal',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                     }}
                   >
                     Move
@@ -5474,12 +5594,13 @@ function App() {
                         style={{
                           marginRight: '5px',
                           padding: '8px 12px',
-                          backgroundColor: selectedAction === 'teleport' ? '#9b59b6' : '#ecf0f1',
-                          color: selectedAction === 'teleport' ? 'white' : 'black',
-                          border: 'none',
+                          background: selectedAction === 'teleport' ? 'linear-gradient(145deg, #9b59b6, #8e44ad)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                          color: '#e0e0e0',
+                          border: selectedAction === 'teleport' ? '2px solid #bb8fce' : '2px solid #666',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          fontWeight: selectedAction === 'teleport' ? 'bold' : 'normal'
+                          fontWeight: selectedAction === 'teleport' ? 'bold' : 'normal',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
                         🌀 Teleport
@@ -5497,15 +5618,16 @@ function App() {
                     style={{
                       marginTop: '10px',
                       padding: '10px 20px',
-                      backgroundColor: gameState.ants[selectedAnt].hasAttacked ? '#95a5a6' : '#e74c3c',
-                      color: 'white',
-                      border: 'none',
+                      background: gameState.ants[selectedAnt].hasAttacked ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : 'linear-gradient(145deg, #e74c3c, #c0392b)',
+                      color: '#e0e0e0',
+                      border: gameState.ants[selectedAnt].hasAttacked ? '2px solid #444' : '2px solid #e74c3c',
                       borderRadius: '4px',
                       cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                       fontWeight: 'bold',
                       fontSize: '14px',
                       width: '100%',
-                      opacity: isMyTurn() ? 1 : 0.6
+                      opacity: isMyTurn() ? 1 : 0.6,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                     }}
                   >
                     💥 DETONATE (X) (Suicide Attack) 💥
@@ -5519,13 +5641,14 @@ function App() {
                       style={{
                         marginRight: '5px',
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'heal' ? '#27ae60' : '#ecf0f1',
-                        color: selectedAction === 'heal' ? 'white' : 'black',
-                        border: 'none',
+                        background: selectedAction === 'heal' ? 'linear-gradient(145deg, #27ae60, #1e8449)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'heal' ? '2px solid #2ecc71' : '2px solid #666',
                         borderRadius: '4px',
                         cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                         fontWeight: selectedAction === 'heal' ? 'bold' : 'normal',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       ✨ Heal (25⚡) (H)
@@ -5536,13 +5659,14 @@ function App() {
                       style={{
                         marginRight: '5px',
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'ensnare' ? '#f39c12' : '#ecf0f1',
-                        color: selectedAction === 'ensnare' ? 'white' : 'black',
-                        border: 'none',
+                        background: selectedAction === 'ensnare' ? 'linear-gradient(145deg, #f39c12, #d68910)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'ensnare' ? '2px solid #f5b041' : '2px solid #666',
                         borderRadius: '4px',
                         cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                         fontWeight: selectedAction === 'ensnare' ? 'bold' : 'normal',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       🕸️ Ensnare (20⚡) (E)
@@ -5557,13 +5681,14 @@ function App() {
                       style={{
                         marginRight: '5px',
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'plague' ? '#16a085' : '#ecf0f1',
-                        color: selectedAction === 'plague' ? 'white' : 'black',
-                        border: 'none',
+                        background: selectedAction === 'plague' ? 'linear-gradient(145deg, #16a085, #117a65)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'plague' ? '2px solid #1abc9c' : '2px solid #666',
                         borderRadius: '4px',
                         cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                         fontWeight: selectedAction === 'plague' ? 'bold' : 'normal',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       ☠️ Plague (25⚡) (P)
@@ -5575,13 +5700,14 @@ function App() {
                         style={{
                           marginRight: '5px',
                           padding: '8px 12px',
-                          backgroundColor: selectedAction === 'cordyceps' ? '#8e44ad' : '#ecf0f1',
-                          color: selectedAction === 'cordyceps' ? 'white' : 'black',
-                          border: 'none',
+                          background: selectedAction === 'cordyceps' ? 'linear-gradient(145deg, #8e44ad, #6c3483)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                          color: '#e0e0e0',
+                          border: selectedAction === 'cordyceps' ? '2px solid #9b59b6' : '2px solid #666',
                           borderRadius: '4px',
                           cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                           fontWeight: selectedAction === 'cordyceps' ? 'bold' : 'normal',
-                          opacity: isMyTurn() ? 1 : 0.6
+                          opacity: isMyTurn() ? 1 : 0.6,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
                         🧠 Cordyceps (35⚡)
@@ -5597,13 +5723,14 @@ function App() {
                       style={{
                         marginRight: '5px',
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
-                        color: selectedAction === 'attack' ? 'white' : 'black',
-                        border: 'none',
+                        background: selectedAction === 'attack' ? 'linear-gradient(145deg, #e74c3c, #c0392b)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'attack' ? '2px solid #e74c3c' : '2px solid #666',
                         borderRadius: '4px',
                         cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                         fontWeight: selectedAction === 'attack' ? 'bold' : 'normal',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       🎯 Focus Fire (A, 15)
@@ -5614,13 +5741,14 @@ function App() {
                       style={{
                         marginRight: '5px',
                         padding: '8px 12px',
-                        backgroundColor: selectedAction === 'bombardier_splash' ? '#ff6b35' : '#ecf0f1',
-                        color: selectedAction === 'bombardier_splash' ? 'white' : 'black',
-                        border: 'none',
+                        background: selectedAction === 'bombardier_splash' ? 'linear-gradient(145deg, #ff6b35, #e55a2b)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'bombardier_splash' ? '2px solid #ff6b35' : '2px solid #666',
                         borderRadius: '4px',
                         cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                         fontWeight: selectedAction === 'bombardier_splash' ? 'bold' : 'normal',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       💥 Splash (8, 3-hex)
@@ -5632,12 +5760,13 @@ function App() {
                     style={{
                       marginRight: '5px',
                       padding: '8px 12px',
-                      backgroundColor: selectedAction === 'attack' ? '#e74c3c' : '#ecf0f1',
-                      color: selectedAction === 'attack' ? 'white' : 'black',
-                      border: 'none',
+                      background: selectedAction === 'attack' ? 'linear-gradient(145deg, #e74c3c, #c0392b)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                      color: '#e0e0e0',
+                      border: selectedAction === 'attack' ? '2px solid #e74c3c' : '2px solid #666',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontWeight: selectedAction === 'attack' ? 'bold' : 'normal'
+                      fontWeight: selectedAction === 'attack' ? 'bold' : 'normal',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                     }}
                   >
                     Attack (A)
@@ -5650,12 +5779,13 @@ function App() {
                         style={{
                           marginRight: '5px',
                           padding: '8px 12px',
-                          backgroundColor: selectedAction === 'layEgg' ? '#2ecc71' : '#ecf0f1',
-                          color: selectedAction === 'layEgg' ? 'white' : 'black',
-                          border: 'none',
+                          background: selectedAction === 'layEgg' ? 'linear-gradient(145deg, #2ecc71, #27ae60)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                          color: '#e0e0e0',
+                          border: selectedAction === 'layEgg' ? '2px solid #2ecc71' : '2px solid #666',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal'
+                          fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
                         Lay Egg
@@ -5665,12 +5795,13 @@ function App() {
                         style={{
                           marginRight: '5px',
                           padding: '8px 12px',
-                          backgroundColor: selectedAction === 'heal' ? '#27ae60' : '#ecf0f1',
-                          color: selectedAction === 'heal' ? 'white' : 'black',
-                          border: 'none',
+                          background: selectedAction === 'heal' ? 'linear-gradient(145deg, #27ae60, #1e8449)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                          color: '#e0e0e0',
+                          border: selectedAction === 'heal' ? '2px solid #2ecc71' : '2px solid #666',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          fontWeight: selectedAction === 'heal' ? 'bold' : 'normal'
+                          fontWeight: selectedAction === 'heal' ? 'bold' : 'normal',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
                         Heal (H, 25⚡)
@@ -5682,13 +5813,14 @@ function App() {
                           style={{
                             marginRight: '5px',
                             padding: '8px 12px',
-                            backgroundColor: selectedAction === 'reveal' ? '#3498db' : '#ecf0f1',
-                            color: selectedAction === 'reveal' ? 'white' : 'black',
-                            border: 'none',
+                            background: selectedAction === 'reveal' ? 'linear-gradient(145deg, #3498db, #2980b9)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                            color: '#e0e0e0',
+                            border: selectedAction === 'reveal' ? '2px solid #5dade2' : '2px solid #666',
                             borderRadius: '4px',
                             cursor: (isMyTurn() && !gameState.ants[selectedAnt].hasAttacked) ? 'pointer' : 'not-allowed',
                             fontWeight: selectedAction === 'reveal' ? 'bold' : 'normal',
-                            opacity: isMyTurn() ? 1 : 0.6
+                            opacity: isMyTurn() ? 1 : 0.6,
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                           }}
                         >
                           👁️ Reveal (30⚡)
@@ -5698,12 +5830,13 @@ function App() {
                         onClick={() => setShowUpgradesModal(true)}
                         style={{
                           padding: '8px 12px',
-                          backgroundColor: '#9C27B0',
-                          color: 'white',
-                          border: 'none',
+                          background: 'linear-gradient(145deg, #9C27B0, #7B1FA2)',
+                          color: '#e0e0e0',
+                          border: '2px solid #AB47BC',
                           borderRadius: '4px',
                           cursor: 'pointer',
-                          fontWeight: 'normal'
+                          fontWeight: 'normal',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
                         ⚡ Upgrades
@@ -5715,12 +5848,13 @@ function App() {
                       onClick={handleBuildAnthillAction}
                       style={{
                         padding: '8px 12px',
-                        backgroundColor: '#f39c12',
-                        color: 'white',
-                        border: 'none',
+                        background: 'linear-gradient(145deg, #f39c12, #d68910)',
+                        color: '#e0e0e0',
+                        border: '2px solid #f5b041',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontWeight: 'normal'
+                        fontWeight: 'normal',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       Build Anthill (B)
@@ -5739,14 +5873,15 @@ function App() {
                       style={{
                         marginTop: '10px',
                         padding: '8px 12px',
-                        backgroundColor: '#8B4513',
-                        color: 'white',
-                        border: 'none',
+                        background: 'linear-gradient(145deg, #8B4513, #6b3410)',
+                        color: '#e0e0e0',
+                        border: '2px solid #a0522d',
                         borderRadius: '4px',
                         cursor: isMyTurn() ? 'pointer' : 'not-allowed',
                         width: '100%',
                         fontWeight: 'bold',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       🌍 BURROW
@@ -5763,14 +5898,15 @@ function App() {
                       style={{
                         marginTop: '10px',
                         padding: '8px 12px',
-                        backgroundColor: '#DAA520',
-                        color: 'white',
-                        border: 'none',
+                        background: 'linear-gradient(145deg, #DAA520, #b8860b)',
+                        color: '#e0e0e0',
+                        border: '2px solid #f0c040',
                         borderRadius: '4px',
                         cursor: isMyTurn() ? 'pointer' : 'not-allowed',
                         width: '100%',
                         fontWeight: 'bold',
-                        opacity: isMyTurn() ? 1 : 0.6
+                        opacity: isMyTurn() ? 1 : 0.6,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
                       ⬆️ UNBURROW
@@ -5782,14 +5918,15 @@ function App() {
                     <div style={{
                       marginTop: '10px',
                       padding: '10px',
-                      backgroundColor: '#fff3cd',
+                      backgroundColor: 'rgba(255, 193, 7, 0.15)',
                       borderRadius: '5px',
-                      border: '2px solid #ffc107',
+                      border: '2px solid rgba(255, 193, 7, 0.5)',
                       fontSize: '13px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      color: '#e0e0e0'
                     }}>
                       <strong>⌨️ Press SHIFT to rotate</strong><br />
-                      <span style={{ fontSize: '11px', color: '#856404' }}>
+                      <span style={{ fontSize: '11px', color: '#f5b041' }}>
                         Click the same hex again to confirm attack
                       </span>
                     </div>
@@ -5807,11 +5944,13 @@ function App() {
                 width: '100%',
                 padding: '10px',
                 fontSize: '16px',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
+                background: 'linear-gradient(145deg, #4CAF50, #388E3C)',
+                color: '#e0e0e0',
+                border: '2px solid #66BB6A',
                 borderRadius: '5px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
               }}
             >
               End Turn
@@ -5820,23 +5959,22 @@ function App() {
 
           {/* Game Over */}
           {gameState.gameOver && (
-            <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#ffcc00', borderRadius: '5px' }}>
-              <h3>Game Over!</h3>
-              <p>{gameState.players[gameState.winner].name} wins!</p>
+            <div style={{ marginTop: '20px', padding: '10px', backgroundColor: 'rgba(255, 204, 0, 0.2)', borderRadius: '5px', border: '2px solid rgba(255, 204, 0, 0.5)', color: '#e0e0e0' }}>
+              <h3 style={{ margin: '0 0 5px 0' }}>Game Over!</h3>
+              <p style={{ margin: 0 }}>{gameState.players[gameState.winner].name} wins!</p>
             </div>
           )}
         </div>
-      </div>
 
       {/* Camera Controls - In gap between map and right panel */}
       <div style={{
         position: 'fixed',
         bottom: '20px',
-        right: 'calc(250px + 60px)', // Right panel width (250px) + gap (60px) - moved more left
+        right: `calc(${rightPanelWidth}px + 30px)`,
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 60px)', // Made a bit bigger
-        gridTemplateRows: 'repeat(2, 60px) auto',
-        gap: '10px',
+        gridTemplateColumns: 'repeat(2, 40px)',
+        gridTemplateRows: 'repeat(2, 40px) auto',
+        gap: '6px',
         zIndex: 1000
       }}>
         {/* Cycle to Next Active Ant */}
@@ -5845,16 +5983,16 @@ function App() {
           disabled={!isMyTurn()}
           style={{
             padding: '0',
-            borderRadius: '8px',
-            backgroundColor: isMyTurn() ? '#9C27B0' : '#ccc',
-            color: 'white',
-            border: 'none',
-            fontSize: '24px',
+            borderRadius: '6px',
+            background: isMyTurn() ? 'linear-gradient(145deg, #4a4a4a, #2a2a2a)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)',
+            color: '#e0e0e0',
+            border: isMyTurn() ? '2px solid #666' : '2px solid #444',
+            fontSize: '16px',
             fontWeight: 'bold',
             cursor: isMyTurn() ? 'pointer' : 'not-allowed',
-            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
-            width: '60px',
-            height: '60px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+            width: '40px',
+            height: '40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -5862,23 +6000,23 @@ function App() {
           }}
           title="Cycle to Next Active Ant (Tab)"
         >
-          🐜⟳
+          🐜
         </button>
         {/* Center on Queen */}
         <button
           onClick={centerOnQueen}
           style={{
             padding: '0',
-            borderRadius: '8px',
-            backgroundColor: '#FF9800',
-            color: 'white',
-            border: 'none',
-            fontSize: '26px',
+            borderRadius: '6px',
+            background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+            color: '#e0e0e0',
+            border: '2px solid #666',
+            fontSize: '16px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
-            width: '60px',
-            height: '60px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+            width: '40px',
+            height: '40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -5892,16 +6030,16 @@ function App() {
           onClick={() => setZoomLevel(prev => Math.min(MAX_ZOOM, prev + 0.2))}
           style={{
             padding: '0',
-            borderRadius: '8px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            fontSize: '30px',
+            borderRadius: '6px',
+            background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+            color: '#e0e0e0',
+            border: '2px solid #666',
+            fontSize: '20px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
-            width: '60px',
-            height: '60px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+            width: '40px',
+            height: '40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -5915,16 +6053,16 @@ function App() {
           onClick={() => setZoomLevel(prev => Math.max(MIN_ZOOM, prev - 0.2))}
           style={{
             padding: '0',
-            borderRadius: '8px',
-            backgroundColor: '#f44336',
-            color: 'white',
-            border: 'none',
-            fontSize: '30px',
+            borderRadius: '6px',
+            background: 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+            color: '#e0e0e0',
+            border: '2px solid #666',
+            fontSize: '20px',
             fontWeight: 'bold',
             cursor: 'pointer',
-            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
-            width: '60px',
-            height: '60px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+            width: '40px',
+            height: '40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -5947,6 +6085,31 @@ function App() {
         }}>
           {Math.round(zoomLevel * 100)}%
         </div>
+        {/* Music Toggle Button - Disabled due to audio quality
+        <button
+          onClick={toggleAmbientMusic}
+          style={{
+            padding: '0',
+            borderRadius: '8px',
+            backgroundColor: ambientEnabled ? '#673AB7' : '#666',
+            color: 'white',
+            border: 'none',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.3)',
+            width: '130px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gridColumn: 'span 2'
+          }}
+          title={ambientEnabled ? "Mute Music" : "Unmute Music"}
+        >
+          {ambientEnabled ? '🎵 Music On' : '🔇 Music Off'}
+        </button>
+        */}
       </div>
 
       {/* Concede Button - Top Right above turn counter */}
@@ -5960,9 +6123,9 @@ function App() {
             padding: '10px 18px',
             fontSize: '14px',
             fontWeight: 'bold',
-            backgroundColor: '#d32f2f',
-            color: 'white',
-            border: 'none',
+            background: 'linear-gradient(145deg, #d32f2f, #b71c1c)',
+            color: '#e0e0e0',
+            border: '2px solid #e57373',
             borderRadius: '8px',
             cursor: 'pointer',
             boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
@@ -5970,11 +6133,11 @@ function App() {
             transition: 'all 0.2s'
           }}
           onMouseOver={(e) => {
-            e.target.style.backgroundColor = '#b71c1c';
+            e.target.style.background = 'linear-gradient(145deg, #b71c1c, #8e0000)';
             e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
           }}
           onMouseOut={(e) => {
-            e.target.style.backgroundColor = '#d32f2f';
+            e.target.style.background = 'linear-gradient(145deg, #d32f2f, #b71c1c)';
             e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
           }}
         >
