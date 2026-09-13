@@ -23,7 +23,7 @@ export const AntTypes = {
     cost: { food: 15, minerals: 0 },
     hatchTime: 1, // turns
     maxHealth: 25,
-    attack: 8,
+    attack: 6,
     defense: 0,
     moveRange: 3,
     attackRange: 1,
@@ -53,7 +53,7 @@ export const AntTypes = {
     cost: { food: 35, minerals: 15 },
     hatchTime: 2,
     maxHealth: 55,
-    attack: 20,
+    attack: 24,
     defense: 2,
     moveRange: 2,
     attackRange: 1,
@@ -83,7 +83,7 @@ export const AntTypes = {
     cost: { food: 8, minerals: 12 },
     hatchTime: 1,
     maxHealth: 20,
-    attack: 18,
+    attack: 14,
     defense: 0,
     moveRange: 2,
     attackRange: 2,
@@ -117,12 +117,14 @@ export const AntTypes = {
     cost: { food: 10, minerals: 0 },
     hatchTime: 0,
     maxHealth: 15,
-    attack: 5,
+    attack: 4,
     defense: 0,
     moveRange: 2,
     attackRange: 1,
     canBuildAnthill: true, // Drones can build anthills on resource nodes
     resourceGatherRate: 5,
+    // Attack is deliberately minimal - drones are economy, not combat
+
     description: 'Poor combatant but can build anthills to generate passive income.',
     icon: '⛏️🐜'
   },
@@ -138,7 +140,7 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 0, // No attack range
     resourceGatherRate: 0,
-    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
+    requiresQueenTier: 'broodQueen', // First queen upgrade - healing arrives mid-game
     // Energy system for abilities
     maxEnergy: 50,
     startingEnergy: 25, // Starts at half energy
@@ -150,7 +152,7 @@ export const AntTypes = {
     ensnareRange: 3,
     ensnareDuration: 3, // turns
     ensnareEnergyCost: 20,
-    description: 'Support unit that can heal allies and ensnare enemies. Requires Swarm Queen.',
+    description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
     icon: '✨🐜'
   },
 
@@ -202,6 +204,9 @@ export const GameConstants = {
   RESOURCE_SPAWN_COUNT: 6, // number of resource nodes on map
   ANTHILL_BUILD_PROGRESS_REQUIRED: 2, // Number of drone actions needed to complete an anthill
   ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
+  // Total resources an anthill yields before it depletes and the node respawns
+  // elsewhere. Anthills are deliberately temporary - this is the whole lifespan.
+  ANTHILL_TOTAL_YIELD: 56,
   ANTHILL_PASSIVE_INCOME: {
     food: 5,  // Per turn for food anthills
     minerals: 7 // Per turn for mineral anthills
@@ -231,9 +236,9 @@ export const Upgrades = {
     icon: '⚔️',
     maxTier: 3,
     costs: [
-      { food: 10, minerals: 5 }, // Tier 1
-      { food: 15, minerals: 10 }, // Tier 2
-      { food: 20, minerals: 15 }  // Tier 3
+      { food: 15, minerals: 10 }, // Tier 1
+      { food: 20, minerals: 15 }, // Tier 2
+      { food: 25, minerals: 20 }  // Tier 3
     ]
   },
   RANGED_ATTACK: {
@@ -243,21 +248,22 @@ export const Upgrades = {
     icon: '🏹',
     maxTier: 3,
     costs: [
-      { food: 10, minerals: 5 }, // Tier 1
-      { food: 15, minerals: 10 }, // Tier 2
-      { food: 20, minerals: 15 }  // Tier 3
+      { food: 15, minerals: 10 }, // Tier 1
+      { food: 20, minerals: 15 }, // Tier 2
+      { food: 25, minerals: 20 }  // Tier 3
     ]
   },
   DEFENSE: {
     id: 'defense',
     name: 'Defense',
-    description: '+1 Defense for all units',
+    description: '+2 Defense for all units per tier',
     icon: '🛡️',
-    maxTier: 3,
+    // Capped at 2 tiers: at +6 the flat damage formula floors most low-attack
+    // units at 1 damage, which pushes past "armor piercing" into unkillable.
+    maxTier: 2,
     costs: [
-      { food: 15, minerals: 10 }, // Tier 1
-      { food: 20, minerals: 15 }, // Tier 2
-      { food: 25, minerals: 20 }  // Tier 3
+      { food: 20, minerals: 15 }, // Tier 1
+      { food: 25, minerals: 20 }  // Tier 2
     ]
   },
   CANNIBALISM: {
@@ -267,7 +273,7 @@ export const Upgrades = {
     icon: '🍖',
     maxTier: 1,
     costs: [
-      { food: 10, minerals: 10 }  // Tier 1
+      { food: 15, minerals: 15 }  // Tier 1
     ]
   },
   BURROW: {
@@ -277,7 +283,7 @@ export const Upgrades = {
     icon: '🕳️',
     maxTier: 1,
     costs: [
-      { food: 10, minerals: 10 }  // Tier 1
+      { food: 15, minerals: 15 }  // Tier 1
     ]
   },
   CONNECTED_TUNNELS: {
@@ -300,6 +306,16 @@ export const Upgrades = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
       { food: 10, minerals: 15 }
+    ]
+  },
+  ANTHILL_DURABILITY: {
+    id: 'anthillDurability',
+    name: 'Reinforced Anthills',
+    description: '+50% Anthill health and +1 Defense for units standing on your anthills',
+    icon: '🏰',
+    maxTier: 1,
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
     ]
   }
   // REVEAL upgrade removed - Reveal is now innate to Brood Queen tier

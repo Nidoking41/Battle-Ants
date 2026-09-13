@@ -2,6 +2,9 @@ import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositio
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
 import { getHeroById } from './heroQueens';
 
+// Reinforced Anthills upgrade: +50% anthill health
+const ANTHILL_DURABILITY_MULTIPLIER = 1.5;
+
 // Calculate army strength for a player
 // Formula: Fixed base value per ant type + 2 per upgrade tier
 export function calculateArmyStrength(gameState, playerId) {
@@ -154,7 +157,9 @@ export function createInitialGameState(options = {}) {
         antsKilled: 0,
         antsLost: 0,
         foodMined: 0,
-        mineralsMined: 0
+        mineralsMined: 0,
+        anthillsBuilt: 0,
+        anthillsDestroyed: 0
       };
       return acc;
     }, {}),
@@ -982,18 +987,22 @@ export function createAnthillInProgress(resourceId, owner, position, resourceTyp
     isComplete: false,
     health: 5, // Under construction anthills have 5 health and can be targeted
     maxHealth: 20, // Full health once completed
-    resourcesGathered: 0 // Track total resources gathered (depletes at 75)
+    resourcesGathered: 0 // Track total resources gathered (depletes at ANTHILL_TOTAL_YIELD)
   };
 }
 
-// Complete an anthill under construction
-export function completeAnthill(anthill) {
+// Complete an anthill under construction.
+// `reinforced` is true when the owner has the Reinforced Anthills upgrade.
+export function completeAnthill(anthill, reinforced = false) {
+  const fullHealth = reinforced
+    ? Math.round(20 * ANTHILL_DURABILITY_MULTIPLIER)
+    : 20;
   return {
     ...anthill,
     buildProgress: GameConstants.ANTHILL_BUILD_PROGRESS_REQUIRED,
     isComplete: true,
-    health: 20, // Full health when completed
-    maxHealth: 20
+    health: fullHealth, // Full health when completed
+    maxHealth: fullHealth
   };
 }
 
@@ -1129,8 +1138,8 @@ export function endTurn(rawGameState) {
           owner: anthill.owner
         });
 
-        // Check if anthill is depleted (75+ resources gathered)
-        if (newResourcesGathered >= 75) {
+        // Check if anthill is depleted
+        if (newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD) {
           depletedAnthills.push(anthill);
         }
       }
@@ -1380,11 +1389,39 @@ export function buildAnthill(gameState, droneId, resourceId) {
     existingAnthill.buildProgress += 1;
 
     // Check if we've completed it
+    let completedStats = gameState.stats;
     if (existingAnthill.buildProgress >= GameConstants.ANTHILL_BUILD_PROGRESS_REQUIRED) {
-      updatedAnthills[existingAnthill.id] = completeAnthill(existingAnthill);
+      const ownerHasReinforced = !!gameState.players?.[drone.owner]?.upgrades?.anthillDurability;
+      updatedAnthills[existingAnthill.id] = completeAnthill(existingAnthill, ownerHasReinforced);
+      // Count it only on completion, not for each build action spent on it
+      if (gameState.stats?.[drone.owner]) {
+        completedStats = {
+          ...gameState.stats,
+          [drone.owner]: {
+            ...gameState.stats[drone.owner],
+            anthillsBuilt: (gameState.stats[drone.owner].anthillsBuilt || 0) + 1
+          }
+        };
+      }
     } else {
       updatedAnthills[existingAnthill.id] = existingAnthill;
     }
+
+    // Mark drone as having built (ends their turn completely)
+    return {
+      ...gameState,
+      anthills: updatedAnthills,
+      stats: completedStats,
+      ants: {
+        ...gameState.ants,
+        [droneId]: {
+          ...drone,
+          hasMoved: true,
+          hasAttacked: true, // Building ends the turn like attacking does
+          hasBuilt: true
+        }
+      }
+    };
   } else {
     // Starting a new anthill costs food
     const player = gameState.players[drone.owner];
@@ -1424,21 +1461,6 @@ export function buildAnthill(gameState, droneId, resourceId) {
       }
     };
   }
-
-  // Mark drone as having built (ends their turn completely)
-  return {
-    ...gameState,
-    anthills: updatedAnthills,
-    ants: {
-      ...gameState.ants,
-      [droneId]: {
-        ...drone,
-        hasMoved: true,
-        hasAttacked: true, // Building ends the turn like attacking does
-        hasBuilt: true
-      }
-    }
-  };
 }
 
 // Check if player can afford an upgrade
@@ -1476,8 +1498,26 @@ export function purchaseUpgrade(gameState, upgradeId) {
 
   const cost = upgrade.costs[currentTier];
 
+  // Reinforced Anthills applies to hills that already exist, not just new ones,
+  // so raise the cap (and current health proportionally) on purchase.
+  let updatedAnthills = gameState.anthills;
+  if (upgradeId === 'anthillDurability') {
+    updatedAnthills = { ...gameState.anthills };
+    Object.values(updatedAnthills).forEach(anthill => {
+      if (anthill.owner !== gameState.currentPlayer) return;
+      const newMax = Math.round(anthill.maxHealth * ANTHILL_DURABILITY_MULTIPLIER);
+      updatedAnthills[anthill.id] = {
+        ...anthill,
+        maxHealth: newMax,
+        // Scale current health by the same factor so a damaged hill stays damaged
+        health: Math.min(newMax, Math.round(anthill.health * ANTHILL_DURABILITY_MULTIPLIER))
+      };
+    });
+  }
+
   return {
     ...gameState,
+    anthills: updatedAnthills,
     players: {
       ...gameState.players,
       [gameState.currentPlayer]: {
@@ -1499,6 +1539,10 @@ export function purchaseUpgrade(gameState, upgradeId) {
 export function getAntAttack(ant, player) {
   const antType = getAntTypeById(ant.type);
   let attack = antType.attack;
+
+  // Rank bonus from accumulated kills (Recruit/Veteran/Hero/Legend)
+  const { getRankMultiplier } = require('./experience');
+  const rankMultiplier = getRankMultiplier(ant);
 
   // Apply hero bonus attack (stored when ant was created)
   if (ant.bonusAttack) {
@@ -1553,6 +1597,12 @@ export function getAntAttack(ant, player) {
     }
   }
 
+  // Rank multiplier applies last, so it scales everything the unit has earned.
+  // Floored at +1 when ranked so a low-attack unit still gains something.
+  if (rankMultiplier > 1) {
+    attack = Math.max(attack + 1, Math.round(attack * rankMultiplier));
+  }
+
   return attack;
 }
 
@@ -1561,21 +1611,27 @@ export function getAntDefense(ant, player, gameState) {
   const antType = getAntTypeById(ant.type);
   let defense = antType.defense;
 
-  // Apply defense upgrade: +10% per tier (rounded down, minimum +1 per tier)
+  // Apply defense upgrade: flat +2 per tier. Because damage is
+  // (attack - defense, min 1), this punishes low-attack attackers far more
+  // than high-attack ones - heavy hitters read as armor-piercing.
   const tier = player.upgrades.defense || 0;
   if (tier > 0) {
-    const bonus = Math.max(tier, Math.floor(antType.defense * 0.1 * tier));
-    defense += bonus;
+    defense += tier * 2;
   }
 
   // Check if ant is on an anthill for +2 defense bonus
   if (gameState && gameState.anthills) {
-    const onAnthill = Object.values(gameState.anthills).some(anthill =>
+    const anthillHere = Object.values(gameState.anthills).find(anthill =>
       anthill.position.q === ant.position.q && anthill.position.r === ant.position.r
     );
 
-    if (onAnthill) {
+    if (anthillHere) {
       defense += 2;
+
+      // Reinforced Anthills: +1 more, but only when garrisoning your own hill
+      if (player.upgrades?.anthillDurability && anthillHere.owner === ant.owner) {
+        defense += 1;
+      }
     }
   }
 
@@ -2261,7 +2317,7 @@ export function updateHeroPower(gameState, playerId, damageAmount, multiplier = 
 
   const player = gameState.players[playerId];
   const hero = getHeroById(player.heroId);
-  const chargeRequired = hero?.chargeRequired || 150;
+  const chargeRequired = hero?.chargeRequired || 450;
 
   // Don't add power if ability is already at max or active
   if (player.heroPower >= chargeRequired) return gameState;
@@ -2294,7 +2350,7 @@ export function activateHeroAbility(gameState, playerId) {
   if (!heroId) return gameState;
 
   const hero = getHeroById(heroId);
-  const chargeRequired = hero?.chargeRequired || 150;
+  const chargeRequired = hero?.chargeRequired || 450;
 
   if (player.heroPower < chargeRequired) return gameState; // Need full hero power
   if (player.heroAbilityActive) return gameState; // Already active
@@ -2326,12 +2382,12 @@ export function activateHeroAbility(gameState, playerId) {
       break;
 
     case "skrazzit":
-      // Multiply resources by 1.5 and grant attack boost
+      // Boost stockpiled food only - minerals are untouched
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
         resources: {
-          food: Math.floor(player.resources.food * 1.5),
-          minerals: Math.floor(player.resources.minerals * 1.5)
+          ...player.resources,
+          food: Math.floor(player.resources.food * (hero?.heroAbility?.resourceMultiplier || 1.2))
         },
         heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };

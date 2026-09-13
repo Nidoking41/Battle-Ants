@@ -1,6 +1,7 @@
 import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
 import { hexDistance, getNeighbors } from './hexUtils';
 import { getAntAttack, getAntDefense } from './gameState';
+import { awardKillXp } from './experience';
 
 // Helper function to create a dead ant
 export function createDeadAnt(ant) {
@@ -171,10 +172,20 @@ export function attackAnthill(gameState, attackerId, anthillId) {
   let updatedGameState = updateHeroPower(gameState, attacker.owner, damage);
 
   const updatedAnthills = { ...updatedGameState.anthills };
+  let updatedStats = updatedGameState.stats;
 
   if (newAnthillHealth <= 0) {
     // Anthill is destroyed
     delete updatedAnthills[anthillId];
+    if (updatedStats?.[attacker.owner]) {
+      updatedStats = {
+        ...updatedStats,
+        [attacker.owner]: {
+          ...updatedStats[attacker.owner],
+          anthillsDestroyed: (updatedStats[attacker.owner].anthillsDestroyed || 0) + 1
+        }
+      };
+    }
   } else {
     updatedAnthills[anthillId] = {
       ...anthill,
@@ -192,7 +203,8 @@ export function attackAnthill(gameState, attackerId, anthillId) {
   return {
     gameState: {
       ...updatedGameState,
-      anthills: updatedAnthills
+      anthills: updatedAnthills,
+      stats: updatedStats
     },
     damageDealt,
     attackAnimation
@@ -370,6 +382,12 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     };
     delete updatedAnts[defenderId];
 
+    // Killing blow: the attacker earns experience toward its next rank
+    if (updatedAnts[attackerId]) {
+      const { ant: rankedAttacker } = awardKillXp(updatedAnts[attackerId], defender.type);
+      updatedAnts[attackerId] = rankedAttacker;
+    }
+
     // Track kills and losses stats
     updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
     updatedGameState.stats[defender.owner].antsLost = (updatedGameState.stats[defender.owner].antsLost || 0) + 1;
@@ -445,6 +463,12 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         };
         delete updatedAnts[target.id];
 
+        // Splash kill still counts for the attacker's rank
+        if (updatedAnts[attacker.id]) {
+          const { ant: ranked } = awardKillXp(updatedAnts[attacker.id], target.type);
+          updatedAnts[attacker.id] = ranked;
+        }
+
         // Track kills and losses stats
         updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
         updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
@@ -492,6 +516,12 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[attackerId];
+
+      // The defender landed the killing blow via counterattack
+      if (updatedAnts[defenderId]) {
+        const { ant: rankedDefender } = awardKillXp(updatedAnts[defenderId], attacker.type);
+        updatedAnts[defenderId] = rankedDefender;
+      }
 
       // Track kills and losses stats
       updatedGameState.stats[defender.owner].antsKilled = (updatedGameState.stats[defender.owner].antsKilled || 0) + 1;
@@ -615,6 +645,21 @@ export function moveAnt(gameState, antId, targetPosition) {
     return gameState;
   }
 
+  // Nothing may finish its move on an occupied hex. Callers compute this in
+  // their movement ranges, but enforce it here too so no path can slip a unit
+  // on top of an egg (which would leave it with nowhere to hatch) or another
+  // unit, whoever owns it.
+  const blockedByEgg = Object.values(gameState.eggs || {}).some(
+    e => e.position && e.position.q === targetPosition.q && e.position.r === targetPosition.r
+  );
+  const blockedByAnt = Object.values(gameState.ants).some(
+    a => a.id !== antId && a.position &&
+      a.position.q === targetPosition.q && a.position.r === targetPosition.r
+  );
+  if (blockedByEgg || blockedByAnt) {
+    return gameState;
+  }
+
   // Normal move - just update position
   return {
     ...gameState,
@@ -710,6 +755,12 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[target.id];
+
+      // Bombardier splash kill earns rank experience
+      if (updatedAnts[attacker.id]) {
+        const { ant: ranked } = awardKillXp(updatedAnts[attacker.id], target.type);
+        updatedAnts[attacker.id] = ranked;
+      }
 
       // Track kills and losses stats
       updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
@@ -829,6 +880,12 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     };
     delete updatedAnts[movingAntId];
 
+    // Ambush kill earns rank experience
+    if (updatedAnts[ambusherAntId]) {
+      const { ant: ranked } = awardKillXp(updatedAnts[ambusherAntId], movingAnt.type);
+      updatedAnts[ambusherAntId] = ranked;
+    }
+
     // Track kills and losses stats
     updatedGameState.stats[ambusher.owner].antsKilled = (updatedGameState.stats[ambusher.owner].antsKilled || 0) + 1;
     updatedGameState.stats[movingAnt.owner].antsLost = (updatedGameState.stats[movingAnt.owner].antsLost || 0) + 1;
@@ -909,6 +966,12 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
         [deadAnt.id]: deadAnt
       };
       delete updatedAnts[ambusherAntId];
+
+      // The ambushed unit killed its attacker - experience to the survivor
+      if (updatedAnts[movingAntId]) {
+        const { ant: ranked } = awardKillXp(updatedAnts[movingAntId], ambusher.type);
+        updatedAnts[movingAntId] = ranked;
+      }
 
       // Track kills and losses stats
       updatedGameState.stats[movingAnt.owner].antsKilled = (updatedGameState.stats[movingAnt.owner].antsKilled || 0) + 1;

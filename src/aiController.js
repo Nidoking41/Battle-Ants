@@ -11,6 +11,8 @@ import {
   buildAnthill,
   canAffordUpgrade,
   purchaseUpgrade,
+  canAffordQueenUpgrade,
+  upgradeQueen,
   deductEnergy,
   healAlly
 } from './gameState';
@@ -125,7 +127,7 @@ const AI_CONFIG = {
     gatherPriority: 0.5,
     combatPriority: 0.5,
     buildAnthills: true,
-    upgradeFrequency: 0.3,
+    upgradeFrequency: 0.6,
     unitMix: {
       scout: 0.1,
       drone: 0.25,
@@ -139,13 +141,15 @@ const AI_CONFIG = {
     gatherPriority: 0.4,
     combatPriority: 0.6,
     buildAnthills: true,
-    upgradeFrequency: 0.5,
+    upgradeFrequency: 1.0, // Always spends surplus rather than sitting on it
     unitMix: {
-      scout: 0.15,
-      drone: 0.2,
-      soldier: 0.25,
-      spitter: 0.2,
-      tank: 0.1,
+      // Drone-heavy early economy converts into a Marauder core; bombers and
+      // bullet ants arrive once minerals allow.
+      scout: 0.05,
+      drone: 0.25,
+      soldier: 0.3,
+      spitter: 0.15,
+      tank: 0.15,
       bomber: 0.1
     }
   }
@@ -534,7 +538,9 @@ function reachableHexes(state, unit) {
     .map(a => new HexCoord(a.position.q, a.position.r));
   const cannotEnd = [
     ...others.filter(a => areTeammates(state, a.owner, unit.owner)).map(a => new HexCoord(a.position.q, a.position.r)),
-    ...Object.values(state.eggs || {}).filter(e => areTeammates(state, e.owner, unit.owner)).map(e => new HexCoord(e.position.q, e.position.r))
+    // No egg can be occupied, friendly or hostile - enemy eggs have to be
+    // attacked, not walked over (a unit standing on one blocks it hatching).
+    ...Object.values(state.eggs || {}).map(e => new HexCoord(e.position.q, e.position.r))
   ];
   const start = new HexCoord(unit.position.q, unit.position.r);
   return getMovementRangeWithPaths(start, range, state.gridRadius || 6, blocked, cannotEnd, state.mapShape || 'rectangle');
@@ -792,18 +798,35 @@ function handleHealerUnit(gameState, healer, aiPlayer) {
 function considerUpgrades(gameState, aiPlayer) {
   let state = { ...gameState };
   const playerState = state.players[aiPlayer];
+  const queen = Object.values(state.ants).find(
+    a => a.type === 'queen' && a.owner === aiPlayer
+  );
+  if (!queen) return state;
+
+  // Upgrading the queen unlocks spawn spots, energy and income, and gates the
+  // support units - it outvalues any single stat upgrade, so try it first.
+  if (canAffordQueenUpgrade(state, queen.id)) {
+    const upgraded = upgradeQueen(state, queen.id);
+    if (upgraded !== state) {
+      console.log(`AI upgraded queen from ${queen.queenTier || 'queen'}`);
+      return upgraded;
+    }
+  }
 
   // Prioritize upgrades: melee attack > defense > ranged attack > cannibalism
   const upgradePriority = ['meleeAttack', 'defense', 'rangedAttack', 'cannibalism'];
 
   for (const upgradeId of upgradePriority) {
-    const canAffordResult = canAffordUpgrade(state, aiPlayer, upgradeId);
-    if (canAffordResult.canAfford) {
-      const result = purchaseUpgrade(state, aiPlayer, upgradeId);
-      if (result.success) {
-        console.log(`AI purchased upgrade: ${upgradeId}`);
-        return result.gameState;
-      }
+    // canAffordUpgrade takes (player, upgradeId, queen) and returns a boolean;
+    // purchaseUpgrade acts on gameState.currentPlayer and returns a gameState.
+    if (!canAffordUpgrade(playerState, upgradeId, queen)) continue;
+
+    const asAiTurn = { ...state, currentPlayer: aiPlayer };
+    const result = purchaseUpgrade(asAiTurn, upgradeId);
+    if (result !== asAiTurn) {
+      console.log(`AI purchased upgrade: ${upgradeId}`);
+      // Restore whoever's turn it actually is
+      return { ...result, currentPlayer: state.currentPlayer };
     }
   }
 

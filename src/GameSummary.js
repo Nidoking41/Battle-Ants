@@ -231,9 +231,17 @@ function GameSummary({ gameState, onReturnToMenu }) {
                     <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Food Mined</td>
                     <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.foodMined}</td>
                   </tr>
-                  <tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
                     <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Minerals Mined</td>
                     <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.mineralsMined}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Anthills Built</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.anthillsBuilt || 0}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Anthills Destroyed</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player1Stats.anthillsDestroyed || 0}</td>
                   </tr>
                 </tbody>
               </table>
@@ -286,9 +294,17 @@ function GameSummary({ gameState, onReturnToMenu }) {
                     <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Food Mined</td>
                     <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.foodMined}</td>
                   </tr>
-                  <tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
                     <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Minerals Mined</td>
                     <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.mineralsMined}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Anthills Built</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.anthillsBuilt || 0}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '5px', color: '#e0e0e0', fontWeight: 'bold', fontSize: '14px' }}>Anthills Destroyed</td>
+                    <td style={{ padding: '5px', color: '#e0e0e0', textAlign: 'right', fontSize: '14px' }}>{player2Stats.anthillsDestroyed || 0}</td>
                   </tr>
                 </tbody>
               </table>

@@ -15,6 +15,7 @@ import { executeAITurn } from './aiController';
 import forestFloorImage from './forestfloor.png';
 import { useSprites } from './useSprites';
 import { getSpriteInfo } from './spriteConfig';
+import { getRankForXp, getXpToNextRank, RANKS } from './experience';
 
 // Build panel is split into two tabs so all nine units stay reachable without
 // scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
@@ -31,6 +32,11 @@ const loadMultiplayer = () => import('./multiplayerUtils');
 // are referenced but do not exist), so every sound attempt was a failed request.
 // Flip this to true once the files are added under public/sprites/ants/.
 const AUDIO_ENABLED = false;
+
+// Milliseconds per hex of movement. The CSS transition below is kept slightly
+// shorter so a hop always settles before the next one starts.
+const MOVE_STEP_MS = 300;
+const MOVE_TRANSITION = 'transform 0.27s ease-in-out';
 
 // Build the combat record the opponent replays as an animation.
 //
@@ -77,6 +83,9 @@ function App() {
   const [lobbySettings, setLobbySettings] = useState(null); // Settings from lobby before game starts
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null); // Store unfiltered state for multiplayer
+  // Mirror of fullGameState readable synchronously inside animation timers,
+  // which need the latest board between React renders.
+  const fullGameStateRef = useRef(null);
   const [isAIThinking, setIsAIThinking] = useState(false); // Track if AI is currently taking its turn
   const [pendingCombat, setPendingCombat] = useState(false); // Track if combat animation is in progress
   const [selectedAnt, setSelectedAnt] = useState(null);
@@ -856,8 +865,9 @@ function App() {
       .filter(a => a.id !== ant.id && areTeammates(a.owner, ant.owner)) // Teammates (including self player, not self ant)
       .map(a => new HexCoord(a.position.q, a.position.r));
 
+    // Every egg blocks, not just friendly ones: enemy eggs are attacked rather
+    // than walked over, and a unit parked on one would stop it hatching.
     const eggHexes = Object.values(gameState.eggs || {})
-      .filter(e => areTeammates(e.owner, ant.owner)) // Only friendly/teammate eggs
       .map(e => new HexCoord(e.position.q, e.position.r));
 
     const blockedHexes = enemyAntHexes; // Cannot path through enemies
@@ -905,6 +915,11 @@ function App() {
     setPathWaypoint(null);
   }, [selectedAnt, selectedAction]);
 
+  // Keep the synchronous mirror in step with the state it shadows
+  useEffect(() => {
+    fullGameStateRef.current = fullGameState;
+  }, [fullGameState]);
+
   // Handle movement animation
   useEffect(() => {
     if (!movingAnt) return;
@@ -914,7 +929,7 @@ function App() {
     // Reached the end of the path: keep the walk state for one more step so
     // the final hop finishes its transition, then clear.
     if (currentStep >= path.length - 1) {
-      const done = setTimeout(() => setMovingAnt(prev => (prev && prev.antId === antId ? null : prev)), 600);
+      const done = setTimeout(() => setMovingAnt(prev => (prev && prev.antId === antId ? null : prev)), MOVE_STEP_MS);
       return () => clearTimeout(done);
     }
 
@@ -926,6 +941,28 @@ function App() {
       // Track if ant exists in either state
       let foundInGameState = false;
       let foundInFullState = false;
+
+      // Fogged games keep the authoritative board in fullGameState. Step the
+      // unit there and re-derive fog each hex, so an enemy walking out of the
+      // dark is revealed mid-walk instead of appearing after its attack lands.
+      const fogged = gameMode?.isAI && gameMode.fogOfWar !== false;
+      if (fogged) {
+        const source = fullGameStateRef.current;
+        if (source?.ants?.[antId]) {
+          const advanced = {
+            ...source,
+            ants: {
+              ...source.ants,
+              [antId]: { ...source.ants[antId], position: nextPosition }
+            }
+          };
+          fullGameStateRef.current = advanced;
+          setFullGameState(advanced);
+          setGameState(applyFogOfWar(advanced, 'player1'));
+          foundInGameState = true;
+          foundInFullState = true;
+        }
+      } else {
 
       // Update game state with new position
       setGameState(prev => {
@@ -958,6 +995,7 @@ function App() {
           }
         };
       });
+      }
 
       // Continue animation - the setState callbacks set foundIn* synchronously during the updater call
       // Even if async, we should continue as the next iteration will check again
@@ -970,7 +1008,7 @@ function App() {
           currentStep: nextStep
         };
       });
-    }, 600); // 600ms between each step (25% faster movement)
+    }, MOVE_STEP_MS);
 
     return () => clearTimeout(timer);
   }, [movingAnt]);
@@ -994,6 +1032,21 @@ function App() {
 
   // Function to trigger attack animation
   // attackerInfo can be passed for multiplayer where gameState may be stale
+  // Bomber detonation blast. Shared by the player's own detonate action and by
+  // the replay of an enemy bomber's turn - the bomber is gone by the time the
+  // replay runs, so there is no attacker sprite left to animate.
+  const showExplosion = (position) => {
+    const explosionId = `explosion_${Date.now()}_${Math.random()}`;
+    setExplosions(prev => [...prev, {
+      id: explosionId,
+      position,
+      timestamp: Date.now()
+    }]);
+    setTimeout(() => {
+      setExplosions(prev => prev.filter(e => e.id !== explosionId));
+    }, 1000);
+  };
+
   const showAttackAnimation = (attackerId, targetPosition, isRanged, attackerInfo = null) => {
     const id = `attack_${Date.now()}_${Math.random()}`;
     const newAnimation = {
@@ -1396,8 +1449,8 @@ function App() {
             });
 
             // Wait for animation to complete (600ms per step to match animation speed)
-            const animationDuration = (fullPath.length - 1) * 600;
-            setTimeout(resolve, animationDuration + 650);
+            const animationDuration = (fullPath.length - 1) * MOVE_STEP_MS;
+            setTimeout(resolve, animationDuration + MOVE_STEP_MS + 50);
           });
 
           // Small pause between units for rhythm (except after the last unit)
@@ -1406,13 +1459,43 @@ function App() {
           }
         }
 
+        // Reveal the post-movement board before any attack plays. Without this
+        // an attacker that finished its move inside fog would still be hidden,
+        // so its damage numbers would appear over an apparently empty hex.
+        if (gameMode.fogOfWar !== false && combatActions && combatActions.length > 0) {
+          // Use the board the movement loop has been stepping - it holds every
+          // unit in its final position with the casualties still alive, which
+          // is exactly the moment the attacks should play against.
+          const preCombat = fullGameStateRef.current;
+          if (preCombat) {
+            setGameState(applyFogOfWar(preCombat, 'player1'));
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        }
+
         // Animate combat actions one at a time, BEFORE the board jumps to the
         // end-of-turn state. Each attacker is looked up in the pre-combat state
         // so units that die during the AI's turn still play their attack.
         if (combatActions && combatActions.length > 0) {
           for (const combatAction of combatActions) {
-            const { attackerId, targetPosition, isRanged, damageDealt } = combatAction;
+            const { attackerId, targetPosition, isRanged, damageDealt, isDetonation } = combatAction;
             const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
+
+            if (isDetonation) {
+              // The bomber destroys itself, so play the blast at the hex it
+              // died on rather than trying to animate a unit that is gone.
+              showExplosion(targetPosition);
+              if (damageDealt && damageDealt.length > 0) {
+                setTimeout(() => {
+                  damageDealt.forEach(({ damage, position }) => {
+                    showDamageNumber(damage, position);
+                  });
+                }, 250);
+              }
+              // Blast lasts 1s; hold for it before the next action
+              await new Promise(resolve => setTimeout(resolve, 1050));
+              continue;
+            }
 
             if (attacker) {
               showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
@@ -1957,18 +2040,7 @@ function App() {
       return;
     }
 
-    // Show explosion animation
-    const explosionId = `explosion_${Date.now()}`;
-    setExplosions(prev => [...prev, {
-      id: explosionId,
-      position: ant.position,
-      timestamp: Date.now()
-    }]);
-
-    // Remove explosion after animation completes (1 second)
-    setTimeout(() => {
-      setExplosions(prev => prev.filter(e => e.id !== explosionId));
-    }, 1000);
+    showExplosion(ant.position);
 
     const detonationResult = detonateBomber(currentState, selectedAnt);
 
@@ -2900,7 +2972,7 @@ function App() {
 
             // After animation completes, trigger ambush
             // Ensure minimum duration so animation is visible before ambush triggers
-            const animationDuration = Math.max((shortPath.length - 1) * 600, 100);
+            const animationDuration = Math.max((shortPath.length - 1) * MOVE_STEP_MS, 100);
             setTimeout(async () => {
               // Move ant to stop position
               let newState = moveAnt(fullGameState, selectedAnt, stopPosition);
@@ -3010,7 +3082,7 @@ function App() {
 
         // After animation completes, mark ant as moved and update final state
         // Calculate total animation time (600ms per step - 25% faster movement)
-        const animationDuration = (path.length - 1) * 600;
+        const animationDuration = (path.length - 1) * MOVE_STEP_MS;
         setTimeout(() => {
           const newState = moveAnt(currentState, selectedAnt, hex);
           const finalState = markAntMoved(newState, selectedAnt);
@@ -3738,7 +3810,13 @@ function App() {
       // Trees block movement (cannot end on them, but show in range for visual feedback)
       const cannotEndHexes = [
         ...Object.values(gameState.trees || {})
-          .map(t => new HexCoord(t.position.q, t.position.r))
+          .map(t => new HexCoord(t.position.q, t.position.r)),
+        // Eggs of either side, and friendly units, can be passed but not landed on
+        ...Object.values(gameState.eggs || {})
+          .map(e => new HexCoord(e.position.q, e.position.r)),
+        ...Object.values(gameState.ants)
+          .filter(a => a.id !== ant.id && a.owner === ant.owner)
+          .map(a => new HexCoord(a.position.q, a.position.r))
       ];
 
       let range = antType.moveRange;
@@ -4181,9 +4259,13 @@ function App() {
                     <rect
                       x="-20"
                       y="0"
-                      width={40 * (anthill.health / 20)}
+                      width={40 * Math.max(0, Math.min(1, anthill.health / (anthill.maxHealth || 20)))}
                       height="4"
-                      fill={anthill.health > 10 ? '#2ecc71' : anthill.health > 5 ? '#f39c12' : '#e74c3c'}
+                      fill={(() => {
+                        // Colour by fraction so reinforced hills (30 HP) shade like normal ones
+                        const pct = anthill.health / (anthill.maxHealth || 20);
+                        return pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
+                      })()}
                       style={{ pointerEvents: 'none' }}
                     />
                   ) : (
@@ -4217,7 +4299,10 @@ function App() {
               const playerColor = gameState.players[egg.owner]?.color;
               const eggPlayer = gameState.players[egg.owner];
               const eggFrame = getEggFrame(egg.id, playerColor);
-              const eggScale = 1.875; // 50% bigger than original 1.25 scale
+              // Fit one frame to the 60x60 clip window whatever its source size.
+              // The black and blue egg sheets are 64px per frame while the rest
+              // are 32px, so a fixed scale stretches them off the tile.
+              const eggScale = 60 / (eggFrame?.frameWidth || 32);
 
               return eggFrame ? (
                 <g>
@@ -4731,7 +4816,7 @@ function App() {
       // Add transition for smooth movement
       const isMoving = movingAnt && movingAnt.antId === ant.id;
       // Slightly shorter than the 600ms step interval so hops never rubber-band.
-      const transitionStyle = isMoving ? 'transform 0.55s ease-in-out' : (attackAnim ? 'none' : 'transform 0.15s ease-out');
+      const transitionStyle = isMoving ? MOVE_TRANSITION : (attackAnim ? 'none' : 'transform 0.15s ease-out');
 
       // Check if selected or attackable for UI state
       const isSelected = selectedAnt && selectedAnt === ant.id;
@@ -4772,10 +4857,10 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-40 - (spriteFrame.currentFrame * spriteFrame.frameWidth * 2.5)}
+                x={-40 - (spriteFrame.currentFrame * 80)}
                 y={-40}
-                width={spriteFrame.frameWidth * spriteFrame.frames * 2.5}
-                height={spriteFrame.frameHeight * 2.5}
+                width={80 * spriteFrame.frames}
+                height={80}
                 href={spriteFrame.fullPath}
                 clipPath={`url(#clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
@@ -4845,6 +4930,27 @@ function App() {
               />
             </g>
           )}
+          {/* Rank insignia - sits just right of the health bar, only shown once promoted */}
+          {(() => {
+            const rank = getRankForXp(ant.xp || 0);
+            if (!rank.icon) return null;
+            return (
+              <text
+                x="23"
+                y="22"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="11"
+                fill="#ffd700"
+                stroke="#000"
+                strokeWidth="2.5"
+                paintOrder="stroke"
+                style={{ pointerEvents: 'none', fontWeight: 'bold' }}
+              >
+                {rank.icon}
+              </text>
+            );
+          })()}
           {/* Health bar */}
           <g transform="translate(0, 20)">
             {/* Background */}
@@ -5658,8 +5764,8 @@ function App() {
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? '🍃 Food' : '💎 Minerals'}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / 75</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {75 - (selectedAnthill.resourcesGathered || 0)}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {Math.max(0, GameConstants.ANTHILL_TOTAL_YIELD - (selectedAnthill.resourcesGathered || 0))}</p>
               <div style={{
                 width: '100%',
                 height: '20px',
@@ -5670,7 +5776,7 @@ function App() {
                 border: '1px solid rgba(192, 192, 192, 0.2)'
               }}>
                 <div style={{
-                  width: `${((selectedAnthill.resourcesGathered || 0) / 75) * 100}%`,
+                  width: `${Math.min(100, ((selectedAnthill.resourcesGathered || 0) / GameConstants.ANTHILL_TOTAL_YIELD) * 100)}%`,
                   height: '100%',
                   backgroundColor: selectedAnthill.resourceType === 'food' ? '#4ade80' : '#60a5fa',
                   transition: 'width 0.3s ease'
@@ -5699,6 +5805,55 @@ function App() {
               <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Selected Ant</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
+              {(() => {
+                const ant = gameState.ants[selectedAnt];
+                if (ant.type === 'queen') return null; // Queens don't rank up
+                const rank = getRankForXp(ant.xp || 0);
+                const toNext = getXpToNextRank(ant.xp || 0);
+                const xp = ant.xp || 0;
+                // Progress is measured inside the current rank band, not from zero, so a
+                // freshly promoted Veteran shows an empty bar rather than a nearly-full one.
+                const nextRank = RANKS.find(r => xp < r.minXp);
+                const bandStart = rank.minXp;
+                const bandEnd = nextRank ? nextRank.minXp : null;
+                const bandPct = bandEnd === null
+                  ? 100
+                  : Math.max(0, Math.min(100, ((xp - bandStart) / (bandEnd - bandStart)) * 100));
+                return (
+                  <div style={{ margin: '5px 0' }}>
+                    <p style={{ color: rank.bonus > 0 ? '#ffd700' : '#b0b0b0', margin: '0 0 3px 0', fontSize: '13px' }}>
+                      {rank.icon && `${rank.icon} `}{rank.name}
+                      {rank.bonus > 0 && ` (+${Math.round(rank.bonus * 100)}%)`}
+                      {toNext !== null
+                        ? <span style={{ color: '#888' }}> — {toNext} XP to {nextRank.name}</span>
+                        : <span style={{ color: '#888' }}> — max rank</span>}
+                    </p>
+                    <div style={{
+                      width: '100%',
+                      height: '10px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                      borderRadius: '5px',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255, 215, 0, 0.25)'
+                    }}>
+                      <div style={{
+                        width: `${bandPct}%`,
+                        height: '100%',
+                        background: bandEnd === null
+                          ? 'linear-gradient(90deg, #ffd700, #fff3a0)'
+                          : 'linear-gradient(90deg, #b8860b, #ffd700)',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                    <p style={{ color: '#888', margin: '3px 0 0 0', fontSize: '11px' }}>
+                      {bandEnd === null
+                        ? `${xp} XP total`
+                        : `${xp - bandStart} / ${bandEnd - bandStart} XP`}
+                      {ant.kills ? ` · ${ant.kills} ${ant.kills === 1 ? 'kill' : 'kills'}` : ''}
+                    </p>
+                  </div>
+                );
+              })()}
               {(gameState.ants[selectedAnt].type === 'queen' || gameState.ants[selectedAnt].type === 'healer' || gameState.ants[selectedAnt].type === 'cordyphage') && gameState.ants[selectedAnt].maxEnergy && (
                 <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Energy: {gameState.ants[selectedAnt].energy || 0}/{gameState.ants[selectedAnt].maxEnergy}</p>
               )}
@@ -6350,7 +6505,7 @@ function App() {
             {(() => {
               const { getHeroById } = require('./heroQueens');
               const hero = getHeroById(gameState.players[gameState.currentPlayer]?.heroId);
-              const chargeRequired = hero?.chargeRequired || 150;
+              const chargeRequired = hero?.chargeRequired || 450;
               const heroPower = gameState.players[gameState.currentPlayer]?.heroPower || 0;
               const isReady = heroPower >= chargeRequired;
               const isActive = gameState.players[gameState.currentPlayer]?.heroAbilityActive;
@@ -7106,7 +7261,7 @@ function App() {
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Burrow Mechanic</h2>
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                <li><strong>Unlock:</strong> Requires the Burrow upgrade (10🍃 10💎)</li>
+                <li><strong>Unlock:</strong> Requires the Burrow upgrade ({Upgrades.BURROW.costs[0].food}🍃 {Upgrades.BURROW.costs[0].minerals}💎)</li>
                 <li><strong>Burrowing:</strong> Most units can burrow underground, becoming invisible to enemies</li>
                 <li><strong>Movement:</strong> Burrowed units cannot move, except Marauders who can move 2 hexes while burrowed</li>
                 <li><strong>Ambush:</strong> Burrowed units automatically unburrow and attack when enemies move adjacent</li>
