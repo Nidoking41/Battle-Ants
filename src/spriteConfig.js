@@ -13,40 +13,48 @@ export const SpriteConfig = {
     death: 180    // 180ms per frame
   },
 
-  // Sprite sheet definitions for each ant type
-  // Path is relative to public/sprites/ants/
+  // Sprite sheet definitions for each ant type.
+  // Path is relative to public/sprites/ants/<folder>/ (see ANT_TYPE_TO_FOLDER).
+  //
+  // These entries describe the UNCOLORED sheets. In an actual game every ant
+  // has a player color, and getSpriteInfo() below swaps in the `_idle_<color>`
+  // sheet for every animation, because colored walk/attack sheets have not been
+  // drawn yet. Only Drone and Bombardier have uncolored walk/attack sheets on
+  // disk; the other types fall back to idle, which is why entries here point at
+  // the idle sheet rather than a file that does not exist.
   SPRITES: {
     queen: {
-      idle: { path: 'queen_idle.png', frames: 8 },
-      walk: { path: 'queen_walk.png', frames: 8 },
-      attack: { path: 'queen_attack.png', frames: 8 }
+      idle: { path: 'queen_idle_red.png', frames: 8 },
+      walk: { path: 'queen_idle_red.png', frames: 8 },
+      attack: { path: 'queen_idle_red.png', frames: 8 }
     },
     scout: {
       idle: { path: 'scout_idle_green.png', frames: 10 },
-      walk: { path: 'scout_walk.png', frames: 8 },
-      attack: { path: 'scout_attack.png', frames: 8 }
+      walk: { path: 'scout_idle_green.png', frames: 10 },
+      attack: { path: 'scout_idle_green.png', frames: 10 }
     },
     soldier: {
-      idle: { path: 'soldier_idle.png', frames: 8 },
-      walk: { path: 'soldier_walk.png', frames: 8 },
-      attack: { path: 'soldier_attack.png', frames: 8 }
+      idle: { path: 'marauder_idle_red.png', frames: 8 },
+      walk: { path: 'marauder_idle_red.png', frames: 8 },
+      attack: { path: 'marauder_idle_red.png', frames: 8 }
     },
     tank: {
-      idle: { path: 'tank_idle.png', frames: 8 },
-      walk: { path: 'tank_walk.png', frames: 8 },
-      attack: { path: 'tank_attack.png', frames: 8 }
+      idle: { path: 'bullet_idle_red.png', frames: 8 },
+      walk: { path: 'bullet_idle_red.png', frames: 8 },
+      attack: { path: 'bullet_idle_red.png', frames: 8 }
     },
     spitter: {
-      idle: { path: 'spitter_idle.png', frames: 8 },
-      walk: { path: 'spitter_walk.png', frames: 8 },
-      attack: { path: 'spitter_attack.png', frames: 8 }
+      idle: { path: 'acid_idle.png', frames: 8 },
+      walk: { path: 'acid_idle.png', frames: 8 },
+      attack: { path: 'acid_idle.png', frames: 8 }
     },
     bomber: {
-      idle: { path: 'bomber_idle.png', frames: 10 },
-      walk: { path: 'bomber_walk.png', frames: 10 },
-      attack: { path: 'bomber_attack.png', frames: 10 }
+      idle: { path: 'exploding_idle_red.png', frames: 8 },
+      walk: { path: 'exploding_idle_red.png', frames: 8 },
+      attack: { path: 'exploding_idle_red.png', frames: 8 }
     },
     bombardier: {
+      // The only types with real walk/attack sheets on disk.
       idle: { path: 'bombardier_idle.png', frames: 8 },
       walk: { path: 'bombardier_walk.png', frames: 8 },
       attack: { path: 'bombardier_attack.png', frames: 8 }
@@ -57,14 +65,15 @@ export const SpriteConfig = {
       attack: { path: 'drone_attack.png', frames: 8 }
     },
     healer: {
-      idle: { path: 'healer_idle.png', frames: 8 },
-      walk: { path: 'healer_walk.png', frames: 8 },
-      attack: { path: 'healer_attack.png', frames: 8 }
+      idle: { path: 'weaver_idle_red.png', frames: 8 },
+      walk: { path: 'weaver_idle_red.png', frames: 8 },
+      attack: { path: 'weaver_idle_red.png', frames: 8 }
     },
     cordyphage: {
-      idle: { path: 'cordyphage_idle.png', frames: 8 },
-      walk: { path: 'cordyphage_walk.png', frames: 8 },
-      attack: { path: 'cordyphage_attack.png', frames: 8 }
+      // cordyphage_idle.png is a single 32x32 frame, not a sheet.
+      idle: { path: 'cordyphage_idle_red.png', frames: 8 },
+      walk: { path: 'cordyphage_idle_red.png', frames: 8 },
+      attack: { path: 'cordyphage_idle_red.png', frames: 8 }
     },
     dead: {
       idle: { path: 'dead_ant.png', frames: 1 },
@@ -72,7 +81,7 @@ export const SpriteConfig = {
       attack: { path: 'dead_ant.png', frames: 1 }
     },
     egg: {
-      idle: { path: 'egg_idle.png', frames: 8 }
+      idle: { path: 'egg_idle_red.png', frames: 8 }
     }
   }
 };
@@ -116,7 +125,8 @@ const ANT_TYPE_TO_FOLDER = {
   'bomber': 'Exploding',
   'bombardier': 'Bombardier',
   'cordyphage': 'Cordyceps',
-  'egg': 'Eggs'
+  'egg': 'Eggs',
+  'dead': 'Misc' // dead_ant.png lives in Misc/, not the sprites root
 };
 
 // Helper function to get sprite info for an ant
@@ -129,6 +139,7 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
 
   let spritePath = sprites[animation].path;
   let frameCount = sprites[animation].frames;
+  let frameSize = SpriteConfig.SPRITE_SIZE;
 
   // Get folder name for this ant type
   const folderName = ANT_TYPE_TO_FOLDER[antType] || '';
@@ -144,6 +155,12 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
       // Scout colored idle sprites have 10 frames, all others have 8 frames
       frameCount = antType === 'scout' ? 10 : 8;
+      // The black and blue egg sheets were exported at 64px per frame while
+      // every other sheet is 32px. Report their real size so frame offsets
+      // line up instead of sampling the middle of each frame.
+      if (antType === 'egg' && (colorSuffix === 'black' || colorSuffix === 'blue')) {
+        frameSize = 64;
+      }
     }
   }
 
@@ -157,8 +174,8 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
     frames: frameCount,
     path: spritePath,
     fullPath: fullPath,
-    frameWidth: SpriteConfig.SPRITE_SIZE,
-    frameHeight: SpriteConfig.SPRITE_SIZE,
+    frameWidth: frameSize,
+    frameHeight: frameSize,
     animationSpeed: SpriteConfig.ANIMATION_SPEEDS[animation] || 100
   };
 }

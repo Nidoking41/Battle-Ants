@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { createOrJoinGameRoom, cleanupOldRooms } from './multiplayerUtils';
+import React, { useState } from 'react';
+// multiplayerUtils is imported lazily wherever it is needed so that loading the
+// menu does not initialize Firebase for players who only want offline games.
 
 function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup, onEnterOnlineMultiplayer }) {
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Clean up old rooms when component mounts
-  useEffect(() => {
-    const cleanup = async () => {
-      try {
-        // Clean up rooms older than 24 hours
-        const result = await cleanupOldRooms(24);
-        if (result.deleted > 0) {
-          console.log(`Cleaned up ${result.deleted} old rooms`);
-        }
-      } catch (error) {
-        console.error('Error cleaning up old rooms:', error);
+  // Clear stale rooms, but only once the player actually heads into online play.
+  // Running this on mount made the main menu hit the network on every launch,
+  // which stalls an offline player before they reach a single-player game.
+  const cleanupStaleRooms = async () => {
+    try {
+      const { cleanupOldRooms } = await import('./multiplayerUtils');
+      const result = await cleanupOldRooms(24);
+      if (result.deleted > 0) {
+        console.log(`Cleaned up ${result.deleted} old rooms`);
       }
-    };
-    cleanup();
-  }, []);
+    } catch (error) {
+      console.error('Error cleaning up old rooms:', error);
+    }
+  };
 
   // Generate a random 4-digit code
   const generateRoomCode = () => {
@@ -38,6 +38,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
 
       // Don't create game state here - that happens in the lobby
       // Just determine the player role
+      const { createOrJoinGameRoom } = await import('./multiplayerUtils');
       const { playerRole, isNewRoom } = await createOrJoinGameRoom(
         roomCode,
         null, // No initial state needed yet
@@ -74,6 +75,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
 
       // Don't create game state here - that happens in the lobby
       // Capture the playerRole returned by createOrJoinGameRoom
+      const { createOrJoinGameRoom } = await import('./multiplayerUtils');
       const { playerRole, isNewRoom } = await createOrJoinGameRoom(code, null, playerId);
 
       alert(`Room ${code} created! Share this code with your opponent.`);
@@ -104,6 +106,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
 
   const handleOnlineMultiplayer = () => {
     // Navigate to online multiplayer lobby (host/join selection)
+    cleanupStaleRooms();
     onEnterOnlineMultiplayer();
   };
 

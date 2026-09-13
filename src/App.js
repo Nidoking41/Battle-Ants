@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
-import OnlineMultiplayerLobby from './OnlineMultiplayerLobby';
-import GameLobby from './GameLobby';
 import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import GameSummary from './GameSummary';
-import { subscribeToGameState, updateGameState, applyFogOfWar, getVisibleHexes } from './multiplayerUtils';
+import { applyFogOfWar, getVisibleHexes } from './fogOfWar';
+// Firebase-backed multiplayer helpers are imported lazily (see loadMultiplayer
+// below) so that offline play never initializes Firebase or touches the network.
 import { executeAITurn } from './aiController';
 import forestFloorImage from './forestfloor.png';
 import { useSprites } from './useSprites';
@@ -20,6 +20,57 @@ import { getSpriteInfo } from './spriteConfig';
 // scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
 const BASIC_ANT_IDS = ['drone', 'scout', 'soldier', 'spitter'];
 const ADVANCED_ANT_IDS = ['bomber', 'bombardier', 'tank', 'healer', 'cordyphage'];
+
+// Load the Firebase-backed multiplayer module on first use. Importing it at the
+// top level would run initializeApp()/getDatabase() at startup, so an offline
+// player (or a packaged desktop build) would open a network connection just by
+// launching the game.
+const loadMultiplayer = () => import('./multiplayerUtils');
+
+// No audio files ship with the game yet (melee.mp3, ambush.mp3 and Ambient.mp3
+// are referenced but do not exist), so every sound attempt was a failed request.
+// Flip this to true once the files are added under public/sprites/ants/.
+const AUDIO_ENABLED = false;
+
+// Build the combat record the opponent replays as an animation.
+//
+// Two attacks in the same millisecond used to produce identical Date.now()
+// timestamps, and the receiver de-duplicated on that value, so the second
+// animation was silently dropped. A monotonic counter makes every action
+// distinct, and `undefined` is not a legal Firebase value, so the field is
+// always an object (empty when nothing happened) rather than undefined.
+let combatActionSeq = 0;
+const buildCombatAction = (attackAnimation, damageDealt) => {
+  if (!attackAnimation) return null;
+  combatActionSeq += 1;
+  return {
+    ...attackAnimation,
+    damageDealt: damageDealt || [],
+    timestamp: Date.now(),
+    seq: combatActionSeq
+  };
+};
+
+// The two online lobby screens import Firebase directly, so they are loaded on
+// demand - importing them statically would initialize Firebase for offline players.
+const OnlineMultiplayerLobby = React.lazy(() => import('./OnlineMultiplayerLobby'));
+const GameLobby = React.lazy(() => import('./GameLobby'));
+
+// Shown while an online lobby screen is being fetched.
+const LobbyLoading = () => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: '#1a1a2e',
+    color: '#e0e0e0',
+    fontSize: '18px'
+  }}>
+    Loading...
+  </div>
+);
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
@@ -955,7 +1006,7 @@ function App() {
     setAttackAnimations(prev => [...prev, newAnimation]);
 
     // Play melee attack sound for melee attacks
-    if (!isRanged) {
+    if (!isRanged && AUDIO_ENABLED) {
       try {
         const meleeSound = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/melee.mp3`);
         meleeSound.volume = 0.5;
@@ -1031,12 +1082,14 @@ function App() {
     setAmbushAlerts(prev => [...prev, newAlert]);
 
     // Play ambush sound
-    try {
-      const ambushSound = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/ambush.mp3`);
-      ambushSound.volume = 0.5;
-      ambushSound.play().catch(e => console.log('Could not play ambush sound:', e));
-    } catch (e) {
-      console.log('Error creating ambush sound:', e);
+    if (AUDIO_ENABLED) {
+      try {
+        const ambushSound = new Audio(`${process.env.PUBLIC_URL}/sprites/ants/ambush.mp3`);
+        ambushSound.volume = 0.5;
+        ambushSound.play().catch(e => console.log('Could not play ambush sound:', e));
+      } catch (e) {
+        console.log('Error creating ambush sound:', e);
+      }
     }
 
     // Remove after animation completes (1 second)
@@ -1146,7 +1199,12 @@ function App() {
   // Subscribe to multiplayer game state
   useEffect(() => {
     if (gameMode?.isMultiplayer && gameMode.gameId) {
-      const unsubscribe = subscribeToGameState(gameMode.gameId, (newState) => {
+      // The module loads asynchronously, so track unmount to avoid subscribing
+      // after this effect has already been cleaned up.
+      let cancelled = false;
+      let unsubscribe = null;
+
+      const handleState = (newState) => {
         console.log('Firebase subscription received:', {
           turn: newState.turn,
           currentPlayer: newState.currentPlayer,
@@ -1161,12 +1219,15 @@ function App() {
         }
 
         // Check if there was a recent combat action and show animations
-        if (newState.lastCombatAction) {
-          const { attackerId, targetPosition, isRanged, damageDealt, timestamp } = newState.lastCombatAction;
+        if (newState.lastCombatAction && newState.lastCombatAction.attackerId) {
+          const { attackerId, targetPosition, isRanged, damageDealt, timestamp, seq } = newState.lastCombatAction;
 
-          // Only show animation if this is a new combat action (timestamp changed)
-          if (timestamp && timestamp !== lastCombatActionTimestamp.current) {
-            lastCombatActionTimestamp.current = timestamp;
+          // De-duplicate on the monotonic sequence number where present, since
+          // two attacks can share a millisecond timestamp. Fall back to the
+          // timestamp for states written by an older client.
+          const actionKey = seq != null ? `seq:${seq}` : `ts:${timestamp}`;
+          if ((seq != null || timestamp) && actionKey !== lastCombatActionTimestamp.current) {
+            lastCombatActionTimestamp.current = actionKey;
 
             // Check if attacker is visible to current player
             const visibleHexes = getVisibleHexes(newState, gameMode.playerRole);
@@ -1276,9 +1337,17 @@ function App() {
         }
 
         setGameState(filteredState);
+      };
+
+      loadMultiplayer().then(({ subscribeToGameState }) => {
+        if (cancelled) return;
+        unsubscribe = subscribeToGameState(gameMode.gameId, handleState);
       });
 
-      return () => unsubscribe();
+      return () => {
+        cancelled = true;
+        if (unsubscribe) unsubscribe();
+      };
     }
   }, [gameMode]);
 
@@ -1478,7 +1547,9 @@ function App() {
           gameId: gameMode.gameId,
           timestamp: stateWithTimestamp.lastUpdateTimestamp
         });
-        updateGameState(gameMode.gameId, stateWithTimestamp);
+        loadMultiplayer().then(({ updateGameState }) =>
+          updateGameState(gameMode.gameId, stateWithTimestamp)
+        );
       }
       // Firebase subscription will also update state when other player makes moves
     } else {
@@ -1624,10 +1695,12 @@ function App() {
         // Push initial state to Firebase
         const gameId = mode.gameId || lobbySettings?.gameId;
         if (gameId) {
-          updateGameState(gameId, {
-            ...newGameState,
-            lastUpdateTimestamp: Date.now()
-          });
+          loadMultiplayer().then(({ updateGameState }) =>
+            updateGameState(gameId, {
+              ...newGameState,
+              lastUpdateTimestamp: Date.now()
+            })
+          );
         }
       } else {
         // Non-host players: Don't create game state locally
@@ -1802,24 +1875,28 @@ function App() {
   // Show online multiplayer lobby (host/join selection)
   if (gameMode === 'onlineMultiplayer') {
     return (
-      <OnlineMultiplayerLobby
-        onEnterGameLobby={handleEnterLobby}
-        onBack={handleBackToMenu}
-      />
+      <Suspense fallback={<LobbyLoading />}>
+        <OnlineMultiplayerLobby
+          onEnterGameLobby={handleEnterLobby}
+          onBack={handleBackToMenu}
+        />
+      </Suspense>
     );
   }
 
   // Show lobby if in lobby mode
   if (gameMode === 'lobby' && lobbySettings) {
     return (
-      <GameLobby
-        roomCode={lobbySettings.gameId}
-        playerId={lobbySettings.playerId}
-        playerRole={lobbySettings.playerRole}
-        isHost={lobbySettings.isHost}
-        onStartGame={handleStartGame}
-        onBack={handleBackToMenu}
-      />
+      <Suspense fallback={<LobbyLoading />}>
+        <GameLobby
+          roomCode={lobbySettings.gameId}
+          playerId={lobbySettings.playerId}
+          playerRole={lobbySettings.playerRole}
+          isHost={lobbySettings.isHost}
+          onStartGame={handleStartGame}
+          onBack={handleBackToMenu}
+        />
+      </Suspense>
     );
   }
 
@@ -2199,11 +2276,7 @@ function App() {
               ...newState,
               ants: updatedAnts,
               // Store combat action for multiplayer animation replay
-              lastCombatAction: combatResult.attackAnimation ? {
-                ...combatResult.attackAnimation,
-                damageDealt: combatResult.damageDealt,
-                timestamp: Date.now()
-              } : undefined
+              lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
             };
             updateGame(markedState);
             setSelectedAction(null);
@@ -2266,11 +2339,7 @@ function App() {
               }
             },
             // Store combat action for multiplayer animation replay
-            lastCombatAction: combatResult.attackAnimation ? {
-              ...combatResult.attackAnimation,
-              damageDealt: combatResult.damageDealt,
-              timestamp: Date.now()
-            } : undefined
+            lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
           };
           updateGame(markedState);
           setSelectedAction(null);
@@ -2326,11 +2395,7 @@ function App() {
               }
             },
             // Store combat action for multiplayer animation replay
-            lastCombatAction: combatResult.attackAnimation ? {
-              ...combatResult.attackAnimation,
-              damageDealt: combatResult.damageDealt,
-              timestamp: Date.now()
-            } : undefined
+            lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
           };
           updateGame(markedState);
           setSelectedAction(null);
@@ -2557,11 +2622,7 @@ function App() {
                 }
               },
               // Store combat action for multiplayer animation replay
-              lastCombatAction: combatResult.attackAnimation ? {
-                ...combatResult.attackAnimation,
-                damageDealt: combatResult.damageDealt,
-                timestamp: Date.now()
-              } : undefined
+              lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
             };
             updateGame(markedState);
             setSelectedAction(null);
@@ -2628,11 +2689,7 @@ function App() {
               }
             },
             // Store combat action for multiplayer animation replay
-            lastCombatAction: combatResult.attackAnimation ? {
-              ...combatResult.attackAnimation,
-              damageDealt: combatResult.damageDealt,
-              timestamp: Date.now()
-            } : undefined
+            lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
           };
           updateGame(markedState);
           setSelectedAction(null);
@@ -2695,11 +2752,7 @@ function App() {
               }
             },
             // Store combat action for multiplayer animation replay
-            lastCombatAction: combatResult.attackAnimation ? {
-              ...combatResult.attackAnimation,
-              damageDealt: combatResult.damageDealt,
-              timestamp: Date.now()
-            } : undefined
+            lastCombatAction: buildCombatAction(combatResult.attackAnimation, combatResult.damageDealt)
           };
           updateGame(markedState);
           setSelectedAction(null);
@@ -2900,6 +2953,7 @@ function App() {
 
               // Update full state for multiplayer
               if (gameMode?.isMultiplayer && gameMode.gameId) {
+                const { updateGameState } = await loadMultiplayer();
                 await updateGameState(gameMode.gameId, finalState);
               }
 
@@ -4519,6 +4573,9 @@ function App() {
   };
 
   // Helper to get ant sprite path with folder structure
+  // Static sprite path for UI thumbnails (build menu, hero portraits). The
+  // in-game animated sprites go through getSpriteInfo() in spriteConfig.js -
+  // these maps duplicate the ones there, so add new ant types to BOTH.
   const getAntSpritePath = (antId, playerColor = null) => {
     const antTypeToFolder = {
       'queen': 'Queen',
