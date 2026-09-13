@@ -1033,7 +1033,15 @@ export function deductCost(player, antType) {
 }
 
 // End current player's turn
-export function endTurn(gameState) {
+export function endTurn(rawGameState) {
+  // Defensive: drop any malformed ant entries (no id/position) so a bad write
+  // elsewhere can never soft-lock the game on the next turn.
+  const gameState = {
+    ...rawGameState,
+    ants: Object.fromEntries(
+      Object.entries(rawGameState.ants || {}).filter(([, a]) => a && a.id && a.position && typeof a.position.q === 'number')
+    )
+  };
   // Determine next player based on player count
   const playerCount = gameState.playerCount || 2;
   const currentPlayerNum = parseInt(gameState.currentPlayer.replace('player', ''));
@@ -1266,19 +1274,18 @@ export function endTurn(gameState) {
     }
   });
 
-  // Deactivate hero ability if it was active only for one turn (Gorlak, Sorlorg, Vexxara, Skrazzit)
-  // Check if hero ability should expire at start of player's turn
-  const currentPlayerData = updatedPlayers[gameState.currentPlayer];
-  if (currentPlayerData && currentPlayerData.heroAbilityActive) {
-    // Check if ability should expire based on turn counter
-    if (currentPlayerData.heroAbilityEndsOnTurn && currentPlayerData.heroAbilityEndsOnTurn <= gameState.turn) {
-      // Deactivate ability when it expires
-      updatedPlayers[gameState.currentPlayer] = {
-        ...updatedPlayers[gameState.currentPlayer],
-        heroAbilityActive: false,
-        heroAbilityEndsOnTurn: null
-      };
-    }
+  // Expire the hero ability when play comes back around to its owner, so it
+  // covers exactly the turn it was cast on plus the opponent's reply turn.
+  // `turn` counts rounds (it only increments on player1), so it cannot be used
+  // to measure a single player's turn - we key off the owner becoming active.
+  const nextPlayerData = updatedPlayers[nextPlayer];
+  if (nextPlayerData && nextPlayerData.heroAbilityActive && nextPlayerData.heroAbilityExpiresAtOwnTurnStart) {
+    updatedPlayers[nextPlayer] = {
+      ...nextPlayerData,
+      heroAbilityActive: false,
+      heroAbilityExpiresAtOwnTurnStart: null,
+      heroAbilityEndsOnTurn: null
+    };
   }
 
   // Clear revealed hexes from Reveal ability at end of turn
@@ -2305,7 +2312,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Attack boost is passive, handled in combat calculations
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
+        heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
       break;
 
@@ -2314,7 +2321,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Damage boost is passive, handled in combat calculations
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
+        heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
       break;
 
@@ -2326,7 +2333,7 @@ export function activateHeroAbility(gameState, playerId) {
           food: Math.floor(player.resources.food * 1.5),
           minerals: Math.floor(player.resources.minerals * 1.5)
         },
-        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
+        heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
       break;
 
@@ -2334,7 +2341,7 @@ export function activateHeroAbility(gameState, playerId) {
       // Units gain +2 defense and +2 attack until next turn (handled in combat)
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
+        heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
       break;
 
@@ -2355,7 +2362,7 @@ export function activateHeroAbility(gameState, playerId) {
       });
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
-        heroAbilityEndsOnTurn: gameState.turn + 1 // Lasts until start of next turn
+        heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
       break;
 

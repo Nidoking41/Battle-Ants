@@ -11,8 +11,18 @@ import {
   buildAnthill,
   canAffordUpgrade,
   purchaseUpgrade,
-  deductEnergy
+  deductEnergy,
+  healAlly
 } from './gameState';
+
+/** Drop any malformed ant entries (e.g. a dead unit re-inserted with only flags). */
+export function sanitizeAnts(ants) {
+  const clean = {};
+  for (const [id, a] of Object.entries(ants || {})) {
+    if (a && a.id && a.position && typeof a.position.q === 'number') clean[id] = a;
+  }
+  return clean;
+}
 
 /**
  * Helper function to compare hex positions
@@ -31,8 +41,8 @@ function hexEquals(pos1, pos2) {
  * Analyze game state to determine AI strategy
  */
 function analyzeGameState(gameState, aiPlayer, difficulty) {
-  const aiAnts = Object.values(gameState.ants).filter(ant => ant.owner === aiPlayer);
-  const enemyAnts = Object.values(gameState.ants).filter(ant => ant.owner !== aiPlayer);
+  const aiAnts = liveAnts(gameState).filter(ant => ant.owner === aiPlayer);
+  const enemyAnts = liveAnts(gameState).filter(ant => ant.owner !== aiPlayer);
 
   const combatUnits = aiAnts.filter(ant =>
     ant.type !== 'queen' && ant.type !== 'drone' && ant.type !== 'healer'
@@ -101,12 +111,13 @@ const AI_CONFIG = {
     thinkTime: 500, // ms delay for moves (makes it feel more natural)
     gatherPriority: 0.7, // 70% focus on gathering
     combatPriority: 0.3, // 30% focus on combat
-    buildAnthills: false, // Don't build anthills
+    buildAnthills: true,
     upgradeFrequency: 0.1, // Rarely upgrades
     unitMix: {
-      scout: 0.5,
-      drone: 0.4,
-      soldier: 0.1
+      scout: 0.25,
+      drone: 0.35,
+      soldier: 0.3,
+      spitter: 0.1
     }
   },
   medium: {
@@ -116,10 +127,11 @@ const AI_CONFIG = {
     buildAnthills: true,
     upgradeFrequency: 0.3,
     unitMix: {
-      scout: 0.2,
-      drone: 0.3,
-      soldier: 0.3,
-      spitter: 0.2
+      scout: 0.1,
+      drone: 0.25,
+      soldier: 0.35,
+      spitter: 0.2,
+      healer: 0.1
     }
   },
   hard: {
@@ -148,8 +160,8 @@ const AI_CONFIG = {
  */
 export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
   try {
-    const config = AI_CONFIG[difficulty];
-    let state = { ...gameState };
+    const config = AI_CONFIG[difficulty] || AI_CONFIG.medium;
+    let state = { ...gameState, ants: sanitizeAnts(gameState.ants) };
     let movements = []; // Track all movements for animation
     let combatActions = []; // Track all combat actions for animation
 
@@ -450,331 +462,328 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
 }
 
 /**
- * Perform actions with all units
+ * Perform actions with all units.
+ * Order matters: combat units act first (so drones move into space they clear),
+ * then scouts, drones, healers.
  */
 function performUnitActions(gameState, aiPlayer, config, strategy) {
   let state = { ...gameState };
-  let movements = []; // Track movements for animation
-  let combatActions = []; // Track combat actions for animation
+  let movements = [];
+  let combatActions = [];
+  const reservedNodes = new Set(); // resource nodes already claimed by a drone this turn
 
-  // Get all AI units
-  const aiUnits = Object.values(state.ants)
-    .filter(ant => ant.owner === aiPlayer && ant.type !== 'queen' && !ant.hasMoved);
+  const units = liveAnts(state).filter(a => a.owner === aiPlayer && a.type !== 'queen' && !a.hasMoved);
+  const byType = t => units.filter(a => t.includes(a.type));
+  const combat = units.filter(a => !['drone', 'scout', 'healer', 'cordyphage'].includes(a.type));
+  const order = [...combat, ...byType(['scout']), ...byType(['drone']), ...byType(['healer', 'cordyphage'])];
 
-  console.log(`AI has ${aiUnits.length} units that haven't moved yet`);
-
-  // Categorize units
-  const drones = aiUnits.filter(ant => ant.type === 'drone');
-  const scouts = aiUnits.filter(ant => ant.type === 'scout');
-  const combatUnits = aiUnits.filter(ant =>
-    ant.type !== 'drone' && ant.type !== 'healer' && ant.type !== 'scout'
-  );
-  const healers = aiUnits.filter(ant => ant.type === 'healer');
-
-  console.log(`Unit breakdown: ${drones.length} drones, ${scouts.length} scouts, ${combatUnits.length} combat, ${healers.length} healers`);
-
-  // Handle drones (gathering and building)
-  for (const drone of drones) {
-    console.log(`Handling drone at (${drone.position.q}, ${drone.position.r})`);
-    const result = handleDroneUnit(state, drone, aiPlayer, config);
-    state = result.state;
-    if (result.movement) movements.push(result.movement);
-  }
-
-  // Handle scouts (exploration)
-  for (const scout of scouts) {
-    console.log(`Handling scout at (${scout.position.q}, ${scout.position.r})`);
-    const result = handleScoutUnit(state, scout, aiPlayer, strategy);
-    state = result.state;
-    if (result.movement) movements.push(result.movement);
-  }
-
-  // Handle combat units with strategy
-  for (const unit of combatUnits) {
-    console.log(`Handling ${unit.type} at (${unit.position.q}, ${unit.position.r})`);
-    const result = handleCombatUnit(state, unit, aiPlayer, config, strategy);
+  for (const snapshot of order) {
+    const unit = state.ants[snapshot.id];
+    if (!isLive(unit)) continue; // died to a counterattack earlier this turn
+    let result;
+    try {
+      if (unit.type === 'drone') result = handleDroneUnit(state, unit, aiPlayer, config, reservedNodes);
+      else if (unit.type === 'healer' || unit.type === 'cordyphage') result = handleHealerUnit(state, unit, aiPlayer);
+      else result = handleCombatUnit(state, unit, aiPlayer, config, strategy);
+    } catch (err) {
+      console.error(`AI unit ${unit.id} (${unit.type}) errored, skipping:`, err);
+      result = { state: markMoved(state, unit.id), movement: null };
+    }
     state = result.state;
     if (result.movement) movements.push(result.movement);
     if (result.combatAction) combatActions.push(result.combatAction);
+    if (state.gameOver) break;
   }
-
-  // Handle healers
-  for (const healer of healers) {
-    console.log(`Handling healer at (${healer.position.q}, ${healer.position.r})`);
-    const result = handleHealerUnit(state, healer, aiPlayer);
-    state = result.state;
-    if (result.movement) movements.push(result.movement);
-  }
-
-  console.log('Unit actions complete');
   return { state, movements, combatActions };
 }
 
-/**
- * Handle drone actions (gather resources, build anthills)
- */
-function handleDroneUnit(gameState, drone, aiPlayer, config) {
-  let state = { ...gameState };
+// ---------- shared helpers ----------
 
-  console.log(`Drone ${drone.id}: checking position (${drone.position.q}, ${drone.position.r})`);
+function isLive(ant) {
+  return !!(ant && ant.id && ant.position && typeof ant.position.q === 'number');
+}
+function liveAnts(state) {
+  return Object.values(state.ants || {}).filter(isLive);
+}
+function markMoved(state, antId) {
+  const ant = state.ants[antId];
+  if (!isLive(ant)) return state;
+  return { ...state, ants: { ...state.ants, [antId]: { ...ant, hasMoved: true, hasAttacked: true } } };
+}
+function enemiesOf(state, aiPlayer) {
+  const { areTeammates } = require('./combatSystem');
+  return liveAnts(state).filter(a => a.owner !== aiPlayer && !areTeammates(state, aiPlayer, a.owner));
+}
+function findQueen(state, owner) {
+  return liveAnts(state).find(a => a.type === 'queen' && a.owner === owner);
+}
 
-  // Check if we're already on a resource node
-  const resourceAtPos = Object.values(state.resources).find(
-    res => res.position.q === drone.position.q && res.position.r === drone.position.r
-  );
+/** Hexes the unit could end its move on this turn, with paths (same rules as the human player). */
+function reachableHexes(state, unit) {
+  const { areTeammates } = require('./combatSystem');
+  const antType = getAntTypeById(unit.type);
+  if (!antType) return [];
+  if (unit.ensnared && unit.ensnared > 0) return [];
+  let range = antType.moveRange;
+  if (unit.isBurrowed) { if (unit.type === 'soldier') range = 2; else return []; }
+  const player = state.players[unit.owner];
+  if (player?.heroAbilityActive && player?.heroId === 'gorlak' && antType.attackRange <= 1) range += 1;
 
-  if (resourceAtPos) {
-    console.log(`Drone is on ${resourceAtPos.type} resource`);
-    // Check if there's an anthill being built here
-    const anthillAtPos = Object.values(state.anthills || {}).find(
-      hill => hill.position.q === drone.position.q &&
-              hill.position.r === drone.position.r &&
-              hill.owner === aiPlayer
-    );
+  const others = liveAnts(state).filter(a => a.id !== unit.id);
+  const blocked = others.filter(a => !areTeammates(state, a.owner, unit.owner))
+    .map(a => new HexCoord(a.position.q, a.position.r));
+  const cannotEnd = [
+    ...others.filter(a => areTeammates(state, a.owner, unit.owner)).map(a => new HexCoord(a.position.q, a.position.r)),
+    ...Object.values(state.eggs || {}).filter(e => areTeammates(state, e.owner, unit.owner)).map(e => new HexCoord(e.position.q, e.position.r))
+  ];
+  const start = new HexCoord(unit.position.q, unit.position.r);
+  return getMovementRangeWithPaths(start, range, state.gridRadius || 6, blocked, cannotEnd, state.mapShape || 'rectangle');
+}
 
-    // Try to build/continue anthill if config allows and it's a MINERAL node
-    if (config.buildAnthills && resourceAtPos.type === 'minerals') {
-      // Check if there's an incomplete anthill that needs more building
-      if (anthillAtPos && !anthillAtPos.isComplete) {
-        console.log(`Continuing to build incomplete anthill (progress: ${anthillAtPos.buildProgress})`);
-        const resourceId = Object.keys(state.resources).find(
-          id => state.resources[id].position.q === resourceAtPos.position.q &&
-                state.resources[id].position.r === resourceAtPos.position.r
-        );
-        if (resourceId) {
-          const newState = buildAnthill(state, drone.id, resourceId);
-          console.log(`AI drone continuing anthill construction at (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
-          return { state: newState, movement: null };
-        }
-      }
-      // If no anthill exists, start building one
-      else if (!anthillAtPos) {
-        console.log(`Attempting to build anthill at mineral node`);
-        // Find the resource ID
-        const resourceId = Object.keys(state.resources).find(
-          id => state.resources[id].position.q === resourceAtPos.position.q &&
-                state.resources[id].position.r === resourceAtPos.position.r
-        );
-        if (resourceId) {
-          const newState = buildAnthill(state, drone.id, resourceId);
-          // buildAnthill returns the new state directly, check if anthill was added
-          if (Object.keys(newState.anthills || {}).length > Object.keys(state.anthills || {}).length) {
-            console.log(`AI drone building anthill at mineral node (${resourceAtPos.position.q}, ${resourceAtPos.position.r})`);
-            return { state: newState, movement: null };
-          } else {
-            console.log(`Failed to build anthill - drone may have already built this turn`);
-          }
-        }
-      }
-    }
+/** Enemies this unit could attack if it were standing on `hex` (after moving or not). */
+function targetsFrom(state, unit, hex, enemies, moved) {
+  const ghost = { ...unit, position: { q: hex.q, r: hex.r }, hasMoved: moved };
+  return enemies.filter(e => canAttack(ghost, e, state));
+}
 
-    // Gather resources - actually add resources to player
-    const droneType = AntTypes.DRONE;
-    const gatherAmount = droneType.resourceGatherRate || 5;
-    const playerState = state.players[aiPlayer];
+/** How much we want to hit this target. Higher is better. */
+function targetValue(state, unit, target) {
+  const { calculateDamage } = require('./combatSystem');
+  let dmg = 0;
+  try { dmg = calculateDamage({ ...unit }, target, state) || 0; } catch (e) { dmg = 5; }
+  let value = Math.min(dmg, target.health) * 1.0;
+  if (dmg >= target.health) value += 25;            // a kill
+  if (target.type === 'queen') value += 40;         // the win condition
+  if (['spitter', 'bombardier', 'healer'].includes(target.type)) value += 6; // squishy high-value
+  if (target.type === 'drone') value -= 3;
+  return value;
+}
 
-    if (resourceAtPos.type === 'food') {
-      state.players[aiPlayer] = {
-        ...playerState,
-        resources: {
-          ...playerState.resources,
-          food: playerState.resources.food + gatherAmount
-        }
-      };
-      console.log(`Drone gathered ${gatherAmount} food, now have ${state.players[aiPlayer].resources.food}`);
-    } else if (resourceAtPos.type === 'minerals') {
-      state.players[aiPlayer] = {
-        ...playerState,
-        resources: {
-          ...playerState.resources,
-          minerals: playerState.resources.minerals + gatherAmount
-        }
-      };
-      console.log(`Drone gathered ${gatherAmount} minerals, now have ${state.players[aiPlayer].resources.minerals}`);
-    }
-
-    state.ants[drone.id] = { ...drone, hasMoved: true };
-    return { state, movement: null };
+function dangerAt(state, unit, hex, enemies) {
+  // rough count of enemies that could reach and hit this hex next turn
+  let danger = 0;
+  for (const e of enemies) {
+    const t = getAntTypeById(e.type);
+    if (!t || t.attackRange === 0) continue;
+    const reach = (t.moveRange || 0) + (t.attackRange || 0);
+    if (hexDistance(hex, e.position) <= reach) danger += 1;
   }
+  return danger;
+}
 
-  // Find nearest MINERAL resource node for building anthills (prioritize minerals over food)
-  const targetResource = findNearestMineralResource(state, drone.position, aiPlayer) ||
-                         findNearestResource(state, drone.position, aiPlayer);
+function applyMove(state, unit, moveData) {
+  const newState = moveAnt(state, unit.id, { q: moveData.hex.q, r: moveData.hex.r });
+  newState.ants[unit.id] = { ...newState.ants[unit.id], hasMoved: true };
+  return { state: newState, movement: { antId: unit.id, path: moveData.path.map(h => ({ q: h.q, r: h.r })) } };
+}
 
-  if (targetResource) {
-    console.log(`Drone moving toward resource at (${targetResource.position.q}, ${targetResource.position.r})`);
-    // Move toward resource
-    return moveUnitToward(state, drone, targetResource.position);
-  } else {
-    console.log(`Drone found no target resource`);
+function applyAttack(state, unitId, target) {
+  const { resolveCombat } = require('./combatSystem');
+  const attackResult = resolveCombat(state, unitId, target.id);
+  let newState = attackResult.gameState;
+  if (isLive(newState.ants[unitId])) {
+    newState = { ...newState, ants: { ...newState.ants, [unitId]: { ...newState.ants[unitId], hasAttacked: true, hasMoved: true } } };
   }
-
-  return { state, movement: null };
+  const combatAction = attackResult.attackAnimation ? {
+    ...attackResult.attackAnimation,
+    damageDealt: attackResult.damageDealt,
+    timestamp: Date.now()
+  } : null;
+  newState.lastCombatAction = combatAction;
+  return { state: newState, combatAction };
 }
 
 /**
- * Handle combat unit actions (attack enemies, move toward enemy base or defend)
+ * Generic "move then attack" for anything that can fight.
+ * Scores every reachable hex (and staying put) by the best attack available from it,
+ * minus distance to the objective and danger. Picks the best, moves, attacks.
+ */
+function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
+  const enemies = enemiesOf(state, aiPlayer);
+  const antType = getAntTypeById(unit.type);
+  const caution = opts.caution ?? 1;      // how much danger matters
+  const advance = opts.advance ?? 1;      // how much closing distance matters
+
+  const stayHere = { hex: { q: unit.position.q, r: unit.position.r }, path: [], stay: true };
+  const options = [stayHere, ...reachableHexes(state, unit)];
+
+  let best = null;
+  for (const opt of options) {
+    const moved = !opt.stay;
+    // Bombardiers (cannotMoveAndAttack) can't attack after moving; canAttack handles hasMoved.
+    const targets = antType.attackRange > 0 && unit.type !== 'bomber'
+      ? targetsFrom(state, unit, opt.hex, enemies, moved) : [];
+    let bestTarget = null, bestTV = -Infinity;
+    for (const t of targets) {
+      const v = targetValue(state, unit, t);
+      if (v > bestTV) { bestTV = v; bestTarget = t; }
+    }
+    const dist = objective ? hexDistance(opt.hex, objective) : 0;
+    const danger = dangerAt(state, unit, opt.hex, enemies);
+    let score = (bestTarget ? 20 + bestTV : 0) - dist * 2 * advance - danger * 3 * caution;
+    if (opt.stay && !bestTarget) score -= 1; // slight nudge to keep moving
+    if (best === null || score > best.score) best = { opt, score, target: bestTarget };
+  }
+
+  let newState = state, movement = null, combatAction = null;
+  if (best && !best.opt.stay) {
+    const r = applyMove(newState, unit, best.opt);
+    newState = r.state; movement = r.movement;
+  } else {
+    newState = { ...newState, ants: { ...newState.ants, [unit.id]: { ...newState.ants[unit.id], hasMoved: true } } };
+  }
+  if (best && best.target && isLive(newState.ants[unit.id]) && isLive(newState.ants[best.target.id])) {
+    const r = applyAttack(newState, unit.id, newState.ants[best.target.id]);
+    newState = r.state; combatAction = r.combatAction;
+  }
+  return { state: newState, movement, combatAction };
+}
+
+/**
+ * Drones: claim resource nodes and build anthills on them (the real economy).
+ */
+function handleDroneUnit(gameState, drone, aiPlayer, config, reservedNodes) {
+  let state = { ...gameState };
+  const nodes = Object.entries(state.resources || {});
+  const anthillAt = pos => Object.values(state.anthills || {}).find(h => hexEquals(h.position, pos));
+  const enemies = enemiesOf(state, aiPlayer);
+
+  // Standing on a node? Build / keep building.
+  const here = nodes.find(([, r]) => hexEquals(r.position, drone.position));
+  if (here) {
+    const [resourceId, res] = here;
+    const hill = anthillAt(res.position);
+    const ours = hill && hill.owner === aiPlayer;
+    if (!hill || (ours && !hill.isComplete)) {
+      if (config.buildAnthills) {
+        const food = state.players[aiPlayer].resources.food;
+        if (hill || food >= GameConstants.ANTHILL_BUILD_COST) {
+          const built = buildAnthill(state, drone.id, resourceId);
+          if (built !== state) return { state: built, movement: null };
+        }
+      }
+      // Can't afford yet: hold the node.
+      return { state: markMoved(state, drone.id), movement: null };
+    }
+    // Node already has a finished anthill (ours or theirs): go find another.
+  }
+
+  // Pick the nearest unclaimed node (no anthill, not reserved by another drone this turn).
+  const free = nodes.filter(([id, r]) => !anthillAt(r.position) && !reservedNodes.has(id));
+  let target = null, bestD = Infinity;
+  for (const [id, r] of free) {
+    const d = hexDistance(drone.position, r.position);
+    const threat = dangerAt(state, drone, r.position, enemies);
+    const cost = d + threat * 2;
+    if (cost < bestD) { bestD = cost; target = { id, res: r }; }
+  }
+  if (target) {
+    reservedNodes.add(target.id);
+    return fightOrAdvance(state, drone, aiPlayer, target.res.position, { caution: 2, advance: 1.5 });
+  }
+  // Nothing to build: fall back near our queen and stay out of trouble.
+  const queen = findQueen(state, aiPlayer);
+  return fightOrAdvance(state, drone, aiPlayer, queen ? queen.position : drone.position, { caution: 3 });
+}
+
+/**
+ * Combat units (and scouts): defend the queen when threatened, otherwise
+ * push toward the enemy queen, attacking anything on the way.
  */
 function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
-  let state = { ...gameState };
+  const state = { ...gameState };
+  const enemies = enemiesOf(state, aiPlayer);
+  const myQueen = findQueen(state, aiPlayer);
+  const enemyQueen = enemies.find(a => a.type === 'queen');
 
-  // Find enemies in range
-  const enemiesInRange = findEnemiesInRange(state, unit, aiPlayer);
+  // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).
+  if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, enemyQueen);
 
-  if (enemiesInRange.length > 0) {
-    // Attack the highest priority enemy (queen > other units)
-    let target = enemiesInRange.find(e => e.type === 'queen') ||
-                 enemiesInRange.reduce((weakest, enemy) =>
-                   enemy.health < weakest.health ? enemy : weakest
-                 );
-
-    // Import resolveCombat from combatSystem
-    const { canAttack, resolveCombat } = require('./combatSystem');
-
-    // Check if we can attack (pass actual ant objects, not IDs)
-    if (canAttack(unit, target, state)) {
-      // Perform attack
-      const attackResult = resolveCombat(state, unit.id, target.id);
-      state = attackResult.gameState;
-
-      // Mark unit as having attacked
-      const updatedAnts = { ...state.ants };
-      if (updatedAnts[unit.id]) {
-        updatedAnts[unit.id] = { ...updatedAnts[unit.id], hasAttacked: true };
-      }
-
-      // Store combat action for animation (same as player attacks)
-      const combatAction = attackResult.attackAnimation ? {
-        ...attackResult.attackAnimation,
-        damageDealt: attackResult.damageDealt,
-        timestamp: Date.now()
-      } : null;
-
-      state = {
-        ...state,
-        ants: updatedAnts,
-        lastCombatAction: combatAction
-      };
-
-      return { state, movement: null, combatAction };
-    }
-  }
-
-  const aiQueen = Object.values(state.ants).find(
-    ant => ant.type === 'queen' && ant.owner === aiPlayer
-  );
-
-  // Find nearest enemy to chase
-  const allEnemies = Object.values(state.ants).filter(ant => ant.owner !== aiPlayer);
-  const nearestEnemy = allEnemies.length > 0 ? allEnemies.reduce((nearest, enemy) => {
-    const dist = hexDistance(unit.position, enemy.position);
-    const nearestDist = hexDistance(unit.position, nearest.position);
-    return dist < nearestDist ? enemy : nearest;
-  }) : null;
-
-  // Strategic movement based on game state
-  if (strategy.shouldDefend && aiQueen) {
-    // Defend mode: move toward our queen
-    const distanceToQueen = hexDistance(unit.position, aiQueen.position);
-    if (distanceToQueen > 3) {
-      return moveUnitToward(state, unit, aiQueen.position);
-    } else if (nearestEnemy) {
-      // In defensive range, chase nearby enemies
-      return moveUnitToward(state, unit, nearestEnemy.position);
-    } else {
-      state.ants[unit.id] = { ...unit, hasMoved: true };
-    }
-  } else if (strategy.shouldAttack || nearestEnemy) {
-    // Attack mode: move toward nearest enemy (prioritize queen)
-    const enemyQueen = allEnemies.find(ant => ant.type === 'queen');
-    const target = enemyQueen || nearestEnemy;
-
-    if (target) {
-      return moveUnitToward(state, unit, target.position);
-    } else {
-      state.ants[unit.id] = { ...unit, hasMoved: true };
-    }
+  let objective, opts = {};
+  const threats = myQueen ? enemies.filter(e => hexDistance(e.position, myQueen.position) <= 4) : [];
+  if (threats.length > 0 && myQueen && hexDistance(unit.position, myQueen.position) <= 7) {
+    // Defend: nearest threat to our queen
+    objective = threats.reduce((a, b) => hexDistance(a.position, myQueen.position) <= hexDistance(b.position, myQueen.position) ? a : b).position;
+    opts = { caution: 0.5, advance: 1.5 };
+  } else if (strategy.shouldAttack || strategy.phase !== 'early') {
+    // Attack: enemy queen if known, else the nearest enemy, else the far side of the map
+    const nearest = enemies.length ? enemies.reduce((a, b) => hexDistance(a.position, unit.position) <= hexDistance(b.position, unit.position) ? a : b) : null;
+    objective = enemyQueen ? enemyQueen.position : (nearest ? nearest.position : { q: 0, r: -(myQueen ? myQueen.position.r : 0) });
+    opts = unit.type === 'scout' ? { caution: 1.5, advance: 1 } : { caution: 0.7, advance: 1 };
   } else {
-    // No enemies visible, move toward center to find them
-    return moveUnitToward(state, unit, { q: 0, r: 0 });
+    // Early game: rally between our queen and the middle so we don't trickle in one at a time
+    const rally = myQueen ? { q: Math.round(myQueen.position.q / 2), r: Math.round(myQueen.position.r / 2) } : { q: 0, r: 0 };
+    objective = rally;
+    opts = { caution: 1, advance: 0.7 };
   }
+  return fightOrAdvance(state, unit, aiPlayer, objective, opts);
+}
 
-  return { state, movement: null };
+function handleBomber(state, bomber, aiPlayer, enemies, enemyQueen) {
+  const { detonateBomber } = require('./combatSystem');
+  const adjacentEnemies = hex => enemies.filter(e => hexDistance(e.position, hex) <= 1);
+  const worth = hex => {
+    const adj = adjacentEnemies(hex);
+    return adj.length + (adj.some(e => e.type === 'queen') ? 3 : 0);
+  };
+  // Best hex to be on when we blow up
+  const options = [{ hex: { q: bomber.position.q, r: bomber.position.r }, path: [], stay: true }, ...reachableHexes(state, bomber)];
+  let best = options[0], bestW = worth(best.hex);
+  for (const o of options) { const w = worth(o.hex); if (w > bestW) { bestW = w; best = o; } }
+  let newState = state, movement = null;
+  if (bestW >= 2) {
+    if (!best.stay) { const r = applyMove(newState, bomber, best); newState = r.state; movement = r.movement; }
+    const boom = detonateBomber(newState, bomber.id);
+    newState = boom.gameState || boom;
+    const combatAction = {
+      attackerId: bomber.id,
+      targetPosition: best.hex,
+      isRanged: false,
+      isDetonation: true,
+      damageDealt: boom.damageDealt || [],
+      timestamp: Date.now()
+    };
+    return { state: newState, movement, combatAction };
+  }
+  const objective = enemyQueen ? enemyQueen.position : (enemies[0] ? enemies[0].position : bomber.position);
+  return fightOrAdvance(state, bomber, aiPlayer, objective, { caution: 0.3 });
 }
 
 /**
- * Handle scout unit actions (explore map, find enemy)
- */
-function handleScoutUnit(gameState, scout, aiPlayer, strategy) {
-  let state = { ...gameState };
-
-  // Attack if enemies are in range
-  const enemiesInRange = findEnemiesInRange(state, scout, aiPlayer);
-  if (enemiesInRange.length > 0) {
-    const target = enemiesInRange[0];
-    const { canAttack, resolveCombat } = require('./combatSystem');
-
-    // Check if we can attack (pass actual ant objects, not IDs)
-    if (canAttack(scout, target, state)) {
-      // Perform attack
-      const attackResult = resolveCombat(state, scout.id, target.id);
-      state = attackResult.gameState;
-      // Mark scout as having attacked
-      state.ants[scout.id] = { ...state.ants[scout.id], hasAttacked: true };
-      return { state, movement: null };
-    }
-  }
-
-  // Explore: move toward enemy queen to scout
-  const enemyQueen = Object.values(state.ants).find(
-    ant => ant.type === 'queen' && ant.owner !== aiPlayer
-  );
-
-  if (enemyQueen) {
-    return moveUnitToward(state, scout, enemyQueen.position);
-  } else {
-    // Move toward center of map if haven't found enemy
-    return moveUnitToward(state, scout, { q: 0, r: 0 });
-  }
-}
-
-/**
- * Handle healer unit actions (heal allies, follow army)
+ * Healers: heal the most injured adjacent ally, otherwise shadow the army.
  */
 function handleHealerUnit(gameState, healer, aiPlayer) {
   let state = { ...gameState };
+  const allies = liveAnts(state).filter(a => a.owner === aiPlayer && a.id !== healer.id);
+  const injured = allies.filter(a => a.health < (getAntTypeById(a.type)?.maxHealth || 0));
 
-  // Find injured allies in range
-  const injuredAllies = Object.values(state.ants)
-    .filter(ant =>
-      ant.owner === aiPlayer &&
-      ant.health < getAntTypeById(ant.type).maxHealth &&
-      hexDistance(healer.position, ant.position) <= 1
-    );
+  const tryHeal = st => {
+    if (healer.type !== 'healer') return null;
+    const me = st.ants[healer.id];
+    const adj = injured.filter(a => hexDistance(me.position, a.position) <= 1)
+      .sort((a, b) => a.health - b.health);
+    for (const target of adj) {
+      const healed = healAlly(st, healer.id, target.id);
+      if (healed !== st) return healed;
+    }
+    return null;
+  };
 
-  if (injuredAllies.length > 0) {
-    // Heal the most injured ally
-    const target = injuredAllies.reduce((mostInjured, ally) =>
-      ally.health < mostInjured.health ? ally : mostInjured
-    );
+  const healedNow = tryHeal(state);
+  if (healedNow) return { state: markMoved(healedNow, healer.id), movement: null };
 
-    // TODO: Implement heal action (would need to import from gameState)
-    // For now, just mark as moved
-    state.ants[healer.id] = { ...healer, hasMoved: true };
-    return { state, movement: null };
+  // Move toward the most injured ally, or the nearest combat unit, staying behind it.
+  let objective;
+  if (injured.length) objective = injured.reduce((a, b) => a.health <= b.health ? a : b).position;
+  else {
+    const fighters = allies.filter(a => !['drone', 'queen'].includes(a.type));
+    const near = fighters.length ? fighters.reduce((a, b) => hexDistance(a.position, healer.position) <= hexDistance(b.position, healer.position) ? a : b) : findQueen(state, aiPlayer);
+    objective = near ? near.position : healer.position;
   }
-
-  // No injured allies, follow the army (move toward combat units)
-  const combatUnits = Object.values(state.ants).filter(
-    ant => ant.owner === aiPlayer && ant.type !== 'queen' && ant.type !== 'drone' && ant.type !== 'healer'
-  );
-
-  if (combatUnits.length > 0) {
-    const targetUnit = combatUnits[0];
-    return moveUnitToward(state, healer, targetUnit.position);
-  }
-
-  return { state, movement: null };
+  const r = fightOrAdvance(state, healer, aiPlayer, objective, { caution: 2, advance: 1.2 });
+  const healedAfter = tryHeal(r.state);
+  if (healedAfter) r.state = markMoved(healedAfter, healer.id);
+  return r;
 }
 
 /**
@@ -839,6 +848,7 @@ function findEnemiesInRange(gameState, unit, aiPlayer) {
   const attackRange = antType.attackRange;
 
   return Object.values(gameState.ants).filter(ant => {
+    if (!ant || !ant.position) return false; // skip malformed entries
     if (ant.owner === aiPlayer) return false; // Not an enemy
     if (ant.isBurrowed) return false; // Can't see burrowed units (simplified)
 

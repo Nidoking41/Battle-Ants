@@ -13,7 +13,7 @@ export function createDeadAnt(ant) {
 }
 
 // Helper function to check if two players are on the same team
-function areTeammates(gameState, playerId1, playerId2) {
+export function areTeammates(gameState, playerId1, playerId2) {
   if (playerId1 === playerId2) return true;
 
   const player1 = gameState.players[playerId1];

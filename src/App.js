@@ -16,6 +16,11 @@ import forestFloorImage from './forestfloor.png';
 import { useSprites } from './useSprites';
 import { getSpriteInfo } from './spriteConfig';
 
+// Build panel is split into two tabs so all nine units stay reachable without
+// scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
+const BASIC_ANT_IDS = ['drone', 'scout', 'soldier', 'spitter'];
+const ADVANCED_ANT_IDS = ['bomber', 'bombardier', 'tank', 'healer', 'cordyphage'];
+
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
   const [lobbySettings, setLobbySettings] = useState(null); // Settings from lobby before game starts
@@ -42,6 +47,7 @@ function App() {
   const [projectiles, setProjectiles] = useState([]); // Array of {id, startPos, endPos, timestamp}
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
   const [ambushAlerts, setAmbushAlerts] = useState([]); // Array of {id, position, timestamp} for ambush alerts
+  const [buildTab, setBuildTab] = useState('basic'); // Which Build Ants tab is shown: 'basic' | 'advanced'
   const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
@@ -854,10 +860,11 @@ function App() {
 
     const { antId, path, currentStep } = movingAnt;
 
-    // If we've reached the end of the path, stop
+    // Reached the end of the path: keep the walk state for one more step so
+    // the final hop finishes its transition, then clear.
     if (currentStep >= path.length - 1) {
-      setMovingAnt(null);
-      return;
+      const done = setTimeout(() => setMovingAnt(prev => (prev && prev.antId === antId ? null : prev)), 600);
+      return () => clearTimeout(done);
     }
 
     // Move to next step after a delay
@@ -987,10 +994,12 @@ function App() {
       }, 200);
     }
 
-    // Remove attack animation after completion (melee: 0.4s, ranged: 0.2s)
+    // Remove attack animation after completion. Ranged needs to outlast the
+    // projectile (spawns at 200ms, lands 300ms later) so the shooter stays
+    // animated until its shot connects.
     setTimeout(() => {
       setAttackAnimations(prev => prev.filter(a => a.id !== id));
-    }, isRanged ? 200 : 400);
+    }, isRanged ? 500 : 400);
   };
 
   // Function to show resource gain number
@@ -1306,7 +1315,9 @@ function App() {
 
           // Add starting position to path if not already there
           const oldAnt = currentState.ants?.[movement.antId];
-          const fullPath = oldAnt ? [oldAnt.position, ...movement.path] : movement.path;
+          const startsAtOldPos = oldAnt && movement.path.length > 0 &&
+            movement.path[0].q === oldAnt.position.q && movement.path[0].r === oldAnt.position.r;
+          const fullPath = (oldAnt && !startsAtOldPos) ? [oldAnt.position, ...movement.path] : movement.path;
 
           await new Promise(resolve => {
             setMovingAnt({
@@ -1317,7 +1328,7 @@ function App() {
 
             // Wait for animation to complete (600ms per step to match animation speed)
             const animationDuration = (fullPath.length - 1) * 600;
-            setTimeout(resolve, animationDuration + 100);
+            setTimeout(resolve, animationDuration + 650);
           });
 
           // Small pause between units for rhythm (except after the last unit)
@@ -1326,20 +1337,13 @@ function App() {
           }
         }
 
-        // End AI turn to switch back to player
-        const { gameState: finalState } = endTurn(aiState);
-
-        // Update game state AFTER movement animations
-        updateGame(finalState);
-
-        // Small delay to let state update
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Animate all combat actions sequentially
+        // Animate combat actions one at a time, BEFORE the board jumps to the
+        // end-of-turn state. Each attacker is looked up in the pre-combat state
+        // so units that die during the AI's turn still play their attack.
         if (combatActions && combatActions.length > 0) {
           for (const combatAction of combatActions) {
             const { attackerId, targetPosition, isRanged, damageDealt } = combatAction;
-            const attacker = finalState.ants[attackerId];
+            const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
 
             if (attacker) {
               showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
@@ -1352,18 +1356,34 @@ function App() {
               }
             }
 
-            // Wait for attack animation to complete before next attack
+            // Hold until this attack's visuals have fully cleared, plus a beat,
+            // so the next attack reads as a separate blow rather than a volley.
             await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
           }
         }
+
+        // End AI turn to switch back to player
+        const { gameState: finalState } = endTurn(aiState);
+
+        // Apply the resolved state only after every attack has been shown
+        updateGame(finalState);
+
+        // Small delay to let state update
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // Wait a tiny bit to ensure animations complete
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error('AI turn execution failed:', error);
         console.error('Error stack:', error.stack);
-        // Don't retry - just end the AI's turn and let player continue
+        // Don't retry - actually end the AI's turn so the player can continue
         showFeedback('AI encountered an error. Ending AI turn.');
+        try {
+          const { gameState: recovered } = endTurn(currentState);
+          updateGame(recovered);
+        } catch (e2) {
+          console.error('Could not recover AI turn:', e2);
+        }
       } finally {
         // Only set isAIThinking to false AFTER all animations are complete
         setIsAIThinking(false);
@@ -4582,27 +4602,10 @@ function App() {
 
       const { x, y } = hexToPixel(ant.position, hexSize);
 
+      // Movement is animated with a CSS transition on the group's transform:
+      // the ant's position in state advances one hex per step and the
+      // browser tweens between the two pixel positions.
       let movementOffset = '';
-
-      // Calculate smooth movement offset if ant is moving
-      if (movingAnt && movingAnt.antId === ant.id) {
-        const { path, currentStep } = movingAnt;
-        if (currentStep < path.length - 1) {
-          // Get current and next positions
-          const currentPos = path[currentStep];
-          const nextPos = path[currentStep + 1];
-
-          // Calculate pixel positions
-          const currentPixel = hexToPixel(currentPos, hexSize);
-          const nextPixel = hexToPixel(nextPos, hexSize);
-
-          // Calculate offset from current rendered position to next position
-          const offsetX = nextPixel.x - currentPixel.x;
-          const offsetY = nextPixel.y - currentPixel.y;
-
-          movementOffset = `translate(${offsetX}, ${offsetY})`;
-        }
-      }
 
       // Check if this ant is attacking
       const attackAnim = attackAnimations.find(a => a.attackerId === ant.id);
@@ -4622,7 +4625,7 @@ function App() {
           const shakeProgress = Math.min(elapsed / 200, 1);
           const shakeX = Math.sin(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
           const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
-          attackOffset = `translate(${shakeX}, ${shakeY})`;
+          attackOffset = `translate(${shakeX}px, ${shakeY}px)`;
         } else {
           // Melee: lunge animation (0.3s)
           const lungeProgress = Math.min(elapsed / 300, 1);
@@ -4631,16 +4634,17 @@ function App() {
             ? 2 * lungeProgress * lungeProgress
             : 1 - Math.pow(-2 * lungeProgress + 2, 2) / 2;
 
-          // Calculate direction to target
-          const dx = attackAnim.targetPos.q - ant.position.q;
-          const dy = attackAnim.targetPos.r - ant.position.r;
+          // Calculate direction to target in pixel space
+          const targetPixel = hexToPixel(attackAnim.targetPos, hexSize);
+          const dx = targetPixel.x - x;
+          const dy = targetPixel.y - y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           const lungeDistance = 20; // pixels
 
           if (distance > 0) {
             const offsetX = (dx / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
             const offsetY = (dy / distance) * lungeDistance * eased * (eased < 0.5 ? 2 : 2 - 2 * eased);
-            attackOffset = `translate(${offsetX}, ${offsetY})`;
+            attackOffset = `translate(${offsetX}px, ${offsetY}px)`;
           }
         }
 
@@ -4664,12 +4668,13 @@ function App() {
       const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, ant.position));
       const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, ant.position));
       const onResourceOrAnthill = resource || anthill;
-      const baseTransform = onResourceOrAnthill ? "translate(-15, 15)" : "";
+      const baseTransform = onResourceOrAnthill ? "translate(-15px, 15px)" : "";
       const finalTransform = transformOffset ? `${baseTransform} ${transformOffset}` : baseTransform;
 
       // Add transition for smooth movement
       const isMoving = movingAnt && movingAnt.antId === ant.id;
-      const transitionStyle = isMoving ? 'transform 0.8s linear' : 'none';
+      // Slightly shorter than the 600ms step interval so hops never rubber-band.
+      const transitionStyle = isMoving ? 'transform 0.55s ease-in-out' : (attackAnim ? 'none' : 'transform 0.15s ease-out');
 
       // Check if selected or attackable for UI state
       const isSelected = selectedAnt && selectedAnt === ant.id;
@@ -4681,7 +4686,7 @@ function App() {
       const showAura = player?.heroAbilityActive;
 
       ants.push(
-        <g key={`ant-overlay-${ant.id}`} transform={`translate(${x}, ${y}) ${finalTransform}`} style={{ transition: transitionStyle }}>
+        <g key={`ant-overlay-${ant.id}`} style={{ transform: `translate(${x}px, ${y}px) ${finalTransform}`, transition: transitionStyle, willChange: 'transform' }}>
           {/* Hero ability aura (rendered behind ant, animated sprite sheet) */}
           {showAura && playerColor && (
             <g opacity={0.8}>
@@ -4942,9 +4947,68 @@ function App() {
                 ⚡ Upgrades
               </button>
 
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#e0e0e0' }}>Build Ants</h3>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#e0e0e0' }}>Build Ants</h3>
+
+              {/* Basic / Advanced tabs - nine units don't fit the panel at once */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                {[
+                  { key: 'basic', label: 'Basic', ids: BASIC_ANT_IDS },
+                  { key: 'advanced', label: 'Advanced', ids: ADVANCED_ANT_IDS }
+                ].map(tab => {
+                  // How many units on this tab are buyable right now, so an
+                  // affordable unit on the hidden tab still gets noticed.
+                  const player = gameState.players[gameState.currentPlayer];
+                  const tabQueen = Object.values(gameState.ants).find(
+                    a => a.type === 'queen' && a.owner === gameState.currentPlayer
+                  );
+                  const tabQueenTier = tabQueen?.queenTier || 'queen';
+                  const buyableCount = tab.ids
+                    .map(id => getAntTypeById(id))
+                    .filter(a => {
+                      if (!a) return false;
+                      let locked = false;
+                      if (a.requiresQueenTier === 'broodQueen') locked = tabQueenTier === 'queen';
+                      else if (a.requiresQueenTier === 'swarmQueen') locked = tabQueenTier !== 'swarmQueen';
+                      return !locked && canAfford(player, a.id);
+                    }).length;
+
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setBuildTab(tab.key)}
+                      style={{
+                        flex: 1,
+                        padding: '7px 4px',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        background: buildTab === tab.key
+                          ? 'linear-gradient(145deg, #6a4c93, #4a3663)'
+                          : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)',
+                        color: buildTab === tab.key ? '#e0e0e0' : '#999',
+                        border: buildTab === tab.key ? '2px solid #8a6cb3' : '2px solid #444',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {tab.label}
+                      {buyableCount > 0 && (
+                        <span style={{
+                          marginLeft: '5px',
+                          padding: '1px 5px',
+                          borderRadius: '8px',
+                          background: '#7cc47c',
+                          color: '#1a2a1a',
+                          fontSize: '11px'
+                        }}>{buyableCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {['drone', 'scout', 'soldier', 'spitter', 'bomber', 'bombardier', 'tank', 'healer', 'cordyphage']
+                {(buildTab === 'basic' ? BASIC_ANT_IDS : ADVANCED_ANT_IDS)
                   .map(id => getAntTypeById(id))
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
@@ -4973,11 +5037,16 @@ function App() {
                     }
                   }
 
+                  // Purchasable right now: unlocked and affordable
+                  const canBuy = affordable && !isLocked;
+
                   // Build tooltip message
                   let tooltipMessage = ant.description;
                   if (isLocked && ant.requiresQueenTier) {
                     const requiredTierName = QueenTiers[ant.requiresQueenTier]?.name || ant.requiresQueenTier;
                     tooltipMessage = `Requires ${requiredTierName}. ${ant.description}`;
+                  } else if (!affordable) {
+                    tooltipMessage = `Not enough resources. ${ant.description}`;
                   }
 
                   // Hotkey mapping for each ant type
@@ -5024,14 +5093,21 @@ function App() {
                       style={{
                         padding: '8px 10px',
                         fontSize: '14px',
-                        background: isLocked ? 'linear-gradient(145deg, #3a3a3a, #2a2a2a)' : (affordable ? 'linear-gradient(145deg, #4a4a4a, #2a2a2a)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)'),
-                        color: (isLocked || !affordable) ? '#888' : '#e0e0e0',
-                        border: affordable && !isLocked ? '2px solid #666' : '2px solid #444',
+                        // Buyable units get a green tint, lit border and glow so they
+                        // read as available at a glance; locked/unaffordable stay flat.
+                        background: canBuy
+                          ? 'linear-gradient(145deg, #3d5a3d, #24371f)'
+                          : 'linear-gradient(145deg, #303030, #242424)',
+                        color: canBuy ? '#e0e0e0' : '#888',
+                        border: canBuy ? '2px solid #7cc47c' : '2px solid #444',
                         borderRadius: '6px',
-                        cursor: (affordable && isMyTurn() && !isLocked) ? 'pointer' : 'not-allowed',
+                        cursor: (canBuy && isMyTurn()) ? 'pointer' : 'not-allowed',
                         textAlign: 'left',
-                        opacity: isMyTurn() ? 1 : 0.6,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        opacity: isMyTurn() ? (canBuy ? 1 : 0.65) : 0.6,
+                        boxShadow: canBuy
+                          ? '0 0 8px rgba(124,196,124,0.35), 0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.3)',
+                        transition: 'all 0.15s'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -5055,8 +5131,15 @@ function App() {
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#e0e0e0' }}>{ant.name} {hotkey && `(${hotkey})`}</div>
-                          <div style={{ fontSize: '12px', marginTop: '3px', color: '#b0b0b0' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px', color: canBuy ? '#e0e0e0' : '#999' }}>
+                            {ant.name} {hotkey && `(${hotkey})`}{isLocked && ' 🔒'}
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            marginTop: '3px',
+                            fontWeight: canBuy ? 'bold' : 'normal',
+                            color: isLocked ? '#8a7fa8' : (affordable ? '#9fe09f' : '#d98b8b')
+                          }}>
                             Cost: {displayCost.food}🍃 {displayCost.minerals}💎
                           </div>
                           <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2', color: '#999' }}>
@@ -5321,6 +5404,39 @@ function App() {
               <p style={{ color: '#b0b0b0', margin: '0 0 3px 0', fontSize: smallFontSize }}><strong>You:</strong> {gameMode.playerRole === 'player1' ? 'Player 1' : 'Player 2'}</p>
               {!isMyTurn() && <p style={{ color: '#ff6b6b', margin: 0, fontSize: smallFontSize }}><strong>Waiting...</strong></p>}
             </div>
+          )}
+
+          {/* Concede Button - in panel flow so it never overlaps the turn info */}
+          {!gameState.gameOver && (
+            <button
+              onClick={handleConcede}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginBottom: '8px',
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(145deg, #d32f2f, #b71c1c)',
+                color: '#e0e0e0',
+                border: '2px solid #e57373',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = 'linear-gradient(145deg, #b71c1c, #8e0000)';
+                e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = 'linear-gradient(145deg, #d32f2f, #b71c1c)';
+                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+              }}
+            >
+              Concede
+            </button>
           )}
 
           <h3 style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: '13px' }}>Turn {gameState.turn}</h3>
@@ -6112,39 +6228,6 @@ function App() {
         */}
       </div>
 
-      {/* Concede Button - Top Right above turn counter */}
-      {!gameState.gameOver && (
-        <button
-          onClick={handleConcede}
-          style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '10px 18px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            background: 'linear-gradient(145deg, #d32f2f, #b71c1c)',
-            color: '#e0e0e0',
-            border: '2px solid #e57373',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-            zIndex: 1000,
-            transition: 'all 0.2s'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.background = 'linear-gradient(145deg, #b71c1c, #8e0000)';
-            e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
-          }}
-          onMouseOut={(e) => {
-            e.target.style.background = 'linear-gradient(145deg, #d32f2f, #b71c1c)';
-            e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-          }}
-        >
-          Concede
-        </button>
-      )}
-
       {/* Hero Portrait and Power Bar - To the right of "How to Play" button */}
       {gameState.players[gameState.currentPlayer]?.heroId && (
         <div style={{
@@ -6238,13 +6321,25 @@ function App() {
                   {/* Activate Button */}
                   <button
                     onClick={() => {
+                      // Explain why nothing happens instead of failing silently
+                      if (!isMyTurn()) {
+                        showFeedback("It's not your turn!");
+                        return;
+                      }
+                      if (isActive) {
+                        showFeedback('Hero ability is already active this turn!');
+                        return;
+                      }
+                      if (!isReady) {
+                        showFeedback(`Not enough energy! Need ${chargeRequired - heroPower} more charge to activate ${hero?.heroAbility?.name || 'this ability'}.`);
+                        return;
+                      }
                       const { activateHeroAbility } = require('./gameState');
                       // Get fresh state for multiplayer consistency
                       const currentState = getGameStateForLogic();
                       const newState = activateHeroAbility(currentState, currentState.currentPlayer);
                       updateGame(newState);
                     }}
-                    disabled={!isMyTurn() || !isReady || isActive}
                     style={{
                       padding: '6px 12px',
                       fontSize: '12px',
@@ -6253,7 +6348,8 @@ function App() {
                       color: 'white',
                       border: 'none',
                       borderRadius: '5px',
-                      cursor: isReady && isMyTurn() && !isActive ? 'pointer' : 'not-allowed',
+                      // Still clickable when unavailable so it can explain why
+                      cursor: isReady && isMyTurn() && !isActive ? 'pointer' : 'help',
                       width: '100%',
                       opacity: isMyTurn() ? 1 : 0.6
                     }}
@@ -6564,6 +6660,34 @@ function App() {
               );
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Feedback toast - showFeedback() had no renderer, so every one of its
+          messages (not enough resources, not enough energy, etc.) was silent. */}
+      {feedbackMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 22px',
+            maxWidth: '70vw',
+            background: 'linear-gradient(145deg, #b71c1c, #8e0000)',
+            color: '#fff',
+            border: '2px solid #e57373',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+            zIndex: 3000,
+            pointerEvents: 'none',
+            animation: 'feedbackPop 0.18s ease-out'
+          }}
+        >
+          {feedbackMessage}
         </div>
       )}
 

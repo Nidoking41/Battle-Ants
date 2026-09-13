@@ -77,3 +77,15 @@ body, html {
     opacity: 1;
   }
 }
+
+/* Feedback toast entrance - keeps the horizontal centering transform */
+@keyframes feedbackPop {
+  0% {
+    transform: translateX(-50%) translateY(-8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
