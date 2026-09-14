@@ -170,7 +170,8 @@ export const AntTypes = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     // Energy system for abilities
     maxEnergy: 60,
-    startingEnergy: 25, // Starts at half energy
+    startingEnergy: 50, // Enough to purge on arrival - at 25 the signature
+    // ability was unusable for its first three turns while energy regenerated
     energyRegen: 15,
     // Abilities
     cordycepsRange: 1, // Melee range for mind control

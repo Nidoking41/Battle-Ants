@@ -14,7 +14,8 @@ import {
   canAffordQueenUpgrade,
   upgradeQueen,
   deductEnergy,
-  healAlly
+  healAlly,
+  activateHeroAbility
 } from './gameState';
 
 /** Drop any malformed ant entries (e.g. a dead unit re-inserted with only flags). */
@@ -193,6 +194,17 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
     // Wait a bit to make AI feel more natural
     await delay(config.thinkTime);
 
+    // Phase 0: Fire the hero ability the moment it is charged.
+    // Every ability either buffs this turn's movement, range and combat or
+    // boosts the stockpile before it gets spent, so holding it back only wastes
+    // charge. activateHeroAbility is a no-op when power is short or it is
+    // already running, so calling unconditionally is safe.
+    const beforeHero = state;
+    state = activateHeroAbility(state, aiPlayer);
+    if (state !== beforeHero) {
+      console.log(`AI activated hero ability: ${state.players[aiPlayer]?.heroId}`);
+    }
+
     // Phase 1: Hatch eggs
     state = hatchEggsIfReady(state, aiPlayer);
 
@@ -315,9 +327,26 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
     const antTypeCost = getAntTypeById(unitType).cost;
     console.log(`Chosen unit type: ${unitType}, cost:`, antTypeCost);
 
-    // Check if we can afford the ant type
-    if (playerState.resources.food < antTypeCost.food || playerState.resources.minerals < antTypeCost.minerals) {
-      console.log('Cannot afford unit type, breaking');
+    // Check if we can afford the ant type.
+    //
+    // Anthills cost food to start, and a drone standing on a node with no food in
+    // the bank just idles there. Early on that is the whole game: minerals are the
+    // scarce resource (3 nodes a side vs 5 food) and every combat unit needs them,
+    // so a queen that spends the last food on units strands her own economy.
+    // Hold back enough to fund the drones that are still looking for a node.
+    const unclaimedDrones = Object.values(state.ants).filter(a =>
+      a.owner === aiPlayer && a.type === 'drone'
+    ).length;
+    const buildReserve = state.turn <= 8
+      ? Math.min(unclaimedDrones, 2) * GameConstants.ANTHILL_BUILD_COST
+      : 0;
+    // Read resources from `state`, not the turn-start `playerState` snapshot -
+    // this loop lays several eggs and each one has already been deducted.
+    const liveResources = state.players[aiPlayer].resources;
+    const spendableFood = liveResources.food - buildReserve;
+
+    if (spendableFood < antTypeCost.food || liveResources.minerals < antTypeCost.minerals) {
+      console.log(`Holding ${buildReserve} food in reserve for anthills, cannot afford ${unitType}`);
       break;
     }
 
@@ -330,8 +359,8 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
 
     // Deduct resources from player
     const updatedPlayerResources = {
-      food: playerState.resources.food - antTypeCost.food,
-      minerals: playerState.resources.minerals - antTypeCost.minerals
+      food: liveResources.food - antTypeCost.food,
+      minerals: liveResources.minerals - antTypeCost.minerals
     };
 
     // Deduct energy from queen
@@ -350,7 +379,7 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
       players: {
         ...state.players,
         [aiPlayer]: {
-          ...playerState,
+          ...state.players[aiPlayer],
           resources: updatedPlayerResources
         }
       },
@@ -390,12 +419,27 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
   const scoutCount = unitCounts['scout'] || 0;
 
   // Strategic unit production
-  // Always need at least 1 scout for vision
-  if (scoutCount === 0 && AntTypes.SCOUT &&
+  //
+  // A scout costs 15 food - the bulk of the 25 the AI opens with - and cannot
+  // build anthills. Buying one first left nothing to fund the two starting
+  // drones, so they idled on nodes they could not claim. Vision is worth having,
+  // just not before the economy exists: wait until minerals are coming in.
+  const hasMineralIncome = Object.values(gameState.anthills || {}).some(
+    h => h.owner === aiPlayer && h.resourceType === 'minerals' && h.isComplete
+  );
+  if (scoutCount === 0 && hasMineralIncome && AntTypes.SCOUT &&
       resources.food >= AntTypes.SCOUT.cost.food &&
       resources.minerals >= AntTypes.SCOUT.cost.minerals) {
     console.log('Building first scout for vision');
     return 'scout';
+  }
+
+  // Before minerals are online, more drones is the only play that improves the
+  // position - every combat unit is gated behind mineral income.
+  if (!hasMineralIncome && droneCount < 4 &&
+      resources.food >= AntTypes.DRONE.cost.food) {
+    console.log('No mineral income yet: building drone');
+    return 'drone';
   }
 
   // Expansion phase: prioritize drones
@@ -674,13 +718,22 @@ function handleDroneUnit(gameState, drone, aiPlayer, config, reservedNodes) {
     // Node already has a finished anthill (ours or theirs): go find another.
   }
 
-  // Pick the nearest unclaimed node (no anthill, not reserved by another drone this turn).
+  // Pick the best unclaimed node (no anthill, not reserved by another drone this turn).
+  //
+  // Resource type matters more than distance early on. Scouts and drones are the
+  // only units costing no minerals, so an AI with no mineral anthill literally
+  // cannot build anything else - it will spam scouts all game no matter how much
+  // food it banks. Claiming a mineral node is what unlocks the combat roster, so
+  // it outweighs a few hexes of walking until the income exists.
+  const mineralIncome = Object.values(state.anthills || {})
+    .some(h => h.owner === aiPlayer && h.resourceType === 'minerals' && h.isComplete);
   const free = nodes.filter(([id, r]) => !anthillAt(r.position) && !reservedNodes.has(id));
   let target = null, bestD = Infinity;
   for (const [id, r] of free) {
     const d = hexDistance(drone.position, r.position);
     const threat = dangerAt(state, drone, r.position, enemies);
-    const cost = d + threat * 2;
+    const mineralBonus = (!mineralIncome && r.type === 'minerals') ? 12 : 0;
+    const cost = d + threat * 2 - mineralBonus;
     if (cost < bestD) { bestD = cost; target = { id, res: r }; }
   }
   if (target) {

@@ -3185,6 +3185,23 @@ function App() {
           return;
         }
         const newState = cordycepsPurge(currentState, selectedAnt, enemyAtHex.id);
+        // cordycepsPurge returns state unchanged on every guard it fails. Without
+        // this check the click was silently swallowed - which reads as the ability
+        // being broken, most often when a freshly hatched Cordyphage has not yet
+        // regenerated the 50 energy the purge costs.
+        if (newState === currentState) {
+          const cost = AntTypes.CORDYPHAGE.cordycepsEnergyCost;
+          const range = AntTypes.CORDYPHAGE.cordycepsRange;
+          const dist = hexDistance(cordyphage.position, enemyAtHex.position);
+          if ((cordyphage.energy || 0) < cost) {
+            showFeedback(`Not enough energy! Cordyceps Purge needs ${cost} energy (have ${cordyphage.energy || 0})`);
+          } else if (dist > range) {
+            showFeedback(`Out of range! Cordyceps Purge reaches ${range} hex (target is ${dist} away)`);
+          } else {
+            showFeedback('Cannot mind control that target!');
+          }
+          return;
+        }
         updateGame(newState);
         setSelectedAction(null);
         setSelectedAnt(null);
