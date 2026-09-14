@@ -29,6 +29,12 @@ export function areTeammates(gameState, playerId1, playerId2) {
 
 // Check win conditions after a queen dies
 // Returns { gameOver: boolean, winner: string|null, winningTeam: string|null }
+// A unit whose death loses the game for its owner. Queens always; the campaign
+// Queen Larva stands in for a queen on levels that have none.
+export function isVital(ant) {
+  return !!ant && (ant.type === 'queen' || ant.type === 'queenLarva');
+}
+
 export function checkWinCondition(gameState, killerPlayerId, deadQueenOwner) {
   const playerCount = gameState.playerCount || 2;
 
@@ -271,7 +277,7 @@ export function detonateBomber(gameState, bomberId) {
       updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
 
       // Check if bomber killed a queen
-      if (target.type === 'queen') {
+      if (isVital(target)) {
         // Update ants first so checkWinCondition sees the dead queen removed
         updatedGameState.ants = updatedAnts;
         const winResult = checkWinCondition(updatedGameState, bomber.owner, target.owner);
@@ -410,7 +416,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     }
 
     // Check if it was a queen
-    if (defender.type === 'queen') {
+    if (isVital(defender)) {
       // Update ants first so checkWinCondition sees the dead queen removed
       updatedGameState.ants = updatedAnts;
       const winResult = checkWinCondition(updatedGameState, attacker.owner, defender.owner);
@@ -473,7 +479,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
         updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
 
-        if (target.type === 'queen') {
+        if (isVital(target)) {
           updatedGameState.gameOver = true;
           updatedGameState.winner = attacker.owner;
         }
@@ -544,7 +550,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       }
 
       // Check if it was a queen (attacker died from counterattack)
-      if (attacker.type === 'queen') {
+      if (isVital(attacker)) {
         // Update ants first so checkWinCondition sees the dead queen removed
         updatedGameState.ants = updatedAnts;
         const winResult = checkWinCondition(updatedGameState, defender.owner, attacker.owner);
@@ -641,7 +647,7 @@ export function moveAnt(gameState, antId, targetPosition) {
   if (!ant) return gameState;
 
   // Queens cannot move
-  if (ant.type === 'queen') {
+  if (ant.type === 'queen' || getAntTypeById(ant.type)?.cannotMove) {
     return gameState;
   }
 
@@ -769,7 +775,7 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
       // Grant cannibalism if applicable (bombardier is ranged, so no cannibalism)
 
       // Check if killed a queen
-      if (target.type === 'queen') {
+      if (isVital(target)) {
         updatedGameState.gameOver = true;
         updatedGameState.winner = attacker.owner;
       }
@@ -907,7 +913,7 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     }
 
     // Check if moving ant was a queen
-    if (movingAnt.type === 'queen') {
+    if (isVital(movingAnt)) {
       updatedGameState.gameOver = true;
       updatedGameState.winner = ambusher.owner;
     }
@@ -994,7 +1000,7 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
       }
 
       // Check if ambusher was a queen
-      if (ambusher.type === 'queen') {
+      if (isVital(ambusher)) {
         updatedGameState.gameOver = true;
         updatedGameState.winner = movingAnt.owner;
       }

@@ -1107,6 +1107,12 @@ export function endTurn(rawGameState) {
     }
   });
 
+  // Campaign `gather` objectives count what the player has mined in total,
+  // not what is currently banked, so spending never un-completes them.
+  const campaignGathered = gameState.campaign
+    ? { ...(gameState.campaign.gathered || { food: 0, minerals: 0 }) }
+    : null;
+
   // Grant passive income from completed anthills at the start of each new round
   if (isNewRound) {
     Object.values(updatedAnthills).forEach(anthill => {
@@ -1114,6 +1120,9 @@ export function endTurn(rawGameState) {
       if (anthill.isComplete) {
         const income = GameConstants.ANTHILL_PASSIVE_INCOME[anthill.resourceType];
         updatedPlayers[anthill.owner].resources[anthill.resourceType] += income;
+        if (campaignGathered && anthill.owner === 'player1') {
+          campaignGathered[anthill.resourceType] += income;
+        }
 
         // Track stat for resources mined
         if (anthill.resourceType === 'food') {
@@ -1173,6 +1182,16 @@ export function endTurn(rawGameState) {
         console.log(`Resource depleted at (${anthill.position.q},${anthill.position.r}), respawned at (${newResource.position.q},${newResource.position.r})`);
       } else {
         console.warn(`Could not find empty spot to respawn ${anthill.resourceType} on ${isNorthSide ? 'north' : 'south'} side`);
+      }
+    });
+
+    // Grant passive food income from queen larvae (campaign). Same shape as the
+    // queen block below so the resource-gain animation fires at her hex.
+    Object.values(gameState.ants).forEach(ant => {
+      if (ant.type === 'queenLarva') {
+        const foodIncome = AntTypes.QUEEN_LARVA.foodIncome;
+        updatedPlayers[ant.owner].resources.food += foodIncome;
+        resourceGains.push({ amount: foodIncome, type: 'food', position: ant.position, queenId: ant.id, owner: ant.owner });
       }
     });
 
@@ -1329,6 +1348,27 @@ export function endTurn(rawGameState) {
       newArmyStrengthHistory[playerId] = [...(finalGameState.armyStrengthHistory?.[playerId] || []), strength];
     });
     finalGameState.armyStrengthHistory = newArmyStrengthHistory;
+  }
+
+  // Campaign objectives. Both the human and AI turns funnel through endTurn,
+  // so this one hook covers every path. Gated on `campaign`, which is
+  // undefined in local, AI and online games. The queen-death win path in
+  // combatSystem is untouched and still ends a level instantly.
+  if (finalGameState.campaign && !finalGameState.gameOver) {
+    const { evaluateAllObjectives } = require('./campaign/objectives');
+    const withTotals = {
+      ...finalGameState,
+      campaign: { ...finalGameState.campaign, gathered: campaignGathered }
+    };
+    const result = evaluateAllObjectives(withTotals, 'player1');
+    finalGameState.campaign = { ...withTotals.campaign, objectives: result.objectives };
+    if (result.won) {
+      finalGameState.gameOver = true;
+      finalGameState.winner = 'player1';
+    } else if (result.lost) {
+      finalGameState.gameOver = true;
+      finalGameState.winner = 'player2';
+    }
   }
 
   return {

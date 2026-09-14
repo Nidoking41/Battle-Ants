@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 // multiplayerUtils is imported lazily wherever it is needed so that loading the
 // menu does not initialize Firebase for players who only want offline games.
 
-function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup, onEnterOnlineMultiplayer }) {
+function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnterAISetup, onEnterOnlineMultiplayer, onEnterCampaign }) {
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -145,6 +145,35 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
         width: '100%',
         border: '2px solid rgba(192, 192, 192, 0.3)'
       }}>
+        {/* Campaign (tutorial) */}
+        <button
+          onClick={() => onEnterCampaign && onEnterCampaign()}
+          style={{
+            width: '100%',
+            padding: '15px',
+            fontSize: '18px',
+            marginBottom: '15px',
+            background: 'linear-gradient(145deg, #6b5410, #3d2f08)',
+            color: '#ffd700',
+            border: '2px solid #a67c00',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.background = 'linear-gradient(145deg, #7d6314, #4a3a0a)';
+            e.target.style.borderColor = '#d4a800';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = 'linear-gradient(145deg, #6b5410, #3d2f08)';
+            e.target.style.borderColor = '#a67c00';
+          }}
+        >
+          Campaign
+        </button>
+
         {/* AI Game */}
         <button
           onClick={handleAIGame}

@@ -28,6 +28,9 @@ export const SpriteConfig = {
       walk: { path: 'queen_idle_red.png', frames: 8 },
       attack: { path: 'queen_idle_red.png', frames: 8 }
     },
+    // Campaign Queen Larva has no sheet yet, so it renders as its emoji icon.
+    // When art exists, add a queenLarva entry here (Queen/larva_idle_<color>.png,
+    // 8 frames of 32px) plus 'queenLarva' in the three maps below.
     scout: {
       idle: { path: 'scout_idle_green.png', frames: 10 },
       walk: { path: 'scout_idle_green.png', frames: 10 },

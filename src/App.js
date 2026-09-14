@@ -16,11 +16,22 @@ import forestFloorImage from './forestfloor.png';
 import { useSprites } from './useSprites';
 import { getSpriteInfo } from './spriteConfig';
 import { getRankForXp, getXpToNextRank, RANKS } from './experience';
+import { getLevel } from './campaign/levels';
+import { buildCampaignGameState } from './campaign/campaignState';
+import ObjectivePanel from './campaign/ObjectivePanel';
+import LevelComplete from './campaign/LevelComplete';
+import CampaignMenu from './campaign/CampaignMenu';
+import Cutscene from './campaign/Cutscene';
+import { markLevelComplete } from './campaign/progress';
 
 // Build panel is split into two tabs so all nine units stay reachable without
 // scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
 const BASIC_ANT_IDS = ['drone', 'scout', 'soldier', 'spitter'];
 const ADVANCED_ANT_IDS = ['bomber', 'bombardier', 'tank', 'healer', 'cordyphage'];
+
+// Campaign levels restrict what can be built. Off-roster units are hidden
+// outright. With no roster (every non-campaign game) this is the identity.
+const filterRoster = (ids, roster) => (roster ? ids.filter(id => roster.includes(id)) : ids);
 
 // Load the Firebase-backed multiplayer module on first use. Importing it at the
 // top level would run initializeApp()/getDatabase() at startup, so an offline
@@ -108,6 +119,7 @@ function App() {
   const [resourceGainNumbers, setResourceGainNumbers] = useState([]); // Array of {id, amount, type, position, timestamp}
   const [ambushAlerts, setAmbushAlerts] = useState([]); // Array of {id, position, timestamp} for ambush alerts
   const [buildTab, setBuildTab] = useState('basic'); // Which Build Ants tab is shown: 'basic' | 'advanced'
+  const [pendingCutsceneLevel, setPendingCutsceneLevel] = useState(null); // Campaign level whose intro cutscene is playing
   const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
@@ -323,8 +335,9 @@ function App() {
   // Center camera on queen
   const centerOnQueen = () => {
     const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+    // Campaign levels may have a Queen Larva instead of a queen
     const queen = Object.values(gameState.ants).find(
-      ant => ant.type === 'queen' && ant.owner === currentPlayerId
+      ant => (ant.type === 'queen' || ant.type === 'queenLarva') && ant.owner === currentPlayerId
     );
 
     if (queen) {
@@ -841,8 +854,8 @@ function App() {
       return;
     }
 
-    // Queens cannot move
-    if (ant.type === 'queen') {
+    // Queens (and the campaign Queen Larva) cannot move
+    if (ant.type === 'queen' || getAntTypeById(ant.type)?.cannotMove) {
       setMovementPaths(new Map());
       return;
     }
@@ -1404,6 +1417,13 @@ function App() {
     }
   }, [gameMode]);
 
+  // Campaign: a won level unlocks the next one. markLevelComplete is idempotent.
+  useEffect(() => {
+    if (gameState.gameOver && gameState.campaign && gameState.winner === 'player1') {
+      markLevelComplete(gameState.campaign.levelId);
+    }
+  }, [gameState.gameOver, gameState.winner, gameState.campaign]);
+
   // Watch for game over state and show victory modal
   // This handles cases where gameOver comes from Firebase (opponent conceded, etc.)
   useEffect(() => {
@@ -1428,8 +1448,13 @@ function App() {
         // Small delay so player can see turn changed
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Execute AI turn (returns { gameState, movements, combatActions })
-        const { gameState: aiState, movements, combatActions } = await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+        // Execute AI turn (returns { gameState, movements, combatActions }).
+        // A 'passive' campaign enemy skips the AI entirely and just passes;
+        // the empty result flows through the same animation + endTurn path.
+        const passiveEnemy = currentState.campaign?.behavior === 'passive';
+        const { gameState: aiState, movements, combatActions } = passiveEnemy
+          ? { gameState: currentState, movements: [], combatActions: [] }
+          : await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
 
         // Animate movements sequentially BEFORE updating state
         for (let i = 0; i < movements.length; i++) {
@@ -1688,7 +1713,50 @@ function App() {
     setGameMode('onlineMultiplayer');
   };
 
+  const handleEnterCampaign = () => {
+    setGameMode('campaign');
+  };
+
+  // Campaign levels are AI games with a scripted setup. Also used by Retry.
+  // A level with a cutscene shows it first; Retry / Play Again skip it.
+  const handleStartCampaignLevel = (levelId, { skipCutscene = false } = {}) => {
+    const level = getLevel(levelId);
+    if (level?.cutscene && !skipCutscene) {
+      setPendingCutsceneLevel(levelId);
+      return;
+    }
+    setShowVictoryModal(false);
+    setShowGameSummary(false);
+    // buildTab persists across games; a roster can hide the tab it points at.
+    setBuildTab('basic');
+    handleStartGame({ isCampaign: true, levelId });
+  };
+
   const handleStartGame = (mode) => {
+    if (mode.isCampaign) {
+      const level = getLevel(mode.levelId);
+      if (!level) {
+        console.error(`Campaign level ${mode.levelId} not found`);
+        return;
+      }
+      const state = buildCampaignGameState(level);
+      // Reuses the entire existing AI turn loop. Fog is off so tutorial
+      // levels stay readable and there is one state, not a fogged copy.
+      setGameMode({
+        ...mode,
+        isAI: true,
+        aiDifficulty: state.campaign.aiDifficulty,
+        fogOfWar: false,
+        gameId: null,
+        playerId: null,
+        playerRole: 'player1',
+        isMultiplayer: false
+      });
+      setFullGameState(state);
+      setGameState(state);
+      return;
+    }
+
     // Mode includes lobby settings: mapSize, player1Color, player2Color, playerCount, mapShape, etc.
     const gameOptions = {};
     if (mode.mapSize) {
@@ -1952,7 +2020,7 @@ function App() {
 
   // Show menu if game hasn't started
   if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} />;
+    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} onEnterCampaign={handleEnterCampaign} />;
   }
 
   // Show online multiplayer lobby (host/join selection)
@@ -1998,6 +2066,29 @@ function App() {
     return (
       <AIGameSetup
         onStartGame={handleStartGame}
+        onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  if (pendingCutsceneLevel) {
+    const level = getLevel(pendingCutsceneLevel);
+    return (
+      <Cutscene
+        cutscene={level.cutscene}
+        title={`Level ${level.id}: ${level.name}`}
+        onDone={() => {
+          setPendingCutsceneLevel(null);
+          handleStartCampaignLevel(pendingCutsceneLevel, { skipCutscene: true });
+        }}
+      />
+    );
+  }
+
+  if (gameMode === 'campaign') {
+    return (
+      <CampaignMenu
+        onStartLevel={handleStartCampaignLevel}
         onBack={handleBackToMenu}
       />
     );
@@ -2845,9 +2936,13 @@ function App() {
         return;
       }
 
-      // Queens cannot move
+      // Queens (and the campaign Queen Larva) cannot move
       if (ant.type === 'queen') {
         showFeedback('Queens cannot move! They stay on their throne.');
+        return;
+      }
+      if (getAntTypeById(ant.type)?.cannotMove) {
+        showFeedback(`${getAntTypeById(ant.type).name} cannot move!`);
         return;
       }
 
@@ -3631,6 +3726,13 @@ function App() {
       return;
     }
 
+    // Campaign roster: hotkeys must not bypass the hidden build panel entries
+    const roster = currentState.campaign?.roster;
+    if (roster && !roster.includes(type)) {
+      showFeedback('That unit is not available in this level.');
+      return;
+    }
+
     // Check energy cost
     const energyCost = getEggLayCost(queen);
     if (!hasEnoughEnergy(queen, energyCost)) {
@@ -3811,8 +3913,8 @@ function App() {
         return [];
       }
 
-      // Queens cannot move
-      if (ant.type === 'queen') {
+      // Queens (and the campaign Queen Larva) cannot move
+      if (ant.type === 'queen' || getAntTypeById(ant.type)?.cannotMove) {
         return [];
       }
 
@@ -5127,14 +5229,22 @@ function App() {
                 ⚡ Upgrades
               </button>
 
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#e0e0e0' }}>Build Ants</h3>
+              {/* A campaign level with an empty roster hatches nothing - say so
+                  instead of showing a header over an empty panel. */}
+              {gameState.campaign && filterRoster([...BASIC_ANT_IDS, ...ADVANCED_ANT_IDS], gameState.campaign.roster).length === 0 ? (
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#999', fontStyle: 'italic' }}>
+                  No units can be hatched on this level. The forces you have are the forces you get.
+                </p>
+              ) : (
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#e0e0e0' }}>Build Ants</h3>
+              )}
 
               {/* Basic / Advanced tabs - nine units don't fit the panel at once */}
               <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
                 {[
-                  { key: 'basic', label: 'Basic', ids: BASIC_ANT_IDS },
-                  { key: 'advanced', label: 'Advanced', ids: ADVANCED_ANT_IDS }
-                ].map(tab => {
+                  { key: 'basic', label: 'Basic', ids: filterRoster(BASIC_ANT_IDS, gameState.campaign?.roster) },
+                  { key: 'advanced', label: 'Advanced', ids: filterRoster(ADVANCED_ANT_IDS, gameState.campaign?.roster) }
+                ].filter(tab => tab.ids.length > 0).map(tab => {
                   // How many units on this tab are buyable right now, so an
                   // affordable unit on the hidden tab still gets noticed.
                   const player = gameState.players[gameState.currentPlayer];
@@ -5188,7 +5298,7 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {(buildTab === 'basic' ? BASIC_ANT_IDS : ADVANCED_ANT_IDS)
+                {filterRoster(buildTab === 'basic' ? BASIC_ANT_IDS : ADVANCED_ANT_IDS, gameState.campaign?.roster)
                   .map(id => getAntTypeById(id))
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {
@@ -5824,7 +5934,7 @@ function App() {
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
               {(() => {
                 const ant = gameState.ants[selectedAnt];
-                if (ant.type === 'queen') return null; // Queens don't rank up
+                if (ant.type === 'queen' || ant.type === 'queenLarva') return null; // Queens don't rank up
                 const rank = getRankForXp(ant.xp || 0);
                 const toNext = getXpToNextRank(ant.xp || 0);
                 const xp = ant.xp || 0;
@@ -6892,13 +7002,16 @@ function App() {
         </div>
       )}
 
+      {/* Campaign objectives - renders nothing outside campaign levels */}
+      <ObjectivePanel gameState={gameState} />
+
       {/* Feedback toast - showFeedback() had no renderer, so every one of its
           messages (not enough resources, not enough energy, etc.) was silent. */}
       {feedbackMessage && (
         <div
           style={{
             position: 'fixed',
-            top: '24px',
+            top: gameState.campaign ? '64px' : '24px', // clear the campaign objective strip
             left: '50%',
             transform: 'translateX(-50%)',
             padding: '12px 22px',
@@ -7031,8 +7144,18 @@ function App() {
         </div>
       )}
 
+      {/* Campaign end-of-level modal replaces the generic victory modal */}
+      {gameState.campaign && gameState.gameOver && (
+        <LevelComplete
+          gameState={gameState}
+          onRetry={() => handleStartCampaignLevel(gameState.campaign.levelId, { skipCutscene: true })}
+          onNext={getLevel(gameState.campaign.levelId + 1) ? () => handleStartCampaignLevel(gameState.campaign.levelId + 1) : null}
+          onMenu={handleBackToMenu}
+        />
+      )}
+
       {/* Victory/Defeat Modal */}
-      {showVictoryModal && gameState.gameOver && (
+      {showVictoryModal && gameState.gameOver && !gameState.campaign && (
         <div style={{
           position: 'fixed',
           top: 0,

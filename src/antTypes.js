@@ -17,6 +17,27 @@ export const AntTypes = {
     icon: '👑🐜'
   },
 
+  // Campaign-only. A developing queen: immobile, defenceless, and as vital as
+  // a queen - if she dies, the level is lost. She feeds the colony while she
+  // grows, which is the only income on levels that have no queen.
+  QUEEN_LARVA: {
+    id: 'queenLarva',
+    name: 'Queen Larva',
+    cost: { food: 9999, minerals: 9999 }, // never buildable; placed by levels only
+    hatchTime: 0,
+    maxHealth: 20,
+    attack: 0,
+    defense: 2,
+    moveRange: 0,
+    attackRange: 0,
+    resourceGatherRate: 0,
+    foodIncome: 4, // per round, like a queen's passive income
+    cannotMove: true,
+    campaignOnly: true,
+    description: 'A future queen, still growing. She cannot move or fight. Protect her.',
+    icon: '🥚'
+  },
+
   SCOUT: {
     id: 'scout',
     name: 'Scout Ant',

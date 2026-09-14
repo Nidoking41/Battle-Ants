@@ -753,10 +753,18 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   const state = { ...gameState };
   const enemies = enemiesOf(state, aiPlayer);
   const myQueen = findQueen(state, aiPlayer);
-  const enemyQueen = enemies.find(a => a.type === 'queen');
+  // A campaign Queen Larva is the enemy's heart when it has no queen
+  const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
 
   // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).
   if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, enemyQueen);
+
+  // Campaign hunt: the level wants this side to go for the player's Queen
+  // Larva. She is immobile and defenceless, so skip the defend-first instinct
+  // that otherwise keeps units at home on a small map. Scouts still scout.
+  if (gameState.campaign?.enemyHunts && enemyQueen?.type === 'queenLarva' && unit.type !== 'scout') {
+    return fightOrAdvance(state, unit, aiPlayer, enemyQueen.position, { caution: 0.4, advance: 1.6 });
+  }
 
   let objective, opts = {};
   const threats = myQueen ? enemies.filter(e => hexDistance(e.position, myQueen.position) <= 4) : [];
