@@ -1,4 +1,5 @@
 import React from 'react';
+import { scoreLevel } from './score';
 
 // End-of-level modal for campaign games. Replaces the generic
 // "Player 1 wins!" victory modal, which makes no sense for a tutorial.
@@ -9,6 +10,7 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
 
   const won = gameState.winner === 'player1';
   const failed = (campaign.objectives || []).find(o => o.status === 'failed');
+  const s = scoreLevel(gameState);
 
   return (
     <div style={{
@@ -49,6 +51,37 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
               {o.status === 'complete' ? '✓' : o.status === 'failed' ? '✕' : '○'} {o.text}
             </div>
           ))}
+        </div>
+        <div style={{
+          margin: '0 auto 20px',
+          padding: '12px 16px',
+          background: 'rgba(0, 0, 0, 0.35)',
+          border: '1px solid rgba(255, 215, 0, 0.25)',
+          borderRadius: '8px',
+          textAlign: 'left',
+          fontSize: '14px',
+          minWidth: '260px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+            <span style={{ color: '#bbb' }}>Units kept alive</span>
+            <span>{s.kept} / {s.starting}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+            <span style={{ color: '#bbb' }}>Enemies destroyed</span>
+            <span>{s.kills}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+            <span style={{ color: '#bbb' }}>Army value kept</span>
+            <span>{s.survivorStrength}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+            <span style={{ color: '#bbb' }}>Army value destroyed</span>
+            <span>{s.killStrength}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0 0', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: 'bold', color: '#ffd700', fontSize: '16px' }}>
+            <span>Score</span>
+            <span>{s.score}</span>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           {won && onNext && (

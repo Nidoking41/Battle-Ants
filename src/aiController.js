@@ -518,6 +518,11 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
   let state = { ...gameState };
   let movements = [];
   let combatActions = [];
+  // Every move and attack gets a turn-wide sequence number so the animation
+  // can replay them in the order they really happened. Without it the board
+  // plays all moves then all attacks, and a unit that walked into a hex freed
+  // by an earlier counter-kill appears to stack on the corpse.
+  let seq = 0;
   const reservedNodes = new Set(); // resource nodes already claimed by a drone this turn
 
   const units = liveAnts(state).filter(a => a.owner === aiPlayer && a.type !== 'queen' && !a.hasMoved);
@@ -538,8 +543,8 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
       result = { state: markMoved(state, unit.id), movement: null };
     }
     state = result.state;
-    if (result.movement) movements.push(result.movement);
-    if (result.combatAction) combatActions.push(result.combatAction);
+    if (result.movement) movements.push({ ...result.movement, seq: seq++ });
+    if (result.combatAction) combatActions.push({ ...result.combatAction, seq: seq++ });
     if (state.gameOver) break;
   }
   return { state, movements, combatActions };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { objectiveProgress } from './objectives';
+import { nextWave } from './waves';
 
 // Persistent on-board list of the current level's objectives.
 // Rendered only when gameState.campaign exists, so it never appears in
@@ -73,6 +74,18 @@ function ObjectivePanel({ gameState }) {
         );
       })}
       </div>
+      {(() => {
+        const waves = campaign.waves || [];
+        if (!waves.length) return null;
+        const next = nextWave(campaign, gameState.turn);
+        return (
+          <div style={{ marginTop: '3px', textAlign: 'center', fontSize: '12px', color: next ? '#fbbf24' : '#888' }}>
+            {next
+              ? `\u26a0 Enemy reinforcements arrive on turn ${next.turn}`
+              : 'All enemy reinforcements have arrived'}
+          </div>
+        );
+      })()}
     </div>
   );
 }

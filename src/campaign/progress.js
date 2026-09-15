@@ -7,7 +7,7 @@
 
 const KEY = 'battleAnts.campaign.v1';
 
-const DEFAULT = { highestUnlocked: 1, completed: [] };
+const DEFAULT = { highestUnlocked: 1, completed: [], best: {} };
 
 export function loadProgress() {
   try {
@@ -16,7 +16,8 @@ export function loadProgress() {
     const parsed = JSON.parse(raw);
     return {
       highestUnlocked: Number.isInteger(parsed.highestUnlocked) && parsed.highestUnlocked >= 1 ? parsed.highestUnlocked : 1,
-      completed: Array.isArray(parsed.completed) ? parsed.completed.filter(Number.isInteger) : []
+      completed: Array.isArray(parsed.completed) ? parsed.completed.filter(Number.isInteger) : [],
+      best: parsed.best && typeof parsed.best === 'object' ? parsed.best : {}
     };
   } catch {
     return { ...DEFAULT };
@@ -31,11 +32,13 @@ export function saveProgress(progress) {
   }
 }
 
-/** Record a win. Unlocks the next level. Safe to call repeatedly. */
-export function markLevelComplete(levelId) {
+/** Record a win. Unlocks the next level and keeps the best score. Safe to call repeatedly. */
+export function markLevelComplete(levelId, score) {
   const p = loadProgress();
   const completed = p.completed.includes(levelId) ? p.completed : [...p.completed, levelId];
-  const next = { highestUnlocked: Math.max(p.highestUnlocked, levelId + 1), completed };
+  const best = { ...p.best };
+  if (Number.isFinite(score) && score > (best[levelId] || 0)) best[levelId] = score;
+  const next = { highestUnlocked: Math.max(p.highestUnlocked, levelId + 1), completed, best };
   saveProgress(next);
   return next;
 }
@@ -48,6 +51,10 @@ export function isCompleted(levelId, progress = loadProgress()) {
   return progress.completed.includes(levelId);
 }
 
+export function bestScore(levelId, progress = loadProgress()) {
+  return progress.best?.[levelId] ?? null;
+}
+
 export function resetProgress() {
-  saveProgress({ ...DEFAULT });
+  saveProgress({ ...DEFAULT, best: {} });
 }

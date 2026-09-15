@@ -23,6 +23,7 @@ import LevelComplete from './campaign/LevelComplete';
 import CampaignMenu from './campaign/CampaignMenu';
 import Cutscene from './campaign/Cutscene';
 import { markLevelComplete } from './campaign/progress';
+import { scoreLevel } from './campaign/score';
 
 // Build panel is split into two tabs so all nine units stay reachable without
 // scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
@@ -1420,7 +1421,7 @@ function App() {
   // Campaign: a won level unlocks the next one. markLevelComplete is idempotent.
   useEffect(() => {
     if (gameState.gameOver && gameState.campaign && gameState.winner === 'player1') {
-      markLevelComplete(gameState.campaign.levelId);
+      markLevelComplete(gameState.campaign.levelId, scoreLevel(gameState).score);
     }
   }, [gameState.gameOver, gameState.winner, gameState.campaign]);
 
@@ -1456,87 +1457,139 @@ function App() {
           ? { gameState: currentState, movements: [], combatActions: [] }
           : await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
 
-        // Animate movements sequentially BEFORE updating state
-        for (let i = 0; i < movements.length; i++) {
-          const movement = movements[i];
+        // Replay the AI's actions in the order it took them. The AI resolves
+        // each unit fully before the next acts, so a unit can walk into a hex
+        // freed by an earlier counter-kill; playing all moves and then all
+        // attacks made that look like two units stacking on one hex. Older
+        // producers without a seq fall back to the moves-then-attacks order.
+        const actions = [
+          ...(movements || []).map((m, i) => ({ kind: 'move', seq: m.seq ?? i, movement: m })),
+          ...(combatActions || []).map((c, i) => ({ kind: 'attack', seq: c.seq ?? ((movements || []).length + i), combatAction: c }))
+        ].sort((a, b) => a.seq - b.seq);
 
-          // Add starting position to path if not already there
-          const oldAnt = currentState.ants?.[movement.antId];
-          const startsAtOldPos = oldAnt && movement.path.length > 0 &&
-            movement.path[0].q === oldAnt.position.q && movement.path[0].r === oldAnt.position.r;
-          const fullPath = (oldAnt && !startsAtOldPos) ? [oldAnt.position, ...movement.path] : movement.path;
-
-          await new Promise(resolve => {
-            setMovingAnt({
-              antId: movement.antId,
-              path: fullPath,
-              currentStep: 0
-            });
-
-            // Wait for animation to complete (600ms per step to match animation speed)
-            const animationDuration = (fullPath.length - 1) * MOVE_STEP_MS;
-            setTimeout(resolve, animationDuration + MOVE_STEP_MS + 50);
+        // Track health and position as the replay runs so a unit that dies
+        // mid-turn leaves the board the moment its death plays, not at the end.
+        const hp = {};
+        const posOf = {};
+        Object.values(currentState.ants || {}).forEach(a => {
+          hp[a.id] = a.health;
+          posOf[a.id] = { q: a.position.q, r: a.position.r };
+        });
+        const unitAt = pos => Object.keys(posOf).find(id => hp[id] > 0 && posOf[id].q === pos.q && posOf[id].r === pos.r);
+        const removed = new Set();
+        const dropFallen = () => {
+          const fallen = Object.keys(hp).filter(id => hp[id] <= 0 && !removed.has(id));
+          if (fallen.length === 0) return;
+          fallen.forEach(id => removed.add(id));
+          setGameState(prev => {
+            const ants = { ...prev.ants };
+            fallen.forEach(id => { delete ants[id]; });
+            return { ...prev, ants };
           });
-
-          // Small pause between units for rhythm (except after the last unit)
-          if (i < movements.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+        };
+        // Land a blow on the displayed board: health bars drop as the damage
+        // numbers pop, and anyone at zero is removed right then.
+        const applyDamage = (damageDealt) => {
+          const hit = {};
+          (damageDealt || []).forEach(({ damage, position }) => {
+            const id = unitAt(position);
+            if (id) { hp[id] -= damage; hit[id] = Math.max(0, hp[id]); }
+          });
+          const ids = Object.keys(hit);
+          if (ids.length > 0) {
+            setGameState(prev => {
+              const ants = { ...prev.ants };
+              ids.forEach(id => { if (ants[id]) ants[id] = { ...ants[id], health: hit[id] }; });
+              return { ...prev, ants };
+            });
           }
-        }
+          dropFallen();
+        };
+        let revealedForCombat = false;
 
-        // Reveal the post-movement board before any attack plays. Without this
-        // an attacker that finished its move inside fog would still be hidden,
-        // so its damage numbers would appear over an apparently empty hex.
-        if (gameMode.fogOfWar !== false && combatActions && combatActions.length > 0) {
-          // Use the board the movement loop has been stepping - it holds every
-          // unit in its final position with the casualties still alive, which
-          // is exactly the moment the attacks should play against.
-          const preCombat = fullGameStateRef.current;
-          if (preCombat) {
-            setGameState(applyFogOfWar(preCombat, 'player1'));
-            await new Promise(resolve => setTimeout(resolve, 250));
-          }
-        }
+        for (let i = 0; i < actions.length; i++) {
+          const action = actions[i];
 
-        // Animate combat actions one at a time, BEFORE the board jumps to the
-        // end-of-turn state. Each attacker is looked up in the pre-combat state
-        // so units that die during the AI's turn still play their attack.
-        if (combatActions && combatActions.length > 0) {
-          for (const combatAction of combatActions) {
-            const { attackerId, targetPosition, isRanged, damageDealt, isDetonation } = combatAction;
-            const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
+          if (action.kind === 'move') {
+            const movement = action.movement;
 
-            if (isDetonation) {
-              // The bomber destroys itself, so play the blast at the hex it
-              // died on rather than trying to animate a unit that is gone.
-              showExplosion(targetPosition);
-              if (damageDealt && damageDealt.length > 0) {
-                setTimeout(() => {
-                  damageDealt.forEach(({ damage, position }) => {
-                    showDamageNumber(damage, position);
-                  });
-                }, 250);
-              }
-              // Blast lasts 1s; hold for it before the next action
-              await new Promise(resolve => setTimeout(resolve, 1050));
-              continue;
+            // Add starting position to path if not already there
+            const oldAnt = currentState.ants?.[movement.antId];
+            const startsAtOldPos = oldAnt && movement.path.length > 0 &&
+              movement.path[0].q === oldAnt.position.q && movement.path[0].r === oldAnt.position.r;
+            const fullPath = (oldAnt && !startsAtOldPos) ? [oldAnt.position, ...movement.path] : movement.path;
+
+            await new Promise(resolve => {
+              setMovingAnt({
+                antId: movement.antId,
+                path: fullPath,
+                currentStep: 0
+              });
+
+              // Wait for animation to complete (600ms per step to match animation speed)
+              const animationDuration = (fullPath.length - 1) * MOVE_STEP_MS;
+              setTimeout(resolve, animationDuration + MOVE_STEP_MS + 50);
+            });
+            if (fullPath.length > 0) {
+              const end = fullPath[fullPath.length - 1];
+              posOf[movement.antId] = { q: end.q, r: end.r };
             }
 
-            if (attacker) {
-              showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
-              if (damageDealt && damageDealt.length > 0) {
-                setTimeout(() => {
-                  damageDealt.forEach(({ damage, position }) => {
-                    showDamageNumber(damage, position);
-                  });
-                }, isRanged ? 300 : 200);
-              }
+            // Small pause between units for rhythm (except after the last action)
+            if (i < actions.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
-
-            // Hold until this attack's visuals have fully cleared, plus a beat,
-            // so the next attack reads as a separate blow rather than a volley.
-            await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
+            continue;
           }
+
+          // Reveal the post-movement board before the first attack plays.
+          // Without this an attacker that finished its move inside fog would
+          // still be hidden, so its damage numbers would appear over an
+          // apparently empty hex.
+          if (!revealedForCombat && gameMode.fogOfWar !== false) {
+            revealedForCombat = true;
+            const preCombat = fullGameStateRef.current;
+            if (preCombat) {
+              setGameState(applyFogOfWar(preCombat, 'player1'));
+              await new Promise(resolve => setTimeout(resolve, 250));
+            }
+          }
+
+          // Each attacker is looked up in the pre-combat state so units that
+          // die during the AI's turn still play their attack.
+          const combatAction = action.combatAction;
+          const { attackerId, targetPosition, isRanged, damageDealt, isDetonation } = combatAction;
+          const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
+
+          if (isDetonation) {
+            // The bomber destroys itself, so play the blast at the hex it
+            // died on rather than trying to animate a unit that is gone.
+            showExplosion(targetPosition);
+            hp[attackerId] = 0; // the bomber is gone the moment it goes off
+            setTimeout(() => {
+              (damageDealt || []).forEach(({ damage, position }) => showDamageNumber(damage, position));
+              applyDamage(damageDealt);
+            }, 250);
+            // Blast lasts 1s; hold for it before the next action
+            await new Promise(resolve => setTimeout(resolve, 1050));
+            continue;
+          }
+
+          if (attacker) {
+            showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
+            // Damage numbers and health bars change in the same instant. This
+            // includes the counter-attack, which lands on the attacker's hex.
+            setTimeout(() => {
+              (damageDealt || []).forEach(({ damage, position }) => showDamageNumber(damage, position));
+              applyDamage(damageDealt);
+            }, isRanged ? 300 : 200);
+          } else {
+            applyDamage(damageDealt);
+          }
+
+          // Hold until this attack's visuals have fully cleared, plus a beat,
+          // so the next attack reads as a separate blow rather than a volley.
+          await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
         }
 
         // End AI turn to switch back to player

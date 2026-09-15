@@ -29,6 +29,7 @@ export function buildCampaignGameState(level) {
 
   applySide(state, 'player1', level.player, PLAYER_QUEEN_ID);
   applySide(state, 'player2', level.enemy, ENEMY_QUEEN_ID);
+  placeTrees(state, level.map?.trees);
 
   state.campaign = {
     levelId: level.id,
@@ -39,12 +40,41 @@ export function buildCampaignGameState(level) {
     // When set, enemy combat units march on the player's Queen Larva instead
     // of guarding their own queen first. Read by aiController.
     enemyHunts: !!level.enemy?.hunt,
+    // The force you start with, for the end-of-level "kept alive" count.
+    startingUnitIds: Object.values(state.ants)
+      .filter(a => a.owner === 'player1' && a.type !== 'queen' && a.type !== 'queenLarva')
+      .map(a => a.id),
+    // Scripted reinforcements; spawnDueWaves flips `spawned` as they land.
+    waves: (level.enemy?.waves || []).map(w => ({ ...w, spawned: false })),
     // Running totals for `gather` objectives, so spending never un-completes one.
     gathered: { food: 0, minerals: 0 },
     objectives: (level.objectives || []).map(o => ({ ...o, status: 'pending' }))
   };
 
   return state;
+}
+
+// Extra trees at offsets from the player's leader. `dr` is measured toward the
+// enemy so a level can say 'two hexes in front of her' regardless of which
+// side of the map the player spawned on.
+function placeTrees(state, offsets) {
+  if (!Array.isArray(offsets) || offsets.length === 0) return;
+  const leaderOf = pid => Object.values(state.ants).find(
+    a => a.owner === pid && (a.type === 'queen' || a.type === 'queenLarva')
+  );
+  const mine = leaderOf('player1');
+  const theirs = leaderOf('player2');
+  if (!mine) return;
+  const forward = theirs ? (Math.sign(theirs.position.r - mine.position.r) || -1) : -1;
+  const treeAt = h => Object.values(state.trees || {}).some(t => t.position.q === h.q && t.position.r === h.r);
+  state.trees = { ...(state.trees || {}) };
+  offsets.forEach((o, i) => {
+    const pos = new HexCoord(mine.position.q + o.dq, mine.position.r + o.dr * forward);
+    if (!isValidHex(pos, state.gridRadius, state.mapShape) || treeAt(pos)) return;
+    if (pos.q === mine.position.q && pos.r === mine.position.r) return;
+    const id = `tree_camp_${i + 1}`;
+    state.trees[id] = { id, position: pos, side: forward < 0 ? 'south' : 'north' };
+  });
 }
 
 function applySide(state, playerId, def, queenId) {
@@ -104,7 +134,25 @@ function applySide(state, playerId, def, queenId) {
 
   // 'default' (or undefined) keeps the standard opening created by
   // createInitialGameState: 2 drones + 1 scout beside the queen.
-  if (Array.isArray(def?.units)) {
+  //
+  // A list of type names swaps those opening units slot-for-slot - e.g.
+  // ['spitter', 'scout', 'scout'] - keeping the hexes the map chose, so a level
+  // can reshape the starting force without knowing which side it spawned on.
+  if (Array.isArray(def?.units) && def.units.every(u => typeof u === 'string')) {
+    // Only the map's own opening units (ant_p<n>_drone1 etc.) are slots - never
+    // guards or anything else a level has already placed on this side.
+    const slots = Object.values(state.ants)
+      .filter(a => a.owner === playerId && a.id.startsWith('ant_p'))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    slots.forEach(old => delete state.ants[old.id]);
+    def.units.forEach((type, i) => {
+      const slot = slots[i];
+      if (!slot) return; // more types than opening slots: use `guards` for extras
+      const ant = createAnt(type, playerId, slot.position);
+      ant.id = `camp_${playerId}_${type}${i + 1}`;
+      state.ants[ant.id] = ant;
+    });
+  } else if (Array.isArray(def?.units)) {
     Object.keys(state.ants).forEach(k => {
       if (state.ants[k].owner === playerId && state.ants[k].type !== 'queen') delete state.ants[k];
     });

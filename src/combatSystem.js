@@ -1,6 +1,6 @@
 import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
 import { hexDistance, getNeighbors } from './hexUtils';
-import { getAntAttack, getAntDefense } from './gameState';
+import { getAntAttack, getAntDefense, unitStrength } from './gameState';
 import { awardKillXp } from './experience';
 
 // Helper function to create a dead ant
@@ -275,6 +275,7 @@ export function detonateBomber(gameState, bomberId) {
       // Track kills and losses stats
       updatedGameState.stats[bomber.owner].antsKilled = (updatedGameState.stats[bomber.owner].antsKilled || 0) + 1;
       updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
+      updatedGameState.stats[bomber.owner].killStrength = (updatedGameState.stats[bomber.owner].killStrength || 0) + unitStrength(target, updatedGameState.players[target.owner]);
 
       // Check if bomber killed a queen
       if (isVital(target)) {
@@ -397,6 +398,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     // Track kills and losses stats
     updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
     updatedGameState.stats[defender.owner].antsLost = (updatedGameState.stats[defender.owner].antsLost || 0) + 1;
+    updatedGameState.stats[attacker.owner].killStrength = (updatedGameState.stats[attacker.owner].killStrength || 0) + unitStrength(defender, updatedGameState.players[defender.owner]);
 
     // Grant cannibalism food if attacker is melee and player has the upgrade
     const attackerPlayer = updatedGameState.players[attacker.owner];
@@ -478,6 +480,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         // Track kills and losses stats
         updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
         updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
+        updatedGameState.stats[attacker.owner].killStrength = (updatedGameState.stats[attacker.owner].killStrength || 0) + unitStrength(target, updatedGameState.players[target.owner]);
 
         if (isVital(target)) {
           updatedGameState.gameOver = true;
@@ -532,6 +535,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       // Track kills and losses stats
       updatedGameState.stats[defender.owner].antsKilled = (updatedGameState.stats[defender.owner].antsKilled || 0) + 1;
       updatedGameState.stats[attacker.owner].antsLost = (updatedGameState.stats[attacker.owner].antsLost || 0) + 1;
+      updatedGameState.stats[defender.owner].killStrength = (updatedGameState.stats[defender.owner].killStrength || 0) + unitStrength(attacker, updatedGameState.players[attacker.owner]);
 
       // Grant cannibalism food to defender if they have the upgrade
       const defenderPlayer = updatedGameState.players[defender.owner];
@@ -771,6 +775,7 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
       // Track kills and losses stats
       updatedGameState.stats[attacker.owner].antsKilled = (updatedGameState.stats[attacker.owner].antsKilled || 0) + 1;
       updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
+      updatedGameState.stats[attacker.owner].killStrength = (updatedGameState.stats[attacker.owner].killStrength || 0) + unitStrength(target, updatedGameState.players[target.owner]);
 
       // Grant cannibalism if applicable (bombardier is ranged, so no cannibalism)
 
@@ -895,6 +900,7 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     // Track kills and losses stats
     updatedGameState.stats[ambusher.owner].antsKilled = (updatedGameState.stats[ambusher.owner].antsKilled || 0) + 1;
     updatedGameState.stats[movingAnt.owner].antsLost = (updatedGameState.stats[movingAnt.owner].antsLost || 0) + 1;
+    updatedGameState.stats[ambusher.owner].killStrength = (updatedGameState.stats[ambusher.owner].killStrength || 0) + unitStrength(movingAnt, updatedGameState.players[movingAnt.owner]);
 
     // Grant cannibalism food if ambusher has the upgrade
     const ambusherPlayer = updatedGameState.players[ambusher.owner];
@@ -982,6 +988,7 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
       // Track kills and losses stats
       updatedGameState.stats[movingAnt.owner].antsKilled = (updatedGameState.stats[movingAnt.owner].antsKilled || 0) + 1;
       updatedGameState.stats[ambusher.owner].antsLost = (updatedGameState.stats[ambusher.owner].antsLost || 0) + 1;
+      updatedGameState.stats[movingAnt.owner].killStrength = (updatedGameState.stats[movingAnt.owner].killStrength || 0) + unitStrength(ambusher, updatedGameState.players[ambusher.owner]);
 
       // Grant cannibalism if moving ant has the upgrade
       const movingAntPlayer = updatedGameState.players[movingAnt.owner];

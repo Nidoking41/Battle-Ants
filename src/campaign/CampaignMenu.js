@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LEVELS } from './levels';
-import { loadProgress, isUnlocked, isCompleted, resetProgress } from './progress';
+import { loadProgress, isUnlocked, isCompleted, resetProgress, bestScore } from './progress';
 
 // Level select. A level unlocks when the one before it has been beaten.
 // Locked levels show only their number - no name or objectives - so the
@@ -88,7 +88,11 @@ function CampaignMenu({ onStartLevel, onBack }) {
                 <span>
                   <span style={{ color: '#ffd700', marginRight: '8px' }}>{level.id}.</span>{level.name}
                 </span>
-                {done && <span style={{ color: '#4ade80', fontSize: '14px' }}>&#10003; Complete</span>}
+                {done && (
+                  <span style={{ color: '#4ade80', fontSize: '14px' }}>
+                    &#10003; Complete{bestScore(level.id, progress) !== null ? ` \u00b7 Best ${bestScore(level.id, progress)}` : ''}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: '13px', color: '#aaa', marginTop: '3px' }}>
                 {level.objectives.map(o => o.text).join(' · ')}

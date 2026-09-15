@@ -5,57 +5,46 @@ import { getHeroById } from './heroQueens';
 // Reinforced Anthills upgrade: +50% anthill health
 const ANTHILL_DURABILITY_MULTIPLIER = 1.5;
 
+// Base army values for each ant type
+const ANT_BASE_VALUES = {
+  'scout': 10,
+  'drone': 5,
+  'spitter': 20,  // Acid Ant
+  'soldier': 20,  // Marauder
+  'tank': 40,     // Bullet Ant
+  'cordyphage': 30,
+  'bomber': 15,   // Exploding Ant
+  'healer': 35,   // Weaver
+  'bombardier': 30,
+  'queen': 0,     // Queens don't count toward army value
+  'queenLarva': 0
+};
+
+// Melee ant types (get bonus from melee attack upgrades)
+const MELEE_TYPES = ['scout', 'drone', 'soldier', 'tank'];
+// Ranged ant types (get bonus from ranged attack upgrades)
+const RANGED_TYPES = ['spitter', 'bombardier', 'queen'];
+
+// Strength of one unit: fixed base value per type + 2 per upgrade tier that
+// applies to it. Shared by the army-strength chart and campaign scoring, and
+// by combat when it records the value of a kill.
+export function unitStrength(ant, player) {
+  const baseValue = ANT_BASE_VALUES[ant.type] || 0;
+  const upgrades = player?.upgrades || {};
+  let upgradeBonus = 0;
+  if (MELEE_TYPES.includes(ant.type)) upgradeBonus += (upgrades.meleeAttack || 0) * 2;
+  if (RANGED_TYPES.includes(ant.type)) upgradeBonus += (upgrades.rangedAttack || 0) * 2;
+  upgradeBonus += (upgrades.defense || 0) * 2;
+  return baseValue + upgradeBonus;
+}
+
 // Calculate army strength for a player
 // Formula: Fixed base value per ant type + 2 per upgrade tier
 export function calculateArmyStrength(gameState, playerId) {
   const player = gameState.players[playerId];
-  let totalStrength = 0;
-
-  // Base army values for each ant type
-  const ANT_BASE_VALUES = {
-    'scout': 10,
-    'drone': 5,
-    'spitter': 20,  // Acid Ant
-    'soldier': 20,  // Marauder
-    'tank': 40,     // Bullet Ant
-    'cordyphage': 30,
-    'bomber': 15,   // Exploding Ant
-    'healer': 35,   // Weaver
-    'bombardier': 30,
-    'queen': 0      // Queens don't count toward army value
-  };
-
-  // Melee ant types (get bonus from melee attack upgrades)
-  const MELEE_TYPES = ['scout', 'drone', 'soldier', 'tank'];
-  // Ranged ant types (get bonus from ranged attack upgrades)
-  const RANGED_TYPES = ['spitter', 'bombardier', 'queen'];
-
-  Object.values(gameState.ants)
+  return Object.values(gameState.ants)
     .filter(ant => ant.owner === playerId && !ant.isDead)
-    .forEach(ant => {
-      const baseValue = ANT_BASE_VALUES[ant.type] || 0;
-
-      // Calculate upgrade bonuses (+2 per tier)
-      let upgradeBonus = 0;
-
-      // Add melee attack upgrade bonus
-      if (MELEE_TYPES.includes(ant.type)) {
-        upgradeBonus += player.upgrades.meleeAttack * 2;
-      }
-
-      // Add ranged attack upgrade bonus
-      if (RANGED_TYPES.includes(ant.type)) {
-        upgradeBonus += player.upgrades.rangedAttack * 2;
-      }
-
-      // Add defense upgrade bonus (all units benefit)
-      upgradeBonus += player.upgrades.defense * 2;
-
-      const strength = baseValue + upgradeBonus;
-      totalStrength += strength;
-    });
-
-  return totalStrength;
+    .reduce((total, ant) => total + unitStrength(ant, player), 0);
 }
 
 // Initialize a new game state
@@ -156,6 +145,7 @@ export function createInitialGameState(options = {}) {
         antsHatched: { scout: 0, drone: 0, soldier: 0, tank: 0, spitter: 0, bomber: 0, bombardier: 0, healer: 0, cordyphage: 0 },
         antsKilled: 0,
         antsLost: 0,
+        killStrength: 0, // army value of everything this player has killed
         foodMined: 0,
         mineralsMined: 0,
         anthillsBuilt: 0,
@@ -1356,10 +1346,18 @@ export function endTurn(rawGameState) {
   // combatSystem is untouched and still ends a level instantly.
   if (finalGameState.campaign && !finalGameState.gameOver) {
     const { evaluateAllObjectives } = require('./campaign/objectives');
-    const withTotals = {
+    const { spawnDueWaves } = require('./campaign/waves');
+    let withTotals = {
       ...finalGameState,
       campaign: { ...finalGameState.campaign, gathered: campaignGathered }
     };
+    // Scripted reinforcements land at the start of a round, before objectives
+    // are judged, so a killAll cannot be won in the gap between waves.
+    if (isNewRound) {
+      const spawned = spawnDueWaves(withTotals, createAnt);
+      withTotals = spawned;
+      finalGameState.ants = spawned.ants;
+    }
     const result = evaluateAllObjectives(withTotals, 'player1');
     finalGameState.campaign = { ...withTotals.campaign, objectives: result.objectives };
     if (result.won) {
