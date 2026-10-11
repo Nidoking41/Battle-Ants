@@ -70,8 +70,8 @@ describe.each(['medium', 'large'])('river on a %s 2-player map', (mapSize) => {
       const mine = list.filter(x => !type || x.type === type);
       return [mine.filter(x => isNorthOfRiver(x.position)).length, mine.filter(x => isSouthOfRiver(x.position)).length];
     };
-    expect(count(Object.values(state.resources), 'food')).toEqual([5, 5]);
-    expect(count(Object.values(state.resources), 'minerals')).toEqual([3, 3]);
+    expect(count(Object.values(state.resources), 'food')).toEqual(R === 5 ? [3, 3] : [4, 4]);
+    expect(count(Object.values(state.resources), 'minerals')).toEqual([2, 2]);
     const trees = count(Object.values(state.trees));
     expect(trees[0]).toBe(trees[1]);
     // Each queen is on her own bank.
@@ -139,7 +139,7 @@ describe('lake on the small 2-player map', () => {
       const res = Object.values(fresh.resources);
       const n = type => res.filter(x => x.type === type && x.position.r < 0).length;
       const so = type => res.filter(x => x.type === type && x.position.r > 0).length;
-      expect([n('food'), so('food'), n('minerals'), so('minerals')]).toEqual([5, 5, 3, 3]);
+      expect([n('food'), so('food'), n('minerals'), so('minerals')]).toEqual([2, 2, 2, 2]);
     }
   });
 

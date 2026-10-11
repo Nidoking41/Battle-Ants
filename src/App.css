@@ -261,3 +261,21 @@ body, html {
   85% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(1); }
 }
+
+/* Selected Ant action buttons: one size for every button, whatever its label */
+.ant-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ant-actions > button {
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 44px; /* room for two lines, so long labels wrap instead of growing the button */
+  margin: 0 !important;
+  padding: 4px 6px !important;
+  font-size: 15px !important;
+  line-height: 1.15;
+  overflow: hidden;
+}

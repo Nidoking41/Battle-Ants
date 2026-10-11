@@ -382,10 +382,10 @@ describe('level schema: heroes, upgrades, tiers, anthills, ids', () => {
     const q = state.ants[PLAYER_QUEEN_ID];
     expect(q.queenTier).toBe('broodQueen');
     expect(q.energy).toBe(QueenTiers.broodQueen.maxEnergy);
-    expect(q.maxEnergy).toBe(75);
+    expect(q.maxEnergy).toBe(50);
     expect(getSpawningPoolHexes(q, getNeighbors)).toHaveLength(4);
     const plain = buildCampaignGameState({ ...base, player: { ...base.player, queenTier: 'queen' } });
-    expect(plain.ants[PLAYER_QUEEN_ID].energy).toBe(50);
+    expect(plain.ants[PLAYER_QUEEN_ID].energy).toBe(25);
   });
 
   test('pre-built anthills sit on the nearest nodes, pay out, and keep the node', () => {
@@ -584,7 +584,7 @@ describe('levels 3-6 content', () => {
     let state = buildCampaignGameState(getLevel(6));
     const q = state.ants[PLAYER_QUEEN_ID];
     expect(q.queenTier).toBe('broodQueen');
-    expect(q.energy).toBe(75);
+    expect(q.energy).toBe(50);
     const mine = Object.values(state.ants).filter(a => a.owner === 'player1' && a.type !== 'queen');
     expect(mine.filter(a => a.type === 'healer')).toHaveLength(2);
     expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
@@ -592,7 +592,7 @@ describe('levels 3-6 content', () => {
     expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
     expect(state.ants.camp_player2_B1.type).toBe('tank');
     expect(state.ants.camp_player2_B2.maxHealth).toBeGreaterThan(55); // Thorgrim: x1.2 health
-    expect(state.campaign.roster).toEqual(['healer']);
+    expect(state.campaign.roster).toEqual(['healer', 'bomber', 'bombardier']);
 
     state = fullRound(fullRound(state)); // turn 3: the second pair lands
     expect(state.ants.camp_wave3_tank1).toBeDefined();

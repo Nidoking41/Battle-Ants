@@ -72,6 +72,7 @@ export const AntTypes = {
     id: 'tank',
     name: 'Bullet Ant',
     cost: { food: 35, minerals: 15 },
+    requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     hatchTime: 2,
     maxHealth: 55,
     attack: 24,
@@ -86,7 +87,7 @@ export const AntTypes = {
   ACID: {
     id: 'spitter',
     name: 'Acid Ant',
-    cost: { food: 12, minerals: 7 },
+    cost: { food: 12, minerals: 10 },
     hatchTime: 1,
     maxHealth: 18,
     attack: 9,
@@ -102,6 +103,7 @@ export const AntTypes = {
     id: 'bomber',
     name: 'Acid Bomber',
     cost: { food: 8, minerals: 12 },
+    requiresQueenTier: 'broodQueen', // Unlocked by the first queen upgrade
     hatchTime: 1,
     maxHealth: 20,
     attack: 14,
@@ -119,6 +121,7 @@ export const AntTypes = {
     id: 'bombardier',
     name: 'Bombardier',
     cost: { food: 20, minerals: 15},
+    requiresQueenTier: 'broodQueen', // Unlocked by the first queen upgrade
     hatchTime: 1,
     maxHealth: 25,
     attack: 15,
@@ -234,7 +237,7 @@ export const GameConstants = {
     minerals: 7 // Per turn for mineral anthills
   },
   // Queen energy system
-  QUEEN_BASE_ENERGY: 50,
+  QUEEN_BASE_ENERGY: 25,
   QUEEN_BASE_ENERGY_REGEN: 10,
   EGG_LAY_ENERGY_COST: 5,
   HEAL_ENERGY_COST: 10,
@@ -364,14 +367,14 @@ export const QueenTiers = {
   queen: {
     name: 'Queen',
     spawningSpots: 2,
-    maxEnergy: 50,
+    maxEnergy: 25,
     energyRegen: 7,
     foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
     spawningSpots: 4,
-    maxEnergy: 75,
+    maxEnergy: 50,
     energyRegen: 10,
     foodIncome: 6,
     cost: { food: 20, minerals: 10 }
@@ -379,9 +382,17 @@ export const QueenTiers = {
   swarmQueen: {
     name: 'Swarm Queen',
     spawningSpots: 6,
-    maxEnergy: 100,
+    maxEnergy: 75,
     energyRegen: 12,
     foodIncome: 7,
     cost: { food: 20, minerals: 15 }
   }
 };
+
+// True when a queen of `queenTier` may hatch a unit that needs `requiredTier`
+// (a higher tier keeps everything the lower ones unlocked)
+const QUEEN_TIER_ORDER = ['queen', 'broodQueen', 'swarmQueen'];
+export function meetsQueenTier(requiredTier, queenTier) {
+  if (!requiredTier) return true;
+  return QUEEN_TIER_ORDER.indexOf(queenTier || 'queen') >= QUEEN_TIER_ORDER.indexOf(requiredTier);
+}

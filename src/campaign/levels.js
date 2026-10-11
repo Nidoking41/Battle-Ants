@@ -17,6 +17,8 @@
 //   player.queenTier   'queen' (normal), 'larva' (the queen is replaced by a Queen
 //                      Larva: immobile, cannot lay eggs, feeds the colony, and
 //                      losing her loses the level), or null for no leader at all
+//   player.queenUpgrades  false = the queen cannot be upgraded on this level, for
+//                      either side (the Queen Upgrade card is hidden)
 //   player.resources   starting stockpile
 //   player.units       'default' keeps the standard opening (2 drones + 1 scout);
 //                      a list of type names swaps those three slot-for-slot,
@@ -270,6 +272,7 @@ export const LEVELS = [
     player: {
       hero: 'vexxara',
       queenTier: 'queen',
+      queenUpgrades: false,
       resources: { food: 25, minerals: 0 },
       roster: ['drone', 'scout', 'soldier'],
       units: 'default'
@@ -300,7 +303,8 @@ export const LEVELS = [
   // ---------------------------------------------------------------------
   // Level 4 - The Mineral Line (vs Skrazzit)
   // Minerals gate every real unit and every upgrade. Anthills run dry, so
-  // keep expanding - and a Bullet Ant one-shots a fresh hill.
+  // keep expanding - and two Marauder blows bring down an enemy hill. A basic
+  // queen throughout, so the roster is the four basic castes only.
   {
     id: 4,
     name: 'The Mineral Line',
@@ -310,7 +314,7 @@ export const LEVELS = [
         'Food feeds the colony. Minerals build the army. Every Marauder, every Spitter, every upgrade costs them.',
         'There are four mineral nodes on this ground, all on the ridge between the nests - and two of them are already his.',
         { hero: 'skrazzit', text: 'Two hills on the ridge before you have laid an egg. You cannot build what you cannot afford, Lifebinder.' },
-        'A hill pays seven minerals a turn until the node runs dry. His hills are targets: an anthill has no armour, and a Bullet Ant flattens one in a single blow.',
+        'A hill pays seven minerals a turn until the node runs dry. His hills are targets: an anthill has no armour, and two blows from a Marauder bring one down.',
         'Mine sixty minerals, burn two of his hills - and then finish him. Skrazzit dies on this ridge.'
       ]
     },
@@ -344,8 +348,9 @@ export const LEVELS = [
     player: {
       hero: 'vexxara',
       queenTier: 'queen',
+      queenUpgrades: false,
       resources: { food: 30, minerals: 5 },
-      roster: ['drone', 'scout', 'soldier', 'spitter', 'tank'],
+      roster: ['drone', 'scout', 'soldier', 'spitter'],
       units: 'default'
     },
     enemy: {
@@ -371,7 +376,8 @@ export const LEVELS = [
   // Level 5 - Iron (vs Gorlak the Crusher)
   // Upgrades and the armour math. Defence is +2 flat per tier, so it blanks
   // weak hitters and barely dents strong ones. Melee-vs-ranged is free both
-  // ways. First time limit.
+  // ways. First time limit. A basic queen throughout, so the roster is the
+  // four basic castes only - no Bullet Ant (that is a Swarm Queen unit).
   {
     id: 5,
     name: 'Iron',
@@ -380,27 +386,27 @@ export const LEVELS = [
       lines: [
         { hero: 'gorlak', text: 'Armour is for cowards. My Marauders hit harder than anything you can hatch, and they are coming down both lanes.' },
         'He is not wrong about the hitting. He is wrong about the armour.',
-        'Defence takes two off every blow, flat. A Scout that hits for six now hits for four. A Bullet Ant that hits for twenty-four barely notices. Armour blanks the weak and shrugs at the strong.',
+        'Defence takes two off every blow, flat. A Scout that hits for six now hits for four. A Marauder that hits for eleven still lands nine. Armour blanks the weak and shrugs at the strong.',
         'And ranged units are never struck back. A Spitter hitting a Marauder takes nothing in return - and a Marauder hitting a Spitter takes nothing either. Choose your trades.',
         'Kill his queen inside fourteen turns. The Upgrades button is your first move.'
       ]
     },
     briefing: ['Buy Defence. Trade Spitters into his melee. Kill his queen by turn 14.'],
-    // Two Lanes: a void spine splits the field; he comes down both.
+    // Two Lanes: a water channel splits the field; he comes down both.
     map: {
       layout: [
         '    . .    ',
         '   . 2 .   ',
         '  F . . M  ',
-        ' . .   . . ',
+        ' . . ~ . . ',
         '. . . . . .',
-        ' . .   . . ',
+        ' . . ~ . . ',
         '. . . . . .',
-        ' . .   . . ',
+        ' . . ~ . . ',
         '. . . . . .',
-        ' . .   . . ',
+        ' . . ~ . . ',
         '. T . . T .',
-        ' . .   . . ',
+        ' . . ~ . . ',
         '  M . . F  ',
         '   . 1 .   ',
         '    . .    '
@@ -409,8 +415,9 @@ export const LEVELS = [
     player: {
       hero: 'vexxara',
       queenTier: 'queen',
+      queenUpgrades: false,
       resources: { food: 40, minerals: 30 },
-      roster: ['drone', 'scout', 'soldier', 'spitter', 'tank'],
+      roster: ['drone', 'scout', 'soldier', 'spitter'],
       units: 'default'
     },
     enemy: {
@@ -437,24 +444,27 @@ export const LEVELS = [
 
   // ---------------------------------------------------------------------
   // Level 6 - The Broodmother (vs Thorgrim the Mighty)
-  // Brood Queen: four spawn spots, Reveal, and the Weaver. Ensnare roots a
-  // unit for three turns; heal restores 20 and cleanses. Vexxara's own
-  // ability charges on damage dealt and refills every Weaver.
+  // Brood Queen: four spawn spots, Reveal, and her three castes - the Weaver,
+  // the Acid Bomber and the Bombardier. Ensnare roots a unit for three turns;
+  // heal restores 20 and cleanses. Vexxara's own ability charges on damage
+  // dealt and refills every Weaver. Thorgrim is a Swarm Queen, which is what
+  // lets him field Bullet Ants.
   {
     id: 6,
     name: 'The Broodmother',
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
-        'She grows again. A Brood Queen lays from four spots, sees further, and can weave: the Weaver Ant is hers now.',
+        'She grows again. A Brood Queen lays from four spots, sees further, and hatches three new castes: the Weaver, the Acid Bomber and the Bombardier.',
         'A Weaver cannot fight. She heals twenty at arm\'s length, and she ensnares - a unit caught in her web cannot move for three turns.',
         { hero: 'thorgrim', text: 'Webs. Healers. My Bullet Ants will walk straight through your little nurses and eat your queen.' },
-        'They will, if they reach her. Fifty-five health, twenty-four attack, and they do not stop. Do not let them close. Snare the lead one, pour Spitters into it, heal the line.',
+        'They will, if they reach her. Bullet Ants are a Swarm Queen\'s brood, one growth beyond yours: fifty-five health, twenty-four attack, and they do not stop. Do not let them close. Snare the lead one, pour Spitters into it, heal the line.',
+        'A Bombardier shells from three hexes away but cannot fire at anything beside her, or after she moves. An Acid Bomber splashes everything around her target. Hatch what the corridor needs.',
         'And when the bar under Vexxara fills - every blow you land charges it - fire it. Every unit heals, every Weaver refills.',
         'Four Bullet Ants are coming down the corridor. Kill them all.'
       ]
     },
-    briefing: ['Ensnare the lead Bullet Ant, focus it with Spitters, heal the line, fire Vexxara. Kill all four.'],
+    briefing: ['Ensnare the lead Bullet Ant, focus it with Spitters and Bombardiers, heal the line, fire Vexxara. Kill all four.'],
     // The Gauntlet: one corridor, trees at intervals, your nest in a bulb at the end.
     map: {
       layout: [
@@ -484,12 +494,12 @@ export const LEVELS = [
       hero: 'vexxara',
       queenTier: 'broodQueen',
       resources: { food: 30, minerals: 20 },
-      roster: ['healer'],
+      roster: ['healer', 'bomber', 'bombardier'],
       units: []
     },
     enemy: {
       hero: 'thorgrim',
-      queenTier: 'queen',
+      queenTier: 'swarmQueen',
       behavior: 'ai',
       aiDifficulty: 'medium',
       unitMix: { tank: 1 },

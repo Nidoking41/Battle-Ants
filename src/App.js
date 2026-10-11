@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, resolveAmbush } from './combatSystem';
-import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById } from './antTypes';
+import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
 import LocalGameSetup from './LocalGameSetup';
@@ -216,11 +216,16 @@ function App() {
   // Hero power flash: a quick full-screen moment with the hero's portrait and a
   // beam in the player's colour, played when a hero ability is activated
   const [heroFlash, setHeroFlash] = useState(null);
+  const lastHeroFlashRef = useRef({ playerId: null, time: 0 });
   const playHeroFlash = (playerId, state) => {
     const { getHeroById } = require('./heroQueens');
     const player = state?.players?.[playerId];
     const hero = player && getHeroById(player.heroId);
     if (!hero) return;
+    // One activation can be reported twice (the button or AI replay, then the
+    // state watcher below) - play it once
+    if (lastHeroFlashRef.current.playerId === playerId && Date.now() - lastHeroFlashRef.current.time < 3000) return;
+    lastHeroFlashRef.current = { playerId, time: Date.now() };
     // A black beam would vanish on the dark band, so black players get a pale violet
     const beamColor = String(player.color).toUpperCase() === '#000000' ? '#a99bd1' : player.color;
     const key = Date.now();
@@ -231,6 +236,19 @@ function App() {
     setTimeout(() => setHeroInfo(prev => (prev && prev.key === key ? null : prev)), 6000);
   };
   const [heroInfo, setHeroInfo] = useState(null);
+
+  // Any player's hero power switching on plays the flash - this is what shows
+  // an online opponent's activation, which arrives as a state update
+  const heroActiveSeenRef = useRef({});
+  const heroActiveKey = Object.entries(gameState?.players || {}).map(([id, p]) => `${id}:${p?.heroAbilityActive ? 1 : 0}`).join(',');
+  useEffect(() => {
+    Object.entries(gameState?.players || {}).forEach(([id, p]) => {
+      const active = !!p?.heroAbilityActive;
+      if (active && heroActiveSeenRef.current[id] === false) playHeroFlash(id, gameState);
+      heroActiveSeenRef.current[id] = active;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroActiveKey]);
 
   // Campaign tutorial pop-up (level.tutorialTip): hidden once the player clicks Got it
   const [tipDismissed, setTipDismissed] = useState(false);
@@ -428,6 +446,9 @@ function App() {
   const rightPanelWidth = 180;
   const fontSize = '11px';
   const smallFontSize = '10px';
+  // Right-side panel text runs 2px larger than the left panel
+  const panelFontSize = '13px';
+  const panelSmallFontSize = '12px';
 
   // Calculate dynamic SVG size based on available screen space
   const calculateSvgSize = () => {
@@ -1636,6 +1657,23 @@ function App() {
           dropFallen();
         };
         let revealedForCombat = false;
+
+        // The AI fires its hero power before anything else in its turn. Show
+        // it at that point in the replay: the same flash the player gets, and
+        // the auras switched on now rather than when the turn's result lands.
+        if (aiState.players?.player2?.heroAbilityActive && !currentState.players?.player2?.heroAbilityActive) {
+          const withHeroActive = s => (s?.players?.player2
+            ? { ...s, players: { ...s.players, player2: { ...s.players.player2, heroAbilityActive: true } } }
+            : s);
+          if (fullGameStateRef.current) {
+            const full = withHeroActive(fullGameStateRef.current);
+            fullGameStateRef.current = full;
+            setFullGameState(full);
+          }
+          setGameState(prev => withHeroActive(prev));
+          playHeroFlash('player2', aiState);
+          await new Promise(resolve => setTimeout(resolve, 1700));
+        }
 
         for (let i = 0; i < actions.length; i++) {
           const action = actions[i];
@@ -3916,6 +3954,13 @@ function App() {
       return;
     }
 
+    // Queen tier: hotkeys must not bypass the locked build panel entries
+    const requiredTier = getAntTypeById(type)?.requiresQueenTier;
+    if (!meetsQueenTier(requiredTier, queen.queenTier)) {
+      showFeedback(`Requires ${QueenTiers[requiredTier]?.name || requiredTier}!`);
+      return;
+    }
+
     // Check energy cost
     const energyCost = getEggLayCost(queen);
     if (!hasEnoughEnergy(queen, energyCost)) {
@@ -4012,6 +4057,42 @@ function App() {
     });
   };
 
+  // What an ant that has already moved can still do this turn:
+  // 'attack', 'build', 'ability', or null when there is nothing left
+  const getPostMoveAction = (ant, state) => {
+    if (!ant || !ant.position || ant.hasAttacked) return null;
+    const antType = getAntTypeById(ant.type);
+
+    // Drones standing on a resource node can still build (or keep building) there
+    if (antType.canBuildAnthill && !ant.hasBuilt) {
+      const node = Object.values(state.resources || {}).find(r => hexEquals(r.position, ant.position));
+      const hill = node && Object.values(state.anthills || {}).find(a => hexEquals(a.position, node.position));
+      const canStart = (state.players[ant.owner]?.resources?.food || 0) >= GameConstants.ANTHILL_BUILD_COST;
+      if (node && (hill ? (hill.owner === ant.owner && !hill.isComplete) : canStart)) return 'build';
+    }
+
+    // Enemy ants, eggs or anthills in attack range (burrowed units cannot attack, except marauders)
+    if (!ant.isBurrowed || ant.type === 'soldier') {
+      const minRange = antType.minAttackRange || 0;
+      const inRange = target => {
+        if (!target.position || target.owner === ant.owner) return false;
+        const distance = hexDistance(ant.position, target.position);
+        return distance >= minRange && distance <= antType.attackRange;
+      };
+      if (Object.values(state.ants).some(inRange) ||
+          Object.values(state.eggs || {}).some(inRange) ||
+          Object.values(state.anthills || {}).some(inRange)) return 'attack';
+    }
+
+    // Energy abilities that still have a target
+    if (getValidHealTargets(state, ant.id).length > 0 ||
+        getValidEnsnareTargets(state, ant.id).length > 0 ||
+        getValidPlagueTargets(state, ant.id).length > 0 ||
+        getValidCordycepsTargets(state, ant.id).length > 0) return 'ability';
+
+    return null;
+  };
+
   // Check if an ant has any remaining actions this turn
   const hasRemainingActions = (ant) => {
     if (!ant) return false;
@@ -4031,38 +4112,9 @@ function App() {
     // If already attacked, no more actions
     if (ant.hasAttacked) return false;
 
-    // If already moved, check for remaining actions
+    // If already moved, only an attack, build or ability can still be used
     if (ant.hasMoved) {
-      // Drones can't build if they've already moved (build counts as their move action)
-      if (antType.canBuildAnthill) {
-        // Check if there are any enemies in attack range (can still attack after building)
-        const enemiesInRange = Object.values(currentState.ants).filter(otherAnt => {
-          if (otherAnt.owner === ant.owner || !otherAnt.position || !ant.position) return false;
-          const distance = Math.max(
-            Math.abs(ant.position.q - otherAnt.position.q),
-            Math.abs(ant.position.r - otherAnt.position.r),
-            Math.abs((-ant.position.q - ant.position.r) - (-otherAnt.position.q - otherAnt.position.r))
-          );
-          const minRange = antType.minAttackRange || 0;
-          return distance >= minRange && distance <= antType.attackRange;
-        });
-
-        return enemiesInRange.length > 0;
-      }
-
-      // Check if there are any enemies in attack range
-      const enemiesInRange = Object.values(currentState.ants).filter(otherAnt => {
-        if (otherAnt.owner === ant.owner || !otherAnt.position || !ant.position) return false;
-        const distance = Math.max(
-          Math.abs(ant.position.q - otherAnt.position.q),
-          Math.abs(ant.position.r - otherAnt.position.r),
-          Math.abs((-ant.position.q - ant.position.r) - (-otherAnt.position.q - otherAnt.position.r))
-        );
-        const minRange = antType.minAttackRange || 0;
-        return distance >= minRange && distance <= antType.attackRange;
-      });
-
-      return enemiesInRange.length > 0;
+      return getPostMoveAction(ant, currentState) !== null;
     }
 
     // Still has actions (hasn't moved or attacked)
@@ -5200,6 +5252,9 @@ function App() {
 
       // Check if ant has remaining actions
       const hasActions = hasRemainingActions(ant);
+      // Moved, but can still attack/build/use an ability (queens are judged by egg energy instead)
+      const postMoveAction = hasActions && ant.hasMoved && ant.type !== 'queen'
+        ? getPostMoveAction(ant, getGameStateForLogic()) : null;
 
       if (attackAnim) {
         const elapsed = Date.now() - attackAnim.timestamp;
@@ -5335,6 +5390,18 @@ function App() {
               style={{ pointerEvents: 'none', fontWeight: 'bold' }}
             >
               💤
+            </text>
+          )}
+          {/* "Moved, but can still act" indicator */}
+          {postMoveAction && (
+            <text
+              textAnchor="middle"
+              x="12"
+              y="-12"
+              fontSize="14"
+              style={{ pointerEvents: 'none', fontWeight: 'bold' }}
+            >
+              {postMoveAction === 'build' ? '🔨' : postMoveAction === 'ability' ? '✨' : '⚔️'}
             </text>
           )}
           {/* Ensnare effect (rendered on top of ant, twice as big as 32x32 sprite = 64x64) */}
@@ -6079,14 +6146,14 @@ function App() {
           padding: '8px',
           borderRadius: '8px',
           overflow: 'hidden',
-          fontSize,
+          fontSize: panelFontSize,
           boxSizing: 'border-box'
         }}>
           {gameMode.isMultiplayer && (
             <div style={{ marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '6px' }}>
-              <p style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: smallFontSize }}><strong>Mode:</strong> Online</p>
-              <p style={{ color: '#b0b0b0', margin: '0 0 3px 0', fontSize: smallFontSize }}><strong>You:</strong> {gameMode.playerRole === 'player1' ? 'Player 1' : 'Player 2'}</p>
-              {!isMyTurn() && <p style={{ color: '#ff6b6b', margin: 0, fontSize: smallFontSize }}><strong>Waiting...</strong></p>}
+              <p style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: panelSmallFontSize }}><strong>Mode:</strong> Online</p>
+              <p style={{ color: '#b0b0b0', margin: '0 0 3px 0', fontSize: panelSmallFontSize }}><strong>You:</strong> {gameMode.playerRole === 'player1' ? 'Player 1' : 'Player 2'}</p>
+              {!isMyTurn() && <p style={{ color: '#ff6b6b', margin: 0, fontSize: panelSmallFontSize }}><strong>Waiting...</strong></p>}
             </div>
           )}
 
@@ -6123,14 +6190,14 @@ function App() {
             </button>
           )}
 
-          <h3 style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: '13px' }}>Turn {gameState.turn}</h3>
-          <p style={{ color: gameState.players?.[gameState.currentPlayer]?.color || '#e0e0e0', margin: '0 0 8px 0', fontSize: '11px', fontWeight: 'bold' }}>
+          <h3 style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: '15px' }}>Turn {gameState.turn}</h3>
+          <p style={{ color: gameState.players?.[gameState.currentPlayer]?.color || '#e0e0e0', margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold' }}>
             {gameState.players?.[gameState.currentPlayer]?.name || 'Loading...'}'s Turn
           </p>
 
           {/* Resources - Always show YOUR resources, never opponent's */}
           <div style={{ marginBottom: '8px' }}>
-            <h4 style={{ color: '#e0e0e0', margin: '0 0 4px 0', fontSize: '11px' }}>Your Resources</h4>
+            <h4 style={{ color: '#e0e0e0', margin: '0 0 4px 0', fontSize: '13px' }}>Your Resources</h4>
             {(() => {
               // In multiplayer, ALWAYS use your playerRole, never the current turn player
               // In AI mode, use player1 (human). In local mode, use current player.
@@ -6197,6 +6264,8 @@ function App() {
             );
 
             if (!queen) return null;
+            // Campaign levels can switch queen upgrades off
+            if (currentState.campaign && currentState.campaign.queenUpgrades === false) return null;
 
             const currentTier = queen.queenTier || 'queen';
             if (currentTier === 'swarmQueen') return null; // Already at max tier
@@ -6226,7 +6295,7 @@ function App() {
                   disabled={!affordable || !isMyTurn()}
                   style={{
                     padding: '12px',
-                    fontSize: '15px',
+                    fontSize: '17px',
                     background: affordable ? 'linear-gradient(145deg, #c75000, #8a3800)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)',
                     color: '#e0e0e0',
                     border: affordable ? '2px solid #ff8c00' : '2px solid #444',
@@ -6238,11 +6307,11 @@ function App() {
                     boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
-                  <div style={{ fontSize: '13px', marginTop: '5px', color: '#b0b0b0' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
+                  <div style={{ fontSize: '15px', marginTop: '5px', color: '#b0b0b0' }}>
                     Cost: {nextTierData.cost.food}<FoodIcon /> {nextTierData.cost.minerals}<MineralIcon />
                   </div>
-                  <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
+                  <div style={{ fontSize: '14px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
                     • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
                     • +5 Energy Regen/Turn<br/>
@@ -6342,7 +6411,7 @@ function App() {
                   : Math.max(0, Math.min(100, ((xp - bandStart) / (bandEnd - bandStart)) * 100));
                 return (
                   <div style={{ margin: '5px 0' }}>
-                    <p style={{ color: rank.bonus > 0 ? '#ffd700' : '#b0b0b0', margin: '0 0 3px 0', fontSize: '13px' }}>
+                    <p style={{ color: rank.bonus > 0 ? '#ffd700' : '#b0b0b0', margin: '0 0 3px 0', fontSize: '15px' }}>
                       {rank.icon && `${rank.icon} `}{rank.name}
                       {rank.bonus > 0 && ` (+${Math.round(rank.bonus * 100)}%)`}
                       {toNext !== null
@@ -6366,7 +6435,7 @@ function App() {
                         transition: 'width 0.3s ease'
                       }} />
                     </div>
-                    <p style={{ color: '#888', margin: '3px 0 0 0', fontSize: '11px' }}>
+                    <p style={{ color: '#888', margin: '3px 0 0 0', fontSize: '13px' }}>
                       {bandEnd === null
                         ? `${xp} XP total`
                         : `${xp - bandStart} / ${bandEnd - bandStart} XP`}
@@ -6411,7 +6480,7 @@ function App() {
 
               {/* Only show action buttons if this ant belongs to the current player AND it's your turn */}
               {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
-              <>
+              <div className="ant-actions">
                 {/* Hide Move button for queens since they can't move */}
                 {gameState.ants[selectedAnt].type !== 'queen' && (
                   <button
@@ -6770,17 +6839,17 @@ function App() {
                       backgroundColor: 'rgba(255, 193, 7, 0.15)',
                       borderRadius: '5px',
                       border: '2px solid rgba(255, 193, 7, 0.5)',
-                      fontSize: '13px',
+                      fontSize: '15px',
                       textAlign: 'center',
                       color: '#e0e0e0'
                     }}>
                       <strong>⌨️ Press SHIFT to rotate</strong><br />
-                      <span style={{ fontSize: '11px', color: '#f5b041' }}>
+                      <span style={{ fontSize: '13px', color: '#f5b041' }}>
                         Click the same hex again to confirm attack
                       </span>
                     </div>
                   )}
-                </>
+              </div>
               )}
             </div>
           )}
@@ -7789,8 +7858,8 @@ function App() {
                 <li><strong>Healing:</strong> Costs {GameConstants.HEAL_ENERGY_COST} energy to heal a friendly unit for {GameConstants.HEAL_AMOUNT} HP within range 2</li>
                 <li><strong>Passive Income:</strong> Queens generate {QueenTiers.queen.foodIncome} food per turn (increases with tier)</li>
                 <li><strong>Vision:</strong> Queens have 2 hex vision range (same as Scouts)</li>
-                <li><strong>Brood Queen:</strong> {QueenTiers.broodQueen.cost.food}<FoodIcon /> {QueenTiers.broodQueen.cost.minerals}<MineralIcon /> - {QueenTiers.broodQueen.spawningSpots} spawn spots, {QueenTiers.broodQueen.maxEnergy} max energy, {QueenTiers.broodQueen.energyRegen} regen, {QueenTiers.broodQueen.foodIncome} food/turn, unlocks Reveal ability ({AntTypes.QUEEN.revealEnergyCost} energy)</li>
-                <li><strong>Swarm Queen:</strong> {QueenTiers.swarmQueen.cost.food}<FoodIcon /> {QueenTiers.swarmQueen.cost.minerals}<MineralIcon /> - {QueenTiers.swarmQueen.spawningSpots} spawn spots, {QueenTiers.swarmQueen.maxEnergy} max energy, {QueenTiers.swarmQueen.energyRegen} regen, {QueenTiers.swarmQueen.foodIncome} food/turn, unlocks Weaver Ant & Cordyphage</li>
+                <li><strong>Brood Queen:</strong> {QueenTiers.broodQueen.cost.food}<FoodIcon /> {QueenTiers.broodQueen.cost.minerals}<MineralIcon /> - {QueenTiers.broodQueen.spawningSpots} spawn spots, {QueenTiers.broodQueen.maxEnergy} max energy, {QueenTiers.broodQueen.energyRegen} regen, {QueenTiers.broodQueen.foodIncome} food/turn, unlocks Weaver Ant, Acid Bomber, Bombardier and the Reveal ability ({AntTypes.QUEEN.revealEnergyCost} energy)</li>
+                <li><strong>Swarm Queen:</strong> {QueenTiers.swarmQueen.cost.food}<FoodIcon /> {QueenTiers.swarmQueen.cost.minerals}<MineralIcon /> - {QueenTiers.swarmQueen.spawningSpots} spawn spots, {QueenTiers.swarmQueen.maxEnergy} max energy, {QueenTiers.swarmQueen.energyRegen} regen, {QueenTiers.swarmQueen.foodIncome} food/turn, unlocks Bullet Ant &amp; Cordyphage</li>
               </ul>
             </section>
 

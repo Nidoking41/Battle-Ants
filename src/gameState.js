@@ -307,6 +307,61 @@ export function createInitialGameState(options = {}) {
   return initialState;
 }
 
+// Pick `count` spots from a list of candidates so that no resource node ends
+// up next to another one. `imagesOf(pos)` returns every hex a spot produces
+// once mirrored/rotated for the other players, so the copies are kept apart
+// too. Random picking can paint itself into a corner, so it gets several
+// tries; if the map is simply too cramped, the best try is topped up with
+// whatever is left - the node count never drops.
+function pickSpacedPositions(candidates, count, imagesOf) {
+  const touching = (a, b) => Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs((a.q + a.r) - (b.q + b.r))) <= 1;
+  const imagesFor = pos => {
+    const seen = new Set();
+    return [pos, ...imagesOf(pos)].filter(h => {
+      const key = `${h.q},${h.r}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  let best = [];
+  for (let attempt = 0; attempt < 60 && best.length < count; attempt++) {
+    const order = attempt === 0 ? candidates : [...candidates].sort(() => Math.random() - 0.5);
+    const picked = [];
+    const placed = [];
+    for (const pos of order) {
+      if (picked.length >= count) break;
+      const images = imagesFor(pos);
+      const crowded = images.some((a, i) =>
+        placed.some(b => touching(a, b)) || images.some((b, j) => j > i && touching(a, b)));
+      if (crowded) continue;
+      picked.push(pos);
+      placed.push(...images);
+    }
+    if (picked.length > best.length) best = picked;
+  }
+
+  // Too cramped to keep every node apart: add the rest one at a time, each
+  // time taking the spot that touches the fewest nodes already down
+  const placed = best.flatMap(imagesFor);
+  while (best.length < count) {
+    let choice = null;
+    let fewest = Infinity;
+    for (const pos of candidates) {
+      if (best.includes(pos)) continue;
+      const images = imagesFor(pos);
+      const contacts = images.reduce((n, a, i) =>
+        n + placed.filter(b => touching(a, b)).length + images.filter((b, j) => j > i && touching(a, b)).length, 0);
+      if (contacts < fewest) { fewest = contacts; choice = pos; }
+    }
+    if (!choice) break;
+    best.push(choice);
+    placed.push(...imagesFor(choice));
+  }
+  return best;
+}
+
 // Generate symmetrical resource nodes on the map (randomly placed but mirrored)
 // water: 'river' = the "north side" is the river's north bank instead of r < 0;
 //        'lake'  = normal halves, but never in the lake; null = plain map
@@ -353,13 +408,18 @@ function generateResourceNodes(gridRadius = 6, water = null) {
   // Shuffle the positions
   const shuffled = northPositions.sort(() => Math.random() - 0.5);
 
-  // Fixed resource distribution: 5 food and 3 minerals per side (16 total)
-  const numFoodPerSide = 5;
-  const numMineralsPerSide = 3;
+  // Resource distribution per side, by map size (the totals are 8 / 10 / 12):
+  //   small  (radius 4): 2 food + 2 minerals
+  //   medium (radius 5): 3 food + 2 minerals
+  //   large  (radius 6+): 4 food + 2 minerals
+  // A small map has room for at most 5 nodes a side with none of them touching;
+  // 4 a side leaves enough free spots that the layout still varies game to game.
+  const numFoodPerSide = gridRadius <= 4 ? 2 : gridRadius === 5 ? 3 : 4;
+  const numMineralsPerSide = 2;
   const totalResourcesPerSide = numFoodPerSide + numMineralsPerSide;
 
-  // Select positions for resources
-  const selectedNorth = shuffled.slice(0, totalResourcesPerSide);
+  // Select positions for resources (never two nodes side by side)
+  const selectedNorth = pickSpacedPositions(shuffled, totalResourcesPerSide, pos => [new HexCoord(-pos.q, -pos.r)]);
 
   console.log('Selected north positions:', selectedNorth.length);
   console.log('Selected positions:', selectedNorth.map(h => `(${h.q},${h.r})`));
@@ -527,7 +587,7 @@ function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape, wat
 
   // Shuffle and select base positions
   const shuffled = validPositions.sort(() => Math.random() - 0.5);
-  const basePositions = shuffled.slice(0, baseResourceCount);
+  const basePositions = pickSpacedPositions(shuffled, baseResourceCount, pos => mirrorPositions([pos], playerCount));
 
   // Assign resource types (mix of food and minerals)
   const numFood = Math.ceil(baseResourceCount / 2);
@@ -631,7 +691,10 @@ function generateResourceNodes3Player(gridRadius = 8) {
   const totalPerSector = numFoodPerSector + numMineralsPerSector;
 
   const shuffled = sectorPositions.sort(() => Math.random() - 0.5);
-  const selectedSector = shuffled.slice(0, totalPerSector);
+  const selectedSector = pickSpacedPositions(shuffled, totalPerSector, pos => {
+    const rotated1 = rotateHex120(pos);
+    return [rotated1, rotateHex120(rotated1)];
+  });
 
   console.log('Selected sector positions:', selectedSector.length);
 
@@ -915,9 +978,14 @@ export function respawnResource(gameState, resourceType, isNorthSide) {
     }
   }
 
-  // If we found valid positions, pick one randomly
+  // If we found valid positions, pick one randomly - away from other resource
+  // nodes when there is room for that
   if (validPositions.length > 0) {
-    const randomPos = validPositions[Math.floor(Math.random() * validPositions.length)];
+    const spaced = validPositions.filter(hex => !Object.values(gameState.resources).some(res =>
+      Math.max(Math.abs(hex.q - res.position.q), Math.abs(hex.r - res.position.r),
+        Math.abs((hex.q + hex.r) - (res.position.q + res.position.r))) <= 1));
+    const pool = spaced.length > 0 ? spaced : validPositions;
+    const randomPos = pool[Math.floor(Math.random() * pool.length)];
     const newResourceId = `resource_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
     return {
@@ -1918,6 +1986,9 @@ export function upgradeQueen(gameState, queenId) {
 export function canAffordQueenUpgrade(gameState, queenId) {
   const queen = gameState.ants[queenId];
   if (!queen || queen.type !== 'queen') return false;
+
+  // Some campaign levels switch queen upgrades off entirely
+  if (gameState.campaign && gameState.campaign.queenUpgrades === false) return false;
 
   const currentTier = queen.queenTier || 'queen';
   if (currentTier === 'swarmQueen') return false; // Already at max tier

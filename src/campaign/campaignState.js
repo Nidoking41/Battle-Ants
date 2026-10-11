@@ -59,6 +59,8 @@ export function buildCampaignGameState(level) {
     levelId: level.id,
     levelName: level.name,
     roster: level.player?.roster || null,
+    // false: no queen upgrades on this level (she stays the tier she starts as)
+    queenUpgrades: level.player?.queenUpgrades !== false,
     behavior: level.enemy?.behavior || 'ai',
     aiDifficulty: level.enemy?.aiDifficulty || 'easy',
     // What the enemy AI may hatch on this level, e.g. { soldier: 0.6, spitter: 0.4 }.

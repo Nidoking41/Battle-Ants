@@ -1,4 +1,4 @@
-import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
+import { AntTypes, GameConstants, getAntTypeById, meetsQueenTier } from './antTypes';
 import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
 import {
@@ -472,6 +472,14 @@ export function anotherDroneIsUseful(gameState, aiPlayer) {
  * Choose which unit type to produce based on AI strategy
  */
 export function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
+  // The AI obeys the same queen-tier unlocks as a player. A campaign level's
+  // strict mix is exempt: the level chose those units on purpose.
+  if (!config.strictMix) {
+    const aiQueen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === aiPlayer);
+    const unlocked = Object.entries(config.unitMix)
+      .filter(([type]) => meetsQueenTier(getAntTypeById(type)?.requiresQueenTier, aiQueen?.queenTier));
+    config = { ...config, unitMix: Object.fromEntries(unlocked) };
+  }
   const playerState = gameState.players[aiPlayer];
   const resources = playerState.resources;
   // Under a strict (campaign) mix the fixed opening rules only apply to types
