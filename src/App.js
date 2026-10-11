@@ -3,7 +3,7 @@ import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById } from './antTypes';
-import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid } from './hexUtils';
+import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
 import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
@@ -75,6 +75,80 @@ const OnlineMultiplayerLobby = React.lazy(() => import('./OnlineMultiplayerLobby
 const GameLobby = React.lazy(() => import('./GameLobby'));
 
 // Shown while an online lobby screen is being fetched.
+// Small pixel-art resource icons used in text (cost lines, resource totals, help).
+// They replace the old leaf / gem emoji so the UI matches the sprites on the map.
+const ResourceIcon = ({ type, size = 16 }) => (
+  <img
+    src={`${process.env.PUBLIC_URL}/sprites/resources/${type}_icon.png`}
+    alt={type === 'food' ? 'food' : 'minerals'}
+    title={type === 'food' ? 'Food' : 'Minerals'}
+    width={size}
+    height={size}
+    style={{ imageRendering: 'pixelated', verticalAlign: 'text-bottom', margin: '0 1px' }}
+  />
+);
+const FoodIcon = (props) => <ResourceIcon type="food" {...props} />;
+const MineralIcon = (props) => <ResourceIcon type="minerals" {...props} />;
+
+// ---- Land tiles ----
+// Four kinds of ground, each drawn with a pixel-art texture (see the
+// <pattern>s in renderHexGrid). `color` is the plain colour underneath, used
+// if the texture image fails to load. This is only for looks - the kind of
+// ground never changes the rules.
+const TERRAIN = {
+  grass: { color: '#4c7e36', pattern: 'terrainGrass' },
+  dirt: { color: '#9e7a56', pattern: 'terrainDirt' },
+  mud: { color: '#6c5848', pattern: 'terrainMud' },
+  sand: { color: '#ccb482', pattern: 'terrainSand' }
+};
+const HEX_NEIGHBOR_OFFSETS = [[1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1], [1, 0]];
+
+// Which kind of ground a hex is. Anything touching water is mud (river banks,
+// the lake shore, the crossings). Everything else is laid out in soft patches
+// by a fixed formula, so a map looks the same every game and for every player.
+// Every term is unchanged when the map is turned half a turn, so both players
+// see the same ground from their end.
+function getTerrainType(q, r, waterKeys) {
+  if (waterKeys && HEX_NEIGHBOR_OFFSETS.some(([dq, dr]) => waterKeys.has(`${q + dq},${r + dr}`))) return 'mud';
+  const x = 1.5 * q;
+  const y = Math.sqrt(3) * (r + q / 2);
+  const lush = 1.1 * Math.sin(x * 0.5) * Math.sin(y * 0.42)
+    + 0.9 * Math.cos(x * 0.33 - y * 0.47) * Math.cos(y * 0.21)
+    - 0.7 * Math.cos(x * 0.8 + y * 0.35)
+    + 0.5 * Math.sin(x * 1.1) * Math.sin(y * 1.3);
+  const dry = -1.0 * Math.sin(x * 0.37) * Math.sin(y * 0.3)
+    + 0.9 * Math.cos(x * 0.24 + y * 0.5)
+    - 0.6 * Math.cos(x * 0.62 - y * 0.2)
+    + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.8);
+  if (lush > 0.3) return 'grass';
+  if (dry > 0.55) return 'sand';
+  if (dry < -1.0) return 'mud';
+  return 'dirt';
+}
+
+// ---- Anthills ----
+// Player colours that have their own anthill sprite.
+const PLAYER_COLOR_NAMES = {
+  '#FF0000': 'red',
+  '#0000FF': 'blue',
+  '#00FF00': 'green',
+  '#FFFF00': 'yellow',
+  '#000000': 'black'
+};
+
+// Which sprite to draw for an anthill: finished or half-built, with the base
+// of the mound in its owner's colour. If the owner's colour is not one of the
+// five above, falls back to a plain mound (hasOwnerColor is then false and the
+// old coloured dot is drawn so ownership is still visible).
+function getAnthillSprite(anthill, players) {
+  const colorName = PLAYER_COLOR_NAMES[String(players[anthill.owner]?.color || '').toUpperCase()];
+  const shape = anthill.isComplete ? 'anthill' : 'anthill_building';
+  return {
+    file: `${shape}${colorName ? `_${colorName}` : ''}.png`,
+    hasOwnerColor: Boolean(colorName)
+  };
+}
+
 const LobbyLoading = () => (
   <div style={{
     display: 'flex',
@@ -139,53 +213,36 @@ function App() {
   const [ambientMusic, setAmbientMusic] = useState(null); // Audio object for ambient music
   const [ambientEnabled, setAmbientEnabled] = useState(true); // Whether ambient music is enabled
 
+  // Hero power flash: a quick full-screen moment with the hero's portrait and a
+  // beam in the player's colour, played when a hero ability is activated
+  const [heroFlash, setHeroFlash] = useState(null);
+  const playHeroFlash = (playerId, state) => {
+    const { getHeroById } = require('./heroQueens');
+    const player = state?.players?.[playerId];
+    const hero = player && getHeroById(player.heroId);
+    if (!hero) return;
+    // A black beam would vanish on the dark band, so black players get a pale violet
+    const beamColor = String(player.color).toUpperCase() === '#000000' ? '#a99bd1' : player.color;
+    const key = Date.now();
+    setHeroFlash({ key, portrait: hero.portraitImage, name: hero.name, ability: hero.heroAbility?.name || 'Hero Power', color: beamColor });
+    setTimeout(() => setHeroFlash(prev => (prev && prev.key === key ? null : prev)), 1600);
+    // Right after the flash, a card explains what the power does
+    setTimeout(() => setHeroInfo({ key, name: hero.heroAbility?.name || 'Hero Power', description: hero.heroAbility?.description || '', color: beamColor }), 1500);
+    setTimeout(() => setHeroInfo(prev => (prev && prev.key === key ? null : prev)), 6000);
+  };
+  const [heroInfo, setHeroInfo] = useState(null);
+
+  // Campaign tutorial pop-up (level.tutorialTip): hidden once the player clicks Got it
+  const [tipDismissed, setTipDismissed] = useState(false);
+
   // Window size for responsive SVG
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
 
-  // Store random hex colors for terrain - natural earthy tones
-  const [hexColors] = useState(() => {
-    // Natural earthy tones for the hex grid
-    const earthyTones = [
-      '#8B7355', // Light brown
-      '#A0826D', // Tan
-      '#9C8B6B', // Khaki brown
-      '#6B8E23', // Olive green
-      '#8FBC8F', // Dark sea green
-      '#90A955', // Moss green
-      '#7D8471', // Sage green
-      '#8E8268', // Warm gray-brown
-      '#9B9B7A', // Light olive
-      '#87986A', // Green-brown
-    ];
-
-    // Simple pseudo-random number generator with seed
-    const seededRandom = (seed) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-
-    // Generate random color for each hex using a seeded random based on position
-    // Cover a large enough range to handle all map types
-    const colors = new Map();
-    const maxRange = 20; // Large enough to cover any map type
-    for (let q = -maxRange; q <= maxRange; q++) {
-      for (let r = -maxRange; r <= maxRange; r++) {
-        const s = -q - r;
-        // Use position as seed for consistent but varied colors
-        const seed = q * 7919 + r * 7907 + s * 7901; // Large primes for better distribution
-        const randomValue = seededRandom(seed);
-        const colorIndex = Math.floor(randomValue * earthyTones.length);
-        colors.set(`${q},${r}`, earthyTones[colorIndex]);
-      }
-    }
-    return colors;
-  });
-
   // Sprite animation system
-  const { setAntAnimation, removeAntAnimation, getAntFrame, setEggAnimation, removeEggAnimation, getEggFrame } = useSprites();
+  const { setAntAnimation, ensureAntAnimation, removeAntAnimation, getAntFrame, setEggAnimation, removeEggAnimation, getEggFrame } = useSprites();
 
   // Track the last combat action timestamp to prevent replaying the same animation
   const lastCombatActionTimestamp = useRef(null);
@@ -202,6 +259,20 @@ function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
+
+  // Make sure every ant on the board has its idle animation running. The
+  // effect above only runs when a player's colour changes, so a unit that
+  // appeared later was never started and sat frozen on its first frame until
+  // it moved or attacked: a newly hatched ant, or a campaign unit such as the
+  // Queen Larva, which never moves or attacks at all. This runs whenever the
+  // set of ants changes and only starts the ones that are missing.
+  const antIdsKey = Object.values(gameState.ants).map(a => `${a.id}:${a.type}`).sort().join('|');
+  useEffect(() => {
+    Object.values(gameState.ants).forEach(ant => {
+      ensureAntAnimation(ant.id, ant.type, gameState.players[ant.owner]?.color);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [antIdsKey]);
 
   // Clear selection if the selected ant no longer exists
   // Note: We allow selecting enemy ants to view their info, just can't take actions with them
@@ -402,11 +473,44 @@ function App() {
 
   // Handle mouse wheel for zooming
   const handleWheel = (e) => {
+    // Ctrl + wheel and trackpad pinch are handled by the page-zoom lock below
+    if (e.ctrlKey || e.metaKey) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel + delta));
     setZoomLevel(newZoom);
   };
+
+  // Page-zoom lock. The browser's own zoom (Ctrl + mouse wheel, a trackpad
+  // pinch, Ctrl + plus / minus) enlarges the whole page and pushes the side
+  // panels off screen. While the game is open those gestures are blocked, and
+  // Ctrl + wheel / pinch zooms the board instead. Ctrl + 0 is left alone so a
+  // page that is already zoomed can still be reset to 100%.
+  // (React's own wheel handler cannot block the browser, so this listens directly.)
+  useEffect(() => {
+    const lockWheelZoom = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      // A mouse wheel click is about 100; a pinch sends many small values
+      const delta = Math.max(-0.1, Math.min(0.1, -e.deltaY * 0.01));
+      setZoomLevel(prev => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev + delta)));
+    };
+    const lockKeyZoom = (e) => {
+      if ((e.ctrlKey || e.metaKey) && ['+', '=', '-', '_'].includes(e.key)) e.preventDefault();
+    };
+    const lockGesture = (e) => e.preventDefault(); // Safari pinch
+    window.addEventListener('wheel', lockWheelZoom, { passive: false });
+    window.addEventListener('keydown', lockKeyZoom);
+    window.addEventListener('gesturestart', lockGesture);
+    window.addEventListener('gesturechange', lockGesture);
+    return () => {
+      window.removeEventListener('wheel', lockWheelZoom);
+      window.removeEventListener('keydown', lockKeyZoom);
+      window.removeEventListener('gesturestart', lockGesture);
+      window.removeEventListener('gesturechange', lockGesture);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keyboard controls for panning
   useEffect(() => {
@@ -934,6 +1038,25 @@ function App() {
     fullGameStateRef.current = fullGameState;
   }, [fullGameState]);
 
+  // While the computer's turn is being replayed, the blows are drawn on the
+  // displayed board only - the real state is applied in one go at the end.
+  // This holds what the replay has shown so far: the health each hit unit is
+  // currently displayed with, and the units already shown as dead. Anything
+  // that rebuilds the displayed board mid-replay (each step of a walking unit
+  // does, in fogged games) must put this back on top, otherwise health bars
+  // snap back to their start-of-turn value until the turn ends.
+  const replayDamageRef = useRef(null);
+  const applyReplayDamage = (state) => {
+    const replay = replayDamageRef.current;
+    if (!replay || !state?.ants) return state;
+    const ants = { ...state.ants };
+    Object.entries(replay.health).forEach(([id, health]) => {
+      if (ants[id]) ants[id] = { ...ants[id], health };
+    });
+    replay.removed.forEach(id => { delete ants[id]; });
+    return { ...state, ants };
+  };
+
   // Handle movement animation
   useEffect(() => {
     if (!movingAnt) return;
@@ -972,7 +1095,8 @@ function App() {
           };
           fullGameStateRef.current = advanced;
           setFullGameState(advanced);
-          setGameState(applyFogOfWar(advanced, 'player1'));
+          // keep the damage already shown during a replay of the computer's turn
+          setGameState(applyReplayDamage(applyFogOfWar(advanced, 'player1')));
           foundInGameState = true;
           foundInFullState = true;
         }
@@ -1477,6 +1601,11 @@ function App() {
         });
         const unitAt = pos => Object.keys(posOf).find(id => hp[id] > 0 && posOf[id].q === pos.q && posOf[id].r === pos.r);
         const removed = new Set();
+        // Health each hit unit is currently shown with. Shared with the
+        // movement animation (see replayDamageRef) so a unit walking after a
+        // blow has landed does not reset the health bars.
+        const shownHealth = {};
+        replayDamageRef.current = { health: shownHealth, removed };
         const dropFallen = () => {
           const fallen = Object.keys(hp).filter(id => hp[id] <= 0 && !removed.has(id));
           if (fallen.length === 0) return;
@@ -1496,6 +1625,7 @@ function App() {
             if (id) { hp[id] -= damage; hit[id] = Math.max(0, hp[id]); }
           });
           const ids = Object.keys(hit);
+          ids.forEach(id => { shownHealth[id] = hit[id]; });
           if (ids.length > 0) {
             setGameState(prev => {
               const ants = { ...prev.ants };
@@ -1550,7 +1680,7 @@ function App() {
             revealedForCombat = true;
             const preCombat = fullGameStateRef.current;
             if (preCombat) {
-              setGameState(applyFogOfWar(preCombat, 'player1'));
+              setGameState(applyReplayDamage(applyFogOfWar(preCombat, 'player1')));
               await new Promise(resolve => setTimeout(resolve, 250));
             }
           }
@@ -1596,6 +1726,7 @@ function App() {
         const { gameState: finalState } = endTurn(aiState);
 
         // Apply the resolved state only after every attack has been shown
+        replayDamageRef.current = null;
         updateGame(finalState);
 
         // Small delay to let state update
@@ -1615,6 +1746,7 @@ function App() {
           console.error('Could not recover AI turn:', e2);
         }
       } finally {
+        replayDamageRef.current = null;
         // Only set isAIThinking to false AFTER all animations are complete
         setIsAIThinking(false);
       }
@@ -1774,6 +1906,7 @@ function App() {
   // A level with a cutscene shows it first; Retry / Play Again skip it.
   const handleStartCampaignLevel = (levelId, { skipCutscene = false } = {}) => {
     const level = getLevel(levelId);
+    setTipDismissed(false); // a level's tutorial pop-up shows again each time it starts
     if (level?.cutscene && !skipCutscene) {
       setPendingCutsceneLevel(levelId);
       return;
@@ -2367,16 +2500,13 @@ function App() {
       a => hexEquals(a.position, resourceAtDrone.position)
     );
 
-    // Get resource hex label for better user feedback
-    const resourceLabel = String.fromCharCode(65 + resourceAtDrone.position.q + 6) + (resourceAtDrone.position.r + 7);
-
     if (existingAnthill && existingAnthill.isComplete && existingAnthill.owner === drone.owner) {
-      showFeedback(`There is already a completed ${existingAnthill.resourceType} anthill at ${resourceLabel}!`);
+      showFeedback(`There is already a completed ${existingAnthill.resourceType} anthill here!`);
       return;
     }
 
     if (existingAnthill && existingAnthill.owner !== drone.owner) {
-      showFeedback(`Cannot build on enemy anthill at ${resourceLabel}! Destroy it first.`);
+      showFeedback('Cannot build on an enemy anthill! Destroy it first.');
       return;
     }
 
@@ -4042,8 +4172,10 @@ function App() {
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
       console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
 
-      // Filter out occupied hexes (ants, eggs, and trees)
+      // Filter out occupied hexes (ants, eggs, and trees) and, on custom maps,
+      // hexes that are not part of the board at all
       const validSpawnHexes = spawningPool.filter(hex => {
+        if (!isValidHex(hex, gridRadius, gameState.mapShape)) return false;
         const occupied = Object.values(gameState.ants).some(a => hexEquals(a.position, hex)) ||
                         Object.values(gameState.eggs).some(e => hexEquals(e.position, hex)) ||
                         Object.values(gameState.trees || {}).some(t => hexEquals(t.position, hex));
@@ -4079,6 +4211,7 @@ function App() {
       if (!queen || queen.type !== 'queen') return [];
 
       // Return all valid hexes on the board
+      if (Array.isArray(gameState.mapHexes)) return gameState.mapHexes;
       const allHexes = [];
       for (let q = -gridRadius; q <= gridRadius; q++) {
         for (let r = -gridRadius; r <= gridRadius; r++) {
@@ -4086,6 +4219,7 @@ function App() {
           if (Math.abs(q) > gridRadius || Math.abs(r) > gridRadius || Math.abs(s) > gridRadius) continue;
 
           const hex = new HexCoord(q, r);
+          if (isMapWater(hex, gridRadius, gameState.mapShape)) continue; // river / lake water
           allHexes.push(hex);
         }
       }
@@ -4104,13 +4238,23 @@ function App() {
       const bombardierType = AntTypes.BOMBARDIER;
       const validHexes = [];
 
-      // Generate all hexes within attack range
-      for (let q = -gridRadius; q <= gridRadius; q++) {
-        for (let r = -gridRadius; r <= gridRadius; r++) {
-          const s = -q - r;
-          if (Math.abs(q) > gridRadius || Math.abs(r) > gridRadius || Math.abs(s) > gridRadius) continue;
-
-          const hex = new HexCoord(q, r);
+      // Generate all hexes within attack range. Custom maps supply their own
+      // hex list; otherwise walk the hexagon.
+      const candidates = [];
+      if (Array.isArray(gameState.mapHexes)) {
+        candidates.push(...gameState.mapHexes);
+      } else {
+        for (let q = -gridRadius; q <= gridRadius; q++) {
+          for (let r = -gridRadius; r <= gridRadius; r++) {
+            const s = -q - r;
+            if (Math.abs(q) > gridRadius || Math.abs(r) > gridRadius || Math.abs(s) > gridRadius) continue;
+            if (isMapWater({ q, r }, gridRadius, gameState.mapShape)) continue; // river / lake water
+            candidates.push(new HexCoord(q, r));
+          }
+        }
+      }
+      for (const hex of candidates) {
+        {
           const distance = Math.max(
             Math.abs(bombardier.position.q - hex.q),
             Math.abs(bombardier.position.r - hex.r),
@@ -4147,21 +4291,98 @@ function App() {
       }
     }
 
-    // Define SVG patterns for birthing pools and spider web (only once)
+    // Define SVG patterns for creep, land tiles and water (only once)
     const patterns = (
       <defs>
-        <pattern id="birthingPoolPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-          <circle cx="5" cy="5" r="1.5" fill="#6A0DAD" opacity="0.4" />
-          <circle cx="15" cy="10" r="1" fill="#6A0DAD" opacity="0.3" />
-          <circle cx="10" cy="15" r="1.2" fill="#4B0082" opacity="0.5" />
-          <circle cx="2" cy="12" r="0.8" fill="#8B008B" opacity="0.4" />
-          <circle cx="18" cy="3" r="1" fill="#6A0DAD" opacity="0.3" />
+        {/* Creep on the queen's egg-laying spots, in two layers of seamless
+            pixel art so it looks alive:
+            - creepPattern: the flesh and its thin veins (still)
+            - creepGlowPattern: the same veins in bright pink, fading in and
+              out so the veins glow lighter and darker like a slow pulse */}
+        <pattern id="creepPattern" patternUnits="userSpaceOnUse" width="128" height="128">
+          <rect width="128" height="128" fill="#5a2860" />
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/creep.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
         </pattern>
-        <radialGradient id="birthingPoolGradient" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#9932CC" stopOpacity="1" />
-          <stop offset="70%" stopColor="#6A0DAD" stopOpacity="1" />
-          <stop offset="100%" stopColor="#4B0082" stopOpacity="1" />
-        </radialGradient>
+        <pattern id="creepGlowPattern" patternUnits="userSpaceOnUse" width="128" height="128">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/creep_glow.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          >
+            <animate attributeName="opacity" values="0.2;0.85;0.2" dur="2.8s" repeatCount="indefinite" />
+          </image>
+        </pattern>
+        {/* Land tiles: seamless pixel-art textures (64px art shown at 2x). They
+            are deliberately still - only the water moves. The plain rectangle
+            underneath is a fallback if an image is missing. */}
+        <pattern id="terrainGrass" patternUnits="userSpaceOnUse" width="128" height="128">
+          <rect width="128" height="128" fill={TERRAIN.grass.color} />
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/grass.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        <pattern id="terrainMud" patternUnits="userSpaceOnUse" width="128" height="128">
+          <rect width="128" height="128" fill={TERRAIN.mud.color} />
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/mud.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        <pattern id="terrainDirt" patternUnits="userSpaceOnUse" width="128" height="128">
+          <rect width="128" height="128" fill={TERRAIN.dirt.color} />
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/dirt.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        <pattern id="terrainSand" patternUnits="userSpaceOnUse" width="128" height="128">
+          <rect width="128" height="128" fill={TERRAIN.sand.color} />
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/sand.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        {/* Water: a seamless pixel-art texture (64px art shown at 2x), plus a
+            layer of wave crests that drifts slowly so the water looks alive. */}
+        <pattern id="waterPattern" patternUnits="userSpaceOnUse" width="128" height="128">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/water.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </pattern>
+        <pattern id="waterWavesPattern" patternUnits="userSpaceOnUse" width="128" height="128">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/water_waves.png`}
+            width="128"
+            height="128"
+            style={{ imageRendering: 'pixelated' }}
+          />
+          <animateTransform
+            attributeName="patternTransform"
+            type="translate"
+            from="0 0"
+            to="128 0"
+            dur="24s"
+            repeatCount="indefinite"
+          />
+        </pattern>
       </defs>
     );
 
@@ -4171,7 +4392,10 @@ function App() {
     const sideLength = mapShape === 'triangle' ? GameConstants.TRIANGLE_SIDE_LENGTH :
                        mapShape === 'square' ? GameConstants.SQUARE_SIZE : gridRadius;
 
-    if (mapShape === 'triangle') {
+    if (Array.isArray(gameState.mapHexes)) {
+      // Custom campaign map: draw exactly the hexes the layout declared
+      mapHexes = gameState.mapHexes;
+    } else if (mapShape === 'triangle') {
       mapHexes = generateTriangleGrid(sideLength);
     } else if (mapShape === 'square') {
       mapHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
@@ -4181,11 +4405,68 @@ function App() {
         for (let r = -gridRadius; r <= gridRadius; r++) {
           const s = -q - r;
           if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+            // River / lake maps: the water hexes are not part of the board
+            if (isMapWater({ q, r }, gridRadius, mapShape)) continue;
             mapHexes.push(new HexCoord(q, r));
           }
         }
       }
     }
+
+    // Water (campaign maps and the 2-player river / lake): drawn as a blue hex but
+    // not part of the board, so nothing can enter it, stand on it, or be
+    // placed on it, and there is nothing to click. Always visible through fog.
+    const waterHexes = gameState.mapWater || getMapWaterHexes(gridRadius, mapShape);
+    const waterKeys = new Set(waterHexes.map(w => `${w.q},${w.r}`));
+    // The six corners of a hex, and for the edge from corner i to corner i+1
+    // the neighbouring hex on the other side of that edge.
+    const WATER_CORNERS = [[50, 0], [25, -43], [-25, -43], [-50, 0], [-25, 43], [25, 43]];
+    const WATER_EDGE_NEIGHBORS = [[1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1], [1, 0]];
+    for (const w of waterHexes) {
+      const { x, y } = hexToPixel(w, hexSize);
+      // Absolute corner positions (no per-hex transform), so the texture runs
+      // unbroken from one water hex into the next.
+      const pts = WATER_CORNERS.map(([cx, cy]) => [x + cx, y + cy]);
+      const outline = pts.map(p => p.join(',')).join(' ');
+      const toward = (p, k) => [x + (p[0] - x) * k, y + (p[1] - y) * k]; // pull a point toward the hex centre
+      // Edges that touch land (or the edge of the map) get a shoreline.
+      const shoreEdges = WATER_EDGE_NEIGHBORS
+        .map(([dq, dr], i) => (waterKeys.has(`${w.q + dq},${w.r + dr}`) ? null : i))
+        .filter(i => i !== null);
+      hexagons.push(
+        <g key={`water_${w.q},${w.r}`} style={{ pointerEvents: 'none' }}>
+          {/* the stroke uses the same texture so no seams show between water hexes */}
+          <polygon points={outline} fill="url(#waterPattern)" stroke="url(#waterPattern)" strokeWidth="1.5" />
+          <polygon points={outline} fill="url(#waterWavesPattern)" />
+          {shoreEdges.map(i => {
+            const a = pts[i];
+            const b = pts[(i + 1) % 6];
+            const a2 = toward(a, 0.78);
+            const b2 = toward(b, 0.78);
+            const a3 = toward(a, 0.9);
+            const b3 = toward(b, 0.9);
+            return (
+              <g key={i}>
+                {/* paler shallow water along the bank */}
+                <polygon points={[a, b, b2, a2].map(p => p.join(',')).join(' ')} fill="rgba(150, 205, 200, 0.2)" />
+                <polygon points={[a, b, b3, a3].map(p => p.join(',')).join(' ')} fill="rgba(170, 215, 205, 0.22)" />
+                {/* dark wet bank where the water meets the land */}
+                <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#33291f" strokeWidth="5" strokeLinecap="round" />
+              </g>
+            );
+          })}
+        </g>
+      );
+    }
+
+    // Creep: every queen's own hex plus her egg-laying spots
+    const creepKeys = new Set();
+    Object.values(gameState.ants).forEach(a => {
+      if (a.type !== 'queen') return;
+      creepKeys.add(`${a.position.q},${a.position.r}`);
+      getSpawningPoolHexes(a, getNeighbors).forEach(n => creepKeys.add(`${n.q},${n.r}`));
+    });
+    const isCreepHex = (cq, cr) => creepKeys.has(`${cq},${cr}`);
 
     // Render each hex on the map
     for (const hex of mapHexes) {
@@ -4220,35 +4501,17 @@ function App() {
       // What's hidden is enemy ants UNDER trees - that logic is handled in ant rendering
       const isTreeVisible = true;
 
-      // Check if this hex is in the spawning pool of any queen
-      let isBirthingPool = false;
-      let birthingPoolOwner = null;
+      // Is this hex creep (a queen's hex or one of her egg-laying spots)?
+      const isBirthingPool = isCreepHex(q, r);
 
-      Object.values(gameState.ants).forEach(a => {
-        if (a.type !== 'queen') return;
-
-        // Check if this is the queen's tile
-        if (hexEquals(a.position, hex)) {
-          isBirthingPool = true;
-          birthingPoolOwner = a.owner;
-          return;
-        }
-
-        // Check if in the queen's spawning pool
-        const spawningPool = getSpawningPoolHexes(a, getNeighbors);
-        if (spawningPool.some(n => hexEquals(n, hex))) {
-          isBirthingPool = true;
-          birthingPoolOwner = a.owner;
-        }
-      });
-
-      // Get random earthy tone color for this hex
-      const hexColorKey = `${q},${r}`;
-      let fillColor = hexColors.get(hexColorKey) || '#8B7355'; // Default to light brown if not found
+      // Ground texture for this hex (grass, dirt, mud or sand)
+      const terrainType = getTerrainType(q, r, waterKeys);
+      const terrainFill = `url(#${TERRAIN[terrainType].pattern})`;
+      let fillColor = terrainFill;
       let useBirthingPoolPattern = false;
 
       if (isBirthingPool) {
-        fillColor = 'url(#birthingPoolGradient)'; // Gradient for birthing pools
+        // The ground stays underneath; the creep is drawn over it (see below)
         useBirthingPoolPattern = true;
       }
       // Don't color the entire hex for resources anymore - we'll add a colored circle instead
@@ -4304,11 +4567,15 @@ function App() {
 
       hexagons.push(
           <g key={`${q},${r}`} transform={`translate(${x}, ${y})`}>
+            {/* Same hexagon as before, but given in board coordinates (the
+                transform cancels the group's shift) so a ground texture lines
+                up from one hex to the next instead of restarting in each. */}
             <polygon
-              points="50,0 25,-43 -25,-43 -50,0 -25,43 25,43"
+              transform={`translate(${-x}, ${-y})`}
+              points={`${x + 50},${y} ${x + 25},${y - 43} ${x - 25},${y - 43} ${x - 50},${y} ${x - 25},${y + 43} ${x + 25},${y + 43}`}
               fill={fillColor}
-              stroke={isSelected ? '#F39C12' : isBirthingPool ? '#4B0082' : '#333'}
-              strokeWidth={isSelected ? '3' : isBirthingPool ? '2.5' : '2'}
+              stroke={isSelected ? '#F39C12' : (isBirthingPool && !useBirthingPoolPattern) ? '#4B0082' : '#333'}
+              strokeWidth={isSelected ? '3' : (isBirthingPool && !useBirthingPoolPattern) ? '2.5' : '2'}
               style={{ cursor: 'pointer' }}
               onClick={() => handleHexClick(hex)}
               onContextMenu={(e) => {
@@ -4340,58 +4607,55 @@ function App() {
                 }
               }}
             />
-            {useBirthingPoolPattern && (
-              <polygon
-                points="50,0 25,-43 -25,-43 -50,0 -25,43 25,43"
-                fill="url(#birthingPoolPattern)"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
-            {/* Coordinate reference label */}
-            <text
-              x="-15"
-              y="-18"
-              fontSize="8"
-              fill="#000"
-              fontWeight="bold"
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {String.fromCharCode(65 + q + 6)}{r + 7}
-            </text>
+            {useBirthingPoolPattern && (() => {
+              // Creep fills the whole hex. It is drawn in board coordinates so
+              // the texture runs across neighbouring hexes. Same hexagon twice:
+              // flesh and veins, then the pulsing vein glow.
+              const creepHex = `${x + 50},${y} ${x + 25},${y - 43} ${x - 25},${y - 43} ${x - 50},${y} ${x - 25},${y + 43} ${x + 25},${y + 43}`;
+              return (
+                <g transform={`translate(${-x}, ${-y})`} style={{ pointerEvents: 'none' }}>
+                  <polygon points={creepHex} fill="url(#creepPattern)" stroke="#2a1232" strokeWidth="2" />
+                  <polygon points={creepHex} fill="url(#creepGlowPattern)" />
+                </g>
+              );
+            })()}
             {anthill && (
               <g transform={ant ? "translate(15, -15)" : ""}>
-                {/* Anthill icon - mountain for complete, construction for building */}
-                <text
-                  textAnchor="middle"
-                  dy="0.3em"
-                  fontSize="24"
-                  fontWeight="bold"
-                  style={{ pointerEvents: 'none', opacity: anthill.isComplete ? 1 : 0.6 }}
-                >
-                  {anthill.isComplete ? '⛰️' : '🚧'}
-                </text>
+                {/* Anthill sprite (32x32 pixel art shown at 48px): a finished mound,
+                    or a half-built one while under construction. The base of the
+                    mound is in the owner's colour. */}
+                <image
+                  x={-24}
+                  y={-29}
+                  width={48}
+                  height={48}
+                  href={`${process.env.PUBLIC_URL}/sprites/anthill/${getAnthillSprite(anthill, gameState.players).file}`}
+                  style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                />
                 {/* Resource type indicator - small icon at lower right */}
                 {anthill.isComplete && (
-                  <text
-                    x="12"
-                    y="10"
-                    fontSize="14"
-                    fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {anthill.resourceType === 'food' ? '🍃' : '💎'}
-                  </text>
+                  <image
+                    x={10}
+                    y={-2}
+                    width={16}
+                    height={16}
+                    href={`${process.env.PUBLIC_URL}/sprites/resources/${anthill.resourceType === 'food' ? 'food' : 'minerals'}_icon.png`}
+                    style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                  />
                 )}
-                {/* Owner indicator - colored circle at upper right */}
-                <circle
-                  cx="15"
-                  cy="-15"
-                  r="8"
-                  fill={gameState.players[anthill.owner]?.color || '#999'}
-                  stroke="#333"
-                  strokeWidth="1.5"
-                  style={{ pointerEvents: 'none' }}
-                />
+                {/* Ownership is shown by the colour of the mound's base. The old
+                    coloured dot is only a fallback for a colour with no sprite. */}
+                {!getAnthillSprite(anthill, gameState.players).hasOwnerColor && (
+                  <circle
+                    cx="15"
+                    cy="-15"
+                    r="8"
+                    fill={gameState.players[anthill.owner]?.color || '#999'}
+                    stroke="#333"
+                    strokeWidth="1.5"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
                 {/* Team indicator for anthills (only for 3+ player games with teams) */}
                 {gameState.playerCount >= 3 && gameState.players[anthill.owner]?.team && (
                   <g transform="translate(-15, -15)">
@@ -4553,25 +4817,20 @@ function App() {
               />
             )}
             {resource && !anthill && isVisible && (
-              <g transform={ant ? "translate(15, -15)" : ""}>
-                {/* Colored circle background for resource */}
-                <circle
-                  cx="0"
-                  cy="0"
-                  r="20"
-                  fill={resource.type === 'food' ? '#90EE90' : '#FFD700'}
-                  opacity="0.8"
-                  style={{ pointerEvents: 'none' }}
+              <g transform="translate(14, -22)">
+                {/* Resource sprite (32x32 pixel art), always 32px in the upper-right
+                    corner of the hex, so it looks the same whether or not an ant is standing there */}
+                <image
+                  x={-16}
+                  y={-16}
+                  width={32}
+                  height={32}
+                  href={`${process.env.PUBLIC_URL}/sprites/resources/${resource.type === 'food' ? 'food' : 'minerals'}.png`}
+                  style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                  onError={(e) => {
+                    console.error('Failed to load resource sprite');
+                  }}
                 />
-                <text
-                  textAnchor="middle"
-                  dy="0.3em"
-                  fontSize="16"
-                  fontWeight="bold"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {resource.type === 'food' ? '🍃' : '💎'}
-                </text>
               </g>
             )}
             {/* Ants are now rendered in a separate overlay layer above */}
@@ -4836,6 +5095,7 @@ function App() {
   const getAntSpritePath = (antId, playerColor = null) => {
     const antTypeToFolder = {
       'queen': 'Queen',
+      'queenLarva': 'Larva',
       'scout': 'Scout',
       'drone': 'Drone',
       'soldier': 'Marauder',
@@ -4849,6 +5109,7 @@ function App() {
 
     const antTypeToPrefix = {
       'queen': 'queen',
+      'queenLarva': 'larva',
       'scout': 'scout',
       'drone': 'drone',
       'soldier': 'marauder',
@@ -5480,10 +5741,11 @@ function App() {
                           <div style={{
                             fontSize: '12px',
                             marginTop: '3px',
+                            whiteSpace: 'nowrap', // keep both costs and their icons on one line
                             fontWeight: canBuy ? 'bold' : 'normal',
                             color: isLocked ? '#8a7fa8' : (affordable ? '#9fe09f' : '#d98b8b')
                           }}>
-                            Cost: {displayCost.food}🍃 {displayCost.minerals}💎
+                            Cost: {displayCost.food}<FoodIcon /> {displayCost.minerals}<MineralIcon />
                           </div>
                           <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2', color: '#999' }}>
                             {ant.description}
@@ -5548,6 +5810,73 @@ function App() {
 
             {/* Ants Overlay - rendered on top of all hexes */}
             {renderAntsOverlay()}
+
+            {/* Campaign tutorial pop-up: a pulsing ring on the resource node
+                nearest the player's leader and a short note beside it. Goes
+                away when the player clicks Got it or starts their first anthill. */}
+            {(() => {
+              const tip = gameState.campaign ? getLevel(gameState.campaign.levelId)?.tutorialTip : null;
+              if (!tip || tipDismissed) return null;
+              const anthills = Object.values(gameState.anthills || {});
+              if (anthills.some(h => h.owner === 'player1')) return null;
+              const leader = Object.values(gameState.ants).find(a => a.owner === 'player1' && (a.type === 'queenLarva' || a.type === 'queen'));
+              const nodes = Object.values(gameState.resources || {}).filter(r =>
+                r.type === tip.resource && !anthills.some(h => hexEquals(h.position, r.position)));
+              if (!leader || nodes.length === 0) return null;
+              const node = nodes.reduce((a, b) => (hexDistance(a.position, leader.position) <= hexDistance(b.position, leader.position) ? a : b));
+              const { x, y } = hexToPixel(node.position, hexSize);
+              const boxW = 230;
+              const boxH = 130;
+              // The note sits above the node, toward the enemy side, so it does
+              // not cover the units starting round the leader.
+              const boxX = x - boxW / 2;
+              const boxY = y - 50 - boxH;
+              return (
+                <g>
+                  <circle cx={x} cy={y} r="38" fill="none" stroke="#ffd34d" strokeWidth="4" style={{ pointerEvents: 'none' }}>
+                    <animate attributeName="r" values="34;44;34" dur="1.4s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="1;0.45;1" dur="1.4s" repeatCount="indefinite" />
+                  </circle>
+                  <line x1={x} y1={y - 44} x2={x} y2={boxY + boxH}
+                    stroke="#ffd34d" strokeWidth="3" style={{ pointerEvents: 'none' }} />
+                  <foreignObject x={boxX} y={boxY} width={boxW} height={boxH}>
+                    <div xmlns="http://www.w3.org/1999/xhtml" style={{
+                      background: 'rgba(20, 16, 28, 0.93)',
+                      border: '2px solid #ffd34d',
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      color: '#f0e8d8',
+                      fontFamily: 'sans-serif',
+                      fontSize: '13px',
+                      lineHeight: '1.35',
+                      textAlign: 'left',
+                      boxSizing: 'border-box',
+                      height: '100%'
+                    }}>
+                      <div style={{ color: '#ffd34d', fontWeight: 'bold', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <ResourceIcon type={tip.resource} /> {tip.title}
+                      </div>
+                      <div>{tip.text}</div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setTipDismissed(true); }}
+                        style={{
+                          marginTop: '6px',
+                          padding: '2px 10px',
+                          background: '#ffd34d',
+                          color: '#1a1a2e',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Got it
+                      </button>
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })()}
 
             {/* Projectiles */}
             {projectiles.map(({ id, startPos, endPos, timestamp }) => {
@@ -5836,11 +6165,11 @@ function App() {
               return (
                 <>
                   <p style={{ color: '#e0e0e0', margin: '5px 0' }}>
-                    🍃 Food: {player.resources.food}
+                    <FoodIcon /> Food: {player.resources.food}
                     {foodIncome > 0 && <span style={{ color: '#4ade80', fontWeight: 'bold' }}> (+{foodIncome}/turn)</span>}
                   </p>
                   <p style={{ color: '#e0e0e0', margin: '5px 0' }}>
-                    💎 Minerals: {player.resources.minerals}
+                    <MineralIcon /> Minerals: {player.resources.minerals}
                     {mineralIncome > 0 && <span style={{ color: '#60a5fa', fontWeight: 'bold' }}> (+{mineralIncome}/turn)</span>}
                   </p>
                 </>
@@ -5899,13 +6228,13 @@ function App() {
                 >
                   <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
                   <div style={{ fontSize: '13px', marginTop: '5px', color: '#b0b0b0' }}>
-                    Cost: {nextTierData.cost.food}🍃 {nextTierData.cost.minerals}💎
+                    Cost: {nextTierData.cost.food}<FoodIcon /> {nextTierData.cost.minerals}<MineralIcon />
                   </div>
                   <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
                     • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
                     • +5 Energy Regen/Turn<br/>
-                    • +{nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} Food Income/Turn ({QueenTiers[currentTier].foodIncome}🍃 → {nextTierData.foodIncome}🍃)
+                    • +{nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} Food Income/Turn ({QueenTiers[currentTier].foodIncome}<FoodIcon /> → {nextTierData.foodIncome}<FoodIcon />)
                   </div>
                 </button>
               </div>
@@ -5941,7 +6270,7 @@ function App() {
           {selectedAnthill && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(40, 167, 69, 0.5)' }}>
               <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>Anthill Info</h4>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? '🍃 Food' : '💎 Minerals'}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD}</p>
@@ -6731,6 +7060,9 @@ function App() {
                       const currentState = getGameStateForLogic();
                       const newState = activateHeroAbility(currentState, currentState.currentPlayer);
                       updateGame(newState);
+                      if (newState?.players?.[currentState.currentPlayer]?.heroAbilityActive) {
+                        playHeroFlash(currentState.currentPlayer, newState);
+                      }
                     }}
                     style={{
                       padding: '6px 12px',
@@ -6753,6 +7085,33 @@ function App() {
               );
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Hero power flash (see playHeroFlash). Styles are in App.css. */}
+      {heroFlash && (
+        <div key={heroFlash.key} className="hero-flash" style={{ '--hero-color': heroFlash.color }}>
+          <div className="hero-flash-band">
+            <div className="hero-flash-lines" />
+            <div className="hero-flash-beam" />
+            <img
+              className="hero-flash-portrait"
+              src={`${process.env.PUBLIC_URL}/sprites/${heroFlash.portrait}`}
+              alt=""
+            />
+            <div className="hero-flash-text">
+              <div className="hero-flash-name">{heroFlash.name}</div>
+              <div className="hero-flash-ability">{heroFlash.ability}!</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* What the hero power does - shown after the flash; click to close */}
+      {heroInfo && heroInfo.description && (
+        <div key={heroInfo.key} className="hero-info" style={{ '--hero-color': heroInfo.color }} onClick={() => setHeroInfo(null)}>
+          <div className="hero-info-name">{heroInfo.name}</div>
+          <div className="hero-info-desc">{heroInfo.description}</div>
         </div>
       )}
 
@@ -6897,7 +7256,7 @@ function App() {
                     </div>
                     {!isMaxed && cost && (
                       <div style={{ fontSize: '14px', marginBottom: '6px' }}>
-                        Cost: {cost.food}🍃 {cost.minerals}💎
+                        Cost: {cost.food}<FoodIcon /> {cost.minerals}<MineralIcon />
                       </div>
                     )}
                     <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.4' }}>
@@ -7325,10 +7684,11 @@ function App() {
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Game Basics</h2>
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                <li><strong>Resources:</strong> Food (🍃) and Minerals (💎) are needed to spawn units and purchase upgrades</li>
+                <li><strong>Resources:</strong> Food (<FoodIcon />) and Minerals (<MineralIcon />) are needed to spawn units and purchase upgrades</li>
                 <li><strong>Turn-Based:</strong> Each player takes turns. End your turn when all actions are complete</li>
                 <li><strong>Queen Energy:</strong> Queens have energy for laying eggs and healing. Energy regenerates each round</li>
                 <li><strong>Fog of War:</strong> In multiplayer, you can only see areas within your units' vision range</li>
+                <li><strong>Water:</strong> 2-player maps have water in the middle. Small maps have a lake to walk round; medium and large maps have a river running east to west with three land crossings. Nothing can walk through water, but ranged attacks can shoot across it</li>
                 <li><strong>Camera:</strong> The view centers on your Queen each turn. Use mouse wheel to zoom, middle-click or WASD/arrows to pan</li>
               </ul>
             </section>
@@ -7382,7 +7742,7 @@ function App() {
                     </div>
                     <p style={{ fontSize: '12px', margin: '0 0 8px 0', color: '#666' }}>{ant.description}</p>
                     <div style={{ fontSize: '12px', lineHeight: '1.6' }}>
-                      <strong>Cost:</strong> {ant.cost.food}🍃 {ant.cost.minerals}💎<br/>
+                      <strong>Cost:</strong> {ant.cost.food}<FoodIcon /> {ant.cost.minerals}<MineralIcon /><br/>
                       <strong>HP:</strong> {ant.maxHealth} | <strong>Attack:</strong> {ant.attack} | <strong>Defense:</strong> {ant.defense}<br/>
                       <strong>Move Range:</strong> {ant.moveRange} | <strong>Attack Range:</strong> {ant.attackRange}
                       {ant.minAttackRange && <><br/><strong>Min Range:</strong> {ant.minAttackRange}</>}
@@ -7417,8 +7777,8 @@ function App() {
                 <li><strong>Healing:</strong> Costs {GameConstants.HEAL_ENERGY_COST} energy to heal a friendly unit for {GameConstants.HEAL_AMOUNT} HP within range 2</li>
                 <li><strong>Passive Income:</strong> Queens generate {QueenTiers.queen.foodIncome} food per turn (increases with tier)</li>
                 <li><strong>Vision:</strong> Queens have 2 hex vision range (same as Scouts)</li>
-                <li><strong>Brood Queen:</strong> {QueenTiers.broodQueen.cost.food}🍃 {QueenTiers.broodQueen.cost.minerals}💎 - {QueenTiers.broodQueen.spawningSpots} spawn spots, {QueenTiers.broodQueen.maxEnergy} max energy, {QueenTiers.broodQueen.energyRegen} regen, {QueenTiers.broodQueen.foodIncome} food/turn, unlocks Reveal ability ({AntTypes.QUEEN.revealEnergyCost} energy)</li>
-                <li><strong>Swarm Queen:</strong> {QueenTiers.swarmQueen.cost.food}🍃 {QueenTiers.swarmQueen.cost.minerals}💎 - {QueenTiers.swarmQueen.spawningSpots} spawn spots, {QueenTiers.swarmQueen.maxEnergy} max energy, {QueenTiers.swarmQueen.energyRegen} regen, {QueenTiers.swarmQueen.foodIncome} food/turn, unlocks Weaver Ant & Cordyphage</li>
+                <li><strong>Brood Queen:</strong> {QueenTiers.broodQueen.cost.food}<FoodIcon /> {QueenTiers.broodQueen.cost.minerals}<MineralIcon /> - {QueenTiers.broodQueen.spawningSpots} spawn spots, {QueenTiers.broodQueen.maxEnergy} max energy, {QueenTiers.broodQueen.energyRegen} regen, {QueenTiers.broodQueen.foodIncome} food/turn, unlocks Reveal ability ({AntTypes.QUEEN.revealEnergyCost} energy)</li>
+                <li><strong>Swarm Queen:</strong> {QueenTiers.swarmQueen.cost.food}<FoodIcon /> {QueenTiers.swarmQueen.cost.minerals}<MineralIcon /> - {QueenTiers.swarmQueen.spawningSpots} spawn spots, {QueenTiers.swarmQueen.maxEnergy} max energy, {QueenTiers.swarmQueen.energyRegen} regen, {QueenTiers.swarmQueen.foodIncome} food/turn, unlocks Weaver Ant & Cordyphage</li>
               </ul>
             </section>
 
@@ -7443,7 +7803,7 @@ function App() {
                     {upgrade.id === 'cannibalism' && <> - Grants {GameConstants.CANNIBALISM_FOOD_GAIN} food and {GameConstants.CANNIBALISM_MINERAL_GAIN} minerals when melee units kill enemies</>}
                     <br/>
                     <em style={{ fontSize: '12px', color: '#666' }}>
-                      Max Tier: {upgrade.maxTier} | Costs: {upgrade.costs.map((c, i) => `T${i+1}: ${c.food}🍃 ${c.minerals}💎`).join(', ')}
+                      Max Tier: {upgrade.maxTier} | Costs: {upgrade.costs.map((c, i) => (<span key={i}>{i > 0 ? ', ' : ''}T{i+1}: {c.food}<FoodIcon /> {c.minerals}<MineralIcon /></span>))}
                     </em>
                   </div>
                 ))}
@@ -7454,7 +7814,7 @@ function App() {
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Burrow Mechanic</h2>
               <ul style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                <li><strong>Unlock:</strong> Requires the Burrow upgrade ({Upgrades.BURROW.costs[0].food}🍃 {Upgrades.BURROW.costs[0].minerals}💎)</li>
+                <li><strong>Unlock:</strong> Requires the Burrow upgrade ({Upgrades.BURROW.costs[0].food}<FoodIcon /> {Upgrades.BURROW.costs[0].minerals}<MineralIcon />)</li>
                 <li><strong>Burrowing:</strong> Most units can burrow underground, becoming invisible to enemies</li>
                 <li><strong>Movement:</strong> Burrowed units cannot move, except Marauders who can move 2 hexes while burrowed</li>
                 <li><strong>Ambush:</strong> Burrowed units automatically unburrow and attack when enemies move adjacent</li>

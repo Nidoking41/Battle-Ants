@@ -10,6 +10,17 @@
 // A level is won when every objective that CAN complete has completed. A
 // `protect` objective can never complete - it only fails - so it is excluded
 // from the win check and instead ends the level the moment its unit dies.
+// `loseAtMost` works the same way: { type: 'loseAtMost', what: 'eggs', max: 1 }
+// fails the level the moment more than `max` of the player's eggs have been
+// destroyed (counted in stats.eggsLost by attackEgg).
+//
+// Completion is sticky: once an objective has completed it stays completed,
+// so a `reachHex` unit stepping off its hex, or a resource being spent, can
+// never un-win something - which matters once `byTurn` deadlines exist.
+//
+// `byTurn: N` on any completable objective fails it once gameState.turn > N
+// without completion. `turn` counts full rounds and is incremented before
+// objectives are judged, so the player gets all of rounds 1..N.
 
 const ENEMY = 'player2';
 
@@ -18,8 +29,9 @@ function status(complete, failed = false) {
   return complete ? 'complete' : 'pending';
 }
 
-export function evaluateObjective(objective, gameState, playerId) {
+function baseStatus(objective, gameState, playerId) {
   const ants = Object.values(gameState.ants || {});
+  const stats = gameState.stats?.[playerId] || {};
 
   switch (objective.type) {
     case 'gather': {
@@ -40,8 +52,18 @@ export function evaluateObjective(objective, gameState, playerId) {
       // Dead units are deleted from gameState.ants rather than flagged.
       return status(!gameState.ants[objective.unitId]);
 
+    case 'killUnits': {
+      const ids = objective.unitIds || [];
+      const dead = ids.filter(id => !gameState.ants[id]).length;
+      return status(dead >= (objective.count ?? ids.length));
+    }
+
     case 'protect':
       return status(false, !gameState.ants[objective.unitId]);
+
+    case 'loseAtMost':
+      // Only eggs are counted so far
+      return status(false, (stats.eggsLost || 0) > objective.max);
 
     case 'reachHex':
       return status(ants.some(a =>
@@ -50,10 +72,35 @@ export function evaluateObjective(objective, gameState, playerId) {
         a.position.r === objective.at.r
       ));
 
+    case 'hatch': {
+      const hatched = stats.antsHatched || {};
+      const n = objective.unitType
+        ? (hatched[objective.unitType] || 0)
+        : Object.values(hatched).reduce((s, v) => s + (v || 0), 0);
+      return status(n >= objective.count);
+    }
+
+    case 'destroyAnthills':
+      return status((stats.anthillsDestroyed || 0) >= objective.count);
+
     default:
       console.warn(`Unknown campaign objective type: ${objective.type}`);
       return 'pending';
   }
+}
+
+const NO_DEADLINE = new Set(['protect', 'survive', 'loseAtMost']);
+// Objectives that can only fail, never complete: left out of the win check
+const FAIL_ONLY = new Set(['protect', 'loseAtMost']);
+
+export function evaluateObjective(objective, gameState, playerId) {
+  let s = baseStatus(objective, gameState, playerId);
+  if (objective.status === 'complete' && s !== 'failed') s = 'complete';
+  if (s === 'pending' && !NO_DEADLINE.has(objective.type) &&
+      Number.isFinite(objective.byTurn) && gameState.turn > objective.byTurn) {
+    s = 'failed';
+  }
+  return s;
 }
 
 /**
@@ -66,7 +113,7 @@ export function evaluateAllObjectives(gameState, playerId = 'player1') {
   const objectives = source.map(o => ({ ...o, status: evaluateObjective(o, gameState, playerId) }));
 
   const lost = objectives.some(o => o.status === 'failed');
-  const completable = objectives.filter(o => o.type !== 'protect');
+  const completable = objectives.filter(o => !FAIL_ONLY.has(o.type));
   const won = !lost && completable.length > 0 && completable.every(o => o.status === 'complete');
 
   return { objectives, won, lost };
@@ -74,6 +121,7 @@ export function evaluateAllObjectives(gameState, playerId = 'player1') {
 
 /** Progress text for the panel, e.g. "37 / 100". Null when not applicable. */
 export function objectiveProgress(objective, gameState) {
+  const stats = gameState.stats?.player1 || {};
   switch (objective.type) {
     case 'gather':
       return `${Math.min(objective.amount, gameState.campaign?.gathered?.[objective.resource] || 0)} / ${objective.amount}`;
@@ -83,6 +131,22 @@ export function objectiveProgress(objective, gameState) {
       const left = Object.values(gameState.ants || {}).filter(a => a.owner === ENEMY).length;
       return `${left} remaining`;
     }
+    case 'killUnits': {
+      const ids = objective.unitIds || [];
+      const dead = ids.filter(id => !gameState.ants?.[id]).length;
+      return `${Math.min(dead, objective.count ?? ids.length)} / ${objective.count ?? ids.length}`;
+    }
+    case 'hatch': {
+      const hatched = stats.antsHatched || {};
+      const n = objective.unitType
+        ? (hatched[objective.unitType] || 0)
+        : Object.values(hatched).reduce((s, v) => s + (v || 0), 0);
+      return `${Math.min(n, objective.count)} / ${objective.count}`;
+    }
+    case 'destroyAnthills':
+      return `${Math.min(stats.anthillsDestroyed || 0, objective.count)} / ${objective.count}`;
+    case 'loseAtMost':
+      return `${stats.eggsLost || 0} lost`;
     default:
       return null;
   }

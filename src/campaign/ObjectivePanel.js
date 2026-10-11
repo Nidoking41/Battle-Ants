@@ -70,6 +70,11 @@ function ObjectivePanel({ gameState }) {
             {progress && s !== 'complete' && (
               <span style={{ color: '#999', fontSize: '12px' }}>{progress}</span>
             )}
+            {s === 'pending' && Number.isFinite(o.byTurn) && (
+              <span style={{ color: '#fbbf24', fontSize: '12px' }}>
+                {o.byTurn - gameState.turn <= 0 ? 'last turn' : `by turn ${o.byTurn}`}
+              </span>
+            )}
           </div>
         );
       })}

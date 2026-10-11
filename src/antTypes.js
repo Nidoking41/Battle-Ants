@@ -346,6 +346,8 @@ export const Upgrades = {
 // Map shapes for multiplayer
 export const MapShape = {
   RECTANGLE: 'rectangle', // 2-player (10x10)
+  RIVER: 'river',         // 2-player hexagon with a river across the middle (see getRiverLayout in hexUtils.js)
+  LAKE: 'lake',           // small 2-player hexagon with a lake in the middle (see getLakeHexes in hexUtils.js)
   TRIANGLE: 'triangle',   // 3-player (equilateral triangle, 15 hexes per side)
   SQUARE: 'square'        // 4-player (square/diamond shape)
 };

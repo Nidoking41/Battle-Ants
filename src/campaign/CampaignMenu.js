@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LEVELS } from './levels';
-import { loadProgress, isUnlocked, isCompleted, resetProgress, bestScore } from './progress';
+import { loadProgress, saveProgress, isUnlocked, isCompleted, resetProgress, bestScore } from './progress';
 
 // Level select. A level unlocks when the one before it has been beaten.
 // Locked levels show only their number - no name or objectives - so the
@@ -117,6 +117,28 @@ function CampaignMenu({ onStartLevel, onBack }) {
         >
           Back
         </button>
+
+        {/* Playtest shortcut: open every level without beating them in order */}
+        {progress.highestUnlocked < LEVELS.length && (
+          <button
+            onClick={() => {
+              saveProgress({ ...progress, highestUnlocked: LEVELS.length });
+              setProgress(loadProgress());
+            }}
+            style={{
+              display: 'block',
+              margin: '12px auto 0',
+              background: 'none',
+              border: 'none',
+              color: '#666',
+              fontSize: '12px',
+              textDecoration: 'underline',
+              cursor: 'pointer'
+            }}
+          >
+            Unlock all levels (playtest)
+          </button>
+        )}
 
         {progress.completed.length > 0 && (
           <button

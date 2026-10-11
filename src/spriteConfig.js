@@ -28,13 +28,16 @@ export const SpriteConfig = {
       walk: { path: 'queen_idle_red.png', frames: 8 },
       attack: { path: 'queen_idle_red.png', frames: 8 }
     },
-    // Campaign Queen Larva has no sheet yet, so it renders as its emoji icon.
-    // When art exists, add a queenLarva entry here (Queen/larva_idle_<color>.png,
-    // 8 frames of 32px) plus 'queenLarva' in the three maps below.
+    // Campaign Queen Larva (Larva/larva_idle_<color>.png, 8 frames of 32px).
+    queenLarva: {
+      idle: { path: 'larva_idle_red.png', frames: 8 },
+      walk: { path: 'larva_idle_red.png', frames: 8 },
+      attack: { path: 'larva_idle_red.png', frames: 8 }
+    },
     scout: {
-      idle: { path: 'scout_idle_green.png', frames: 10 },
-      walk: { path: 'scout_idle_green.png', frames: 10 },
-      attack: { path: 'scout_idle_green.png', frames: 10 }
+      idle: { path: 'scout_idle_green.png', frames: 8 },
+      walk: { path: 'scout_idle_green.png', frames: 8 },
+      attack: { path: 'scout_idle_green.png', frames: 8 }
     },
     soldier: {
       idle: { path: 'marauder_idle_red.png', frames: 8 },
@@ -99,11 +102,12 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
+const COLORED_ANT_TYPES = ['queen', 'queenLarva', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
   'queen': 'queen',
+  'queenLarva': 'larva',
   'scout': 'scout',
   'drone': 'drone',
   'soldier': 'marauder',
@@ -119,6 +123,7 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
 // Map ant type IDs to their folder names
 const ANT_TYPE_TO_FOLDER = {
   'queen': 'Queen',
+  'queenLarva': 'Larva',
   'scout': 'Scout',
   'drone': 'Drone',
   'soldier': 'Marauder',
@@ -156,8 +161,8 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       const spritePrefix = ANT_TYPE_TO_SPRITE_PREFIX[antType] || antType;
       // Use colored idle sprite for all animations (colored walk/attack sprites don't exist yet)
       spritePath = `${spritePrefix}_idle_${colorSuffix}.png`;
-      // Scout colored idle sprites have 10 frames, all others have 8 frames
-      frameCount = antType === 'scout' ? 10 : 8;
+      // Every colored idle sheet has 8 frames
+      frameCount = 8;
       // The black and blue egg sheets were exported at 64px per frame while
       // every other sheet is 32px. Report their real size so frame offsets
       // line up instead of sampling the middle of each frame.

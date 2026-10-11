@@ -1,5 +1,5 @@
 import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
-import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors } from './hexUtils';
+import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
 import {
   canAfford,
@@ -157,6 +157,35 @@ const AI_CONFIG = {
 };
 
 /**
+ * The difficulty config, with a campaign level's unit-mix override applied.
+ * A level that sets enemy.unitMix gets a STRICT mix: the AI hatches only the
+ * listed types, and the hardcoded "first scout" / "drone when no minerals"
+ * rules in chooseUnitToProduce are skipped unless the mix allows that type.
+ */
+export function resolveAIConfig(gameState, difficulty) {
+  const base = AI_CONFIG[difficulty] || AI_CONFIG.medium;
+  const mix = gameState?.campaign?.enemyUnitMix;
+  return mix ? { ...base, unitMix: mix, strictMix: true } : base;
+}
+
+/**
+ * Campaign hunt target for the AI side, or null when the level has not set
+ * enemy.hunt. `true` = the player's leader (queen or larva); 'unit:<id>' =
+ * that unit while it lives, then the leader.
+ */
+export function huntTarget(state, aiPlayer) {
+  const hunt = state?.campaign?.enemyHunts;
+  if (!hunt) return null;
+  const enemies = Object.values(state.ants || {}).filter(a => a.owner !== aiPlayer && a.position);
+  if (typeof hunt === 'string' && hunt.startsWith('unit:')) {
+    const unit = state.ants[hunt.slice(5)];
+    if (unit && unit.owner !== aiPlayer && unit.position) return unit.position;
+  }
+  const leader = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
+  return leader ? leader.position : null;
+}
+
+/**
  * Main AI execution function
  * @param {Object} gameState - Current game state
  * @param {string} aiPlayer - AI player ID ('player1' or 'player2')
@@ -165,7 +194,7 @@ const AI_CONFIG = {
  */
 export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
   try {
-    const config = AI_CONFIG[difficulty] || AI_CONFIG.medium;
+    const config = resolveAIConfig(gameState, difficulty);
     let state = { ...gameState, ants: sanitizeAnts(gameState.ants) };
     let movements = []; // Track all movements for animation
     let combatActions = []; // Track all combat actions for animation
@@ -306,6 +335,8 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
     // Get available spawning pool hexes (filter out occupied ones)
     const allSpawningHexes = getSpawningPoolHexes(queen, getNeighbors);
     const spawningPool = allSpawningHexes.filter(hex => {
+      // Custom maps: a spawn spot beside void is not a spawn spot
+      if (!isValidHex(hex, state.gridRadius || 6, state.mapShape || 'rectangle')) return false;
       const occupied = Object.values(state.ants).some(a => hexEquals(a.position, hex)) ||
                       Object.values(state.eggs).some(e => hexEquals(e.position, hex)) ||
                       Object.values(state.trees || {}).some(t => hexEquals(t.position, hex));
@@ -324,6 +355,10 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
 
     // Decide what unit to produce based on difficulty AND strategy
     const unitType = chooseUnitToProduce(state, aiPlayer, config, strategy);
+    if (!unitType) {
+      console.log('Nothing in the unit mix is affordable, breaking');
+      break;
+    }
     const antTypeCost = getAntTypeById(unitType).cost;
     console.log(`Chosen unit type: ${unitType}, cost:`, antTypeCost);
 
@@ -401,11 +436,47 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
 }
 
 /**
+ * Is one more drone any use? A drone's only job is to raise an anthill on a
+ * free resource node. This counts the free nodes on our side of the map
+ * (nearer our queen than any enemy leader) and compares them with the drones
+ * we already have spare - drones not in the middle of building, plus drone
+ * eggs still to hatch. Without this check the AI kept hatching drones with
+ * nothing to do: they wandered round the queen, stood on her egg spots, and
+ * choked off everything else she could have hatched.
+ */
+export function anotherDroneIsUseful(gameState, aiPlayer) {
+  const ants = liveAnts(gameState);
+  const queen = findQueen(gameState, aiPlayer);
+  if (!queen) return false;
+  const enemyLeaders = ants.filter(a => a.owner !== aiPlayer && (a.type === 'queen' || a.type === 'queenLarva'));
+  const anthills = Object.values(gameState.anthills || {});
+  const hillAt = pos => anthills.find(h => hexEquals(h.position, pos));
+
+  const freeNodes = Object.values(gameState.resources || {}).filter(node => {
+    if (!node.position || hillAt(node.position)) return false;
+    const toUs = hexDistance(node.position, queen.position);
+    return enemyLeaders.every(l => toUs <= hexDistance(node.position, l.position));
+  }).length;
+
+  const spareDrones = ants.filter(a => {
+    if (a.owner !== aiPlayer || a.type !== 'drone') return false;
+    const hill = hillAt(a.position);
+    return !(hill && hill.owner === aiPlayer && !hill.isComplete); // busy building
+  }).length;
+  const droneEggs = Object.values(gameState.eggs || {}).filter(e => e.owner === aiPlayer && e.antType === 'drone').length;
+
+  return freeNodes > spareDrones + droneEggs;
+}
+
+/**
  * Choose which unit type to produce based on AI strategy
  */
-function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
+export function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
   const playerState = gameState.players[aiPlayer];
   const resources = playerState.resources;
+  // Under a strict (campaign) mix the fixed opening rules only apply to types
+  // the level actually allows.
+  const allowed = type => !config.strictMix || !!config.unitMix[type];
 
   // Count current units
   const unitCounts = {};
@@ -417,6 +488,8 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
 
   const droneCount = unitCounts['drone'] || 0;
   const scoutCount = unitCounts['scout'] || 0;
+  // Only hatch a drone when there is a free node for it to build on
+  const droneUseful = anotherDroneIsUseful(gameState, aiPlayer);
 
   // Strategic unit production
   //
@@ -427,7 +500,7 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
   const hasMineralIncome = Object.values(gameState.anthills || {}).some(
     h => h.owner === aiPlayer && h.resourceType === 'minerals' && h.isComplete
   );
-  if (scoutCount === 0 && hasMineralIncome && AntTypes.SCOUT &&
+  if (scoutCount === 0 && hasMineralIncome && AntTypes.SCOUT && allowed('scout') &&
       resources.food >= AntTypes.SCOUT.cost.food &&
       resources.minerals >= AntTypes.SCOUT.cost.minerals) {
     console.log('Building first scout for vision');
@@ -436,14 +509,14 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
 
   // Before minerals are online, more drones is the only play that improves the
   // position - every combat unit is gated behind mineral income.
-  if (!hasMineralIncome && droneCount < 4 &&
+  if (!hasMineralIncome && droneCount < 4 && droneUseful && allowed('drone') &&
       resources.food >= AntTypes.DRONE.cost.food) {
     console.log('No mineral income yet: building drone');
     return 'drone';
   }
 
   // Expansion phase: prioritize drones
-  if (strategy.shouldExpand && droneCount < 4) {
+  if (strategy.shouldExpand && droneCount < 4 && droneUseful && allowed('drone')) {
     if (resources.food >= AntTypes.DRONE.cost.food &&
         resources.minerals >= AntTypes.DRONE.cost.minerals) {
       console.log('Expansion: building drone');
@@ -482,17 +555,19 @@ function chooseUnitToProduce(gameState, aiPlayer, config, strategy) {
     }
   }
 
-  // Default: use standard unit mix
+  // Default: use standard unit mix (leaving out drones that would have nothing to build)
   const affordableUnits = Object.entries(config.unitMix)
     .filter(([type]) => {
+      if (type === 'drone' && !droneUseful) return false;
       const antType = getAntTypeById(type);
       if (!antType) return false;
       return resources.food >= antType.cost.food && resources.minerals >= antType.cost.minerals;
     });
 
   if (affordableUnits.length === 0) {
-    // Fall back to scout if we can't afford anything else
-    return 'scout';
+    // Fall back to scout if we can't afford anything else - unless the level
+    // pinned the mix, in which case there is nothing to hatch this turn.
+    return config.strictMix ? null : 'scout';
   }
 
   // Weighted random selection
@@ -569,6 +644,31 @@ function enemiesOf(state, aiPlayer) {
 }
 function findQueen(state, owner) {
   return liveAnts(state).find(a => a.type === 'queen' && a.owner === owner);
+}
+
+/**
+ * On river and lake maps straight-line distance is misleading: a hex just
+ * across the water looks close but is a long walk round. This returns a
+ * function giving the real walking distance from any hex to `target`
+ * (terrain only - other units are ignored), or null on maps without water.
+ */
+function walkingDistanceTo(state, target) {
+  if (!hasMapWater(state.mapShape) || !target) return null;
+  const gridRadius = state.gridRadius || 6;
+  const key = h => `${h.q},${h.r}`;
+  const start = new HexCoord(target.q, target.r);
+  const dist = new Map([[key(start), 0]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length; i++) {
+    const current = queue[i];
+    const d = dist.get(key(current));
+    for (const n of getNeighbors(current)) {
+      if (dist.has(key(n)) || !isValidHex(n, gridRadius, state.mapShape)) continue;
+      dist.set(key(n), d + 1);
+      queue.push(n);
+    }
+  }
+  return h => (dist.has(key(h)) ? dist.get(key(h)) : hexDistance(h, target));
 }
 
 /** Hexes the unit could end its move on this turn, with paths (same rules as the human player). */
@@ -662,6 +762,18 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   const stayHere = { hex: { q: unit.position.q, r: unit.position.r }, path: [], stay: true };
   const options = [stayHere, ...reachableHexes(state, unit)];
 
+  // Enemy eggs are targets too. An egg has 10 HP and no armour, and breaking
+  // one denies a whole unit, so a Scout - the raider - prefers an egg over a
+  // chip on the queen (+40); a heavier unit still takes the queen, and a
+  // queen KILL beats everything.
+  const enemyEggs = Object.values(state.eggs || {}).filter(e => e.owner !== aiPlayer && e.position);
+  const eggValue = unit.type === 'scout' ? 55 : 30;
+  const canHitEggs = antType.attackRange > 0 && unit.type !== 'bomber' &&
+    (!unit.isBurrowed || unit.type === 'soldier');
+  const minRange = antType.minAttackRange || 1;
+
+  const walkTo = walkingDistanceTo(state, objective); // null unless this map has water
+
   let best = null;
   for (const opt of options) {
     const moved = !opt.stay;
@@ -673,10 +785,18 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
       const v = targetValue(state, unit, t);
       if (v > bestTV) { bestTV = v; bestTarget = t; }
     }
-    const dist = objective ? hexDistance(opt.hex, objective) : 0;
+    if (canHitEggs && !(antType.cannotMoveAndAttack && moved) && eggValue > bestTV) {
+      const egg = enemyEggs.find(e => {
+        const d = hexDistance(opt.hex, e.position);
+        return d >= minRange && d <= antType.attackRange;
+      });
+      if (egg) { bestTV = eggValue; bestTarget = { egg: true, id: egg.id }; }
+    }
+    const dist = objective ? (walkTo ? walkTo(opt.hex) : hexDistance(opt.hex, objective)) : 0;
     const danger = dangerAt(state, unit, opt.hex, enemies);
     let score = (bestTarget ? 20 + bestTV : 0) - dist * 2 * advance - danger * 3 * caution;
     if (opt.stay && !bestTarget) score -= 1; // slight nudge to keep moving
+    if (opts.avoid && opts.avoid(opt.hex)) score -= 40; // hexes this unit should keep clear of
     if (best === null || score > best.score) best = { opt, score, target: bestTarget };
   }
 
@@ -687,7 +807,17 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   } else {
     newState = { ...newState, ants: { ...newState.ants, [unit.id]: { ...newState.ants[unit.id], hasMoved: true } } };
   }
-  if (best && best.target && isLive(newState.ants[unit.id]) && isLive(newState.ants[best.target.id])) {
+  if (best && best.target && best.target.egg && isLive(newState.ants[unit.id]) && newState.eggs?.[best.target.id]) {
+    const { attackEgg } = require('./combatSystem');
+    const r = attackEgg(newState, unit.id, best.target.id);
+    newState = {
+      ...r.gameState,
+      ants: { ...r.gameState.ants, [unit.id]: { ...r.gameState.ants[unit.id], hasAttacked: true, hasMoved: true } }
+    };
+    combatAction = r.attackAnimation
+      ? { ...r.attackAnimation, damageDealt: r.damageDealt, timestamp: Date.now() }
+      : null;
+  } else if (best && best.target && !best.target.egg && isLive(newState.ants[unit.id]) && isLive(newState.ants[best.target.id])) {
     const r = applyAttack(newState, unit.id, newState.ants[best.target.id]);
     newState = r.state; combatAction = r.combatAction;
   }
@@ -733,9 +863,10 @@ function handleDroneUnit(gameState, drone, aiPlayer, config, reservedNodes) {
   const mineralIncome = Object.values(state.anthills || {})
     .some(h => h.owner === aiPlayer && h.resourceType === 'minerals' && h.isComplete);
   const free = nodes.filter(([id, r]) => !anthillAt(r.position) && !reservedNodes.has(id));
+  const walkFromDrone = walkingDistanceTo(state, drone.position); // null unless this map has water
   let target = null, bestD = Infinity;
   for (const [id, r] of free) {
-    const d = hexDistance(drone.position, r.position);
+    const d = walkFromDrone ? walkFromDrone(r.position) : hexDistance(drone.position, r.position);
     const threat = dangerAt(state, drone, r.position, enemies);
     const mineralBonus = (!mineralIncome && r.type === 'minerals') ? 12 : 0;
     const cost = d + threat * 2 - mineralBonus;
@@ -745,9 +876,12 @@ function handleDroneUnit(gameState, drone, aiPlayer, config, reservedNodes) {
     reservedNodes.add(target.id);
     return fightOrAdvance(state, drone, aiPlayer, target.res.position, { caution: 2, advance: 1.5 });
   }
-  // Nothing to build: fall back near our queen and stay out of trouble.
+  // Nothing to build: fall back near our queen and stay out of trouble - but
+  // never on her egg-laying spots. A drone parked on one stops her hatching there.
   const queen = findQueen(state, aiPlayer);
-  return fightOrAdvance(state, drone, aiPlayer, queen ? queen.position : drone.position, { caution: 3 });
+  const eggSpots = queen ? getSpawningPoolHexes(queen, getNeighbors) : [];
+  const onEggSpot = hex => eggSpots.some(spot => hexEquals(spot, hex));
+  return fightOrAdvance(state, drone, aiPlayer, queen ? queen.position : drone.position, { caution: 3, avoid: onEggSpot });
 }
 
 /**
@@ -767,8 +901,11 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // Campaign hunt: the level wants this side to go for the player's Queen
   // Larva. She is immobile and defenceless, so skip the defend-first instinct
   // that otherwise keeps units at home on a small map. Scouts still scout.
-  if (gameState.campaign?.enemyHunts && enemyQueen?.type === 'queenLarva' && unit.type !== 'scout') {
-    return fightOrAdvance(state, unit, aiPlayer, enemyQueen.position, { caution: 0.4, advance: 1.6 });
+  // (A level can opt its scouts in too with enemy.huntWithScouts - used where
+  // scouts are the only fighters the enemy has.)
+  const hunt = huntTarget(gameState, aiPlayer);
+  if (hunt && (unit.type !== 'scout' || gameState.campaign?.enemyHuntsWithScouts)) {
+    return fightOrAdvance(state, unit, aiPlayer, hunt, { caution: 0.4, advance: 1.6 });
   }
 
   let objective, opts = {};
@@ -983,7 +1120,9 @@ function moveUnitToward(gameState, unit, targetPos) {
   const blockedHexes = [...antHexes, ...eggHexes, ...treeHexes];
 
   const startHex = new HexCoord(unit.position.q, unit.position.r);
-  const movesWithPaths = getMovementRangeWithPaths(startHex, antType.moveRange, gridRadius, blockedHexes);
+  // Pass the map shape so custom (masked) maps and square/triangle maps bound
+  // the search correctly - previously omitted, which defaulted to a hexagon.
+  const movesWithPaths = getMovementRangeWithPaths(startHex, antType.moveRange, gridRadius, blockedHexes, [], state.mapShape || 'rectangle');
   console.log(`Move range has ${movesWithPaths.length} hexes with valid paths`);
 
   if (movesWithPaths.length === 0) {

@@ -1,4 +1,4 @@
-import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions } from './hexUtils';
+import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
 import { getHeroById } from './heroQueens';
 
@@ -64,7 +64,8 @@ export function createInitialGameState(options = {}) {
     player1Team = Teams.NONE,
     player2Team = Teams.NONE,
     player3Team = Teams.NONE,
-    player4Team = Teams.NONE
+    player4Team = Teams.NONE,
+    river = true // 2-player maps get water across the middle (a lake on small maps, a river on bigger ones); pass false for a plain map
   } = options;
 
   // Map size to grid radius (for 2-player rectangle maps)
@@ -95,6 +96,15 @@ export function createInitialGameState(options = {}) {
   } else {
     console.log('Using RECTANGLE map (2-player), gridRadius:', gridRadius);
   }
+
+  // 2-player maps get water in the middle (see hexUtils.js):
+  //  - medium and large maps: a river running east-west with three crossings.
+  //    Resources and trees are dealt out per river bank.
+  //  - small maps: a lake in the centre that units walk round. Resources and
+  //    trees are dealt out per half as usual, just never in the lake.
+  // waterFeature is 'river', 'lake' or null.
+  const hasWaterFeature = river && playerCount === 2 && effectiveMapShape === MapShape.RECTANGLE;
+  const waterFeature = !hasWaterFeature ? null : (gridRadius <= 4 ? MapShape.LAKE : MapShape.RIVER);
 
   // Helper to create player object
   const createPlayer = (playerId, name, color, heroId, team) => ({
@@ -161,7 +171,7 @@ export function createInitialGameState(options = {}) {
     ants: {},
     eggs: {},
     deadAnts: {}, // Dead ants that persist for 2 seconds
-    resources: generateResourceNodesMultiplayer(sideLength, playerCount, effectiveMapShape),
+    resources: generateResourceNodesMultiplayer(sideLength, playerCount, effectiveMapShape, waterFeature),
     anthills: {}, // Anthills built on resource nodes
     trees: {}, // Trees will be generated after we have occupied positions
     selectedAnt: null,
@@ -247,7 +257,7 @@ export function createInitialGameState(options = {}) {
   // For 3-player: 3 trees per "sector" with 120° rotation (9 total)
   // For 4-player: 2 per side with 90° rotation
   const treesPerSide = playerCount === 2 ? 4 : (playerCount === 3 ? 3 : 2);
-  initialState.trees = generateTreesMultiplayer(sideLength, playerCount, effectiveMapShape, occupiedPositions, treesPerSide);
+  initialState.trees = generateTreesMultiplayer(sideLength, playerCount, effectiveMapShape, occupiedPositions, treesPerSide, waterFeature);
 
   // Apply hero bonuses to starting ants
   if (player1Hero || player2Hero || player3Hero || player4Hero) {
@@ -287,11 +297,20 @@ export function createInitialGameState(options = {}) {
     });
   }
 
+  // River / lake maps: from here on the water hexes are not part of the board.
+  // Set last so everything above is placed on the plain hexagon; resources and
+  // trees were already kept out of the water, and the queens start away from it.
+  if (waterFeature) {
+    initialState.mapShape = waterFeature;
+  }
+
   return initialState;
 }
 
 // Generate symmetrical resource nodes on the map (randomly placed but mirrored)
-function generateResourceNodes(gridRadius = 6) {
+// water: 'river' = the "north side" is the river's north bank instead of r < 0;
+//        'lake'  = normal halves, but never in the lake; null = plain map
+function generateResourceNodes(gridRadius = 6, water = null) {
   const resources = {};
 
   // Queen positions are at (0, gridRadius-1) for south and (0, -(gridRadius-1)) for north
@@ -303,8 +322,10 @@ function generateResourceNodes(gridRadius = 6) {
 
   // Generate all valid hexes on north side (excluding center row and near queens)
   for (let q = -gridRadius; q <= gridRadius; q++) {
-    for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
+    const northEnd = water === MapShape.RIVER ? getRiverRow(q) : 0; // north side stops before the river line / centre row
+    for (let r = -gridRadius; r < northEnd; r++) { // Only north side
       const s = -q - r;
+      if (water === MapShape.LAKE && isLakeWater({ q, r })) continue; // never in the lake
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
@@ -383,7 +404,9 @@ function generateResourceNodes(gridRadius = 6) {
 
 // Generate tree positions with mirrored placement (180-degree rotation like resources)
 // treesPerSide: number of trees per side (default 4)
-function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerSide = 4) {
+// water: 'river' = the "north side" is the river's north bank instead of r < 0;
+//        'lake'  = normal halves, but never in the lake; null = plain map
+function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerSide = 4, water = null) {
   const trees = {};
   const queenOffset = gridRadius - 1;
 
@@ -398,8 +421,10 @@ function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerS
   const northPositions = [];
 
   for (let q = -gridRadius; q <= gridRadius; q++) {
-    for (let r = -gridRadius; r < 0; r++) { // Only north side (r < 0)
+    const northEnd = water === MapShape.RIVER ? getRiverRow(q) : 0; // north side stops before the river line / centre row
+    for (let r = -gridRadius; r < northEnd; r++) { // Only north side
       const s = -q - r;
+      if (water === MapShape.LAKE && isLakeWater({ q, r })) continue; // never in the lake
       if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
         const hex = new HexCoord(q, r);
 
@@ -458,12 +483,12 @@ function generateTrees(gridRadius = 6, existingOccupiedPositions = [], treesPerS
 }
 
 // Generate resource nodes for multiplayer (2, 3, or 4 players)
-function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape) {
+function generateResourceNodesMultiplayer(sideLength, playerCount, mapShape, water = null) {
   const resources = {};
 
   if (playerCount === 2 && mapShape === MapShape.RECTANGLE) {
     // Use existing 2-player generation (backwards compatible)
-    return generateResourceNodes(sideLength);
+    return generateResourceNodes(sideLength, water);
   }
 
   // For 3-player on hexagon map, use 120° rotational symmetry
@@ -655,12 +680,12 @@ function generateResourceNodes3Player(gridRadius = 8) {
 }
 
 // Generate trees for multiplayer (2, 3, or 4 players)
-function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide) {
+function generateTreesMultiplayer(sideLength, playerCount, mapShape, occupiedPositions, treesPerSide, water = null) {
   const trees = {};
 
   if (playerCount === 2 && mapShape === MapShape.RECTANGLE) {
     // Use existing 2-player generation (backwards compatible)
-    return generateTrees(sideLength, occupiedPositions, treesPerSide);
+    return generateTrees(sideLength, occupiedPositions, treesPerSide, water);
   }
 
   // For 3-player on hexagon map, use 120° rotational symmetry
@@ -831,23 +856,40 @@ export function respawnResource(gameState, resourceType, isNorthSide) {
   const queenOffset = gridRadius - 1;
   const validPositions = [];
 
+  // Custom (campaign) maps put leaders wherever the layout says, so measure
+  // distance from the real leaders instead of assuming (0, +-(radius-1)).
+  const isCustomMap = gameState.mapShape && typeof gameState.mapShape === 'object';
+  const leaders = isCustomMap
+    ? Object.values(gameState.ants).filter(a => a.type === 'queen' || a.type === 'queenLarva')
+    : [];
+
   // Generate valid positions on the specified side (north or south)
+  const isRiverMap = gameState.mapShape === MapShape.RIVER;
   for (let q = -gridRadius; q <= gridRadius; q++) {
-    const rStart = isNorthSide ? -gridRadius : 1; // North: negative r, South: positive r
-    const rEnd = isNorthSide ? -1 : gridRadius;
+    // Plain maps: north is negative r, south is positive r (the centre row is skipped).
+    // River maps: the sides are the two banks, split at the river's row in this column.
+    const middle = isRiverMap ? getRiverRow(q) : 0;
+    const rStart = isNorthSide ? -gridRadius : middle + 1;
+    const rEnd = isNorthSide ? middle - 1 : gridRadius;
 
     for (let r = rStart; r <= rEnd; r++) {
       const s = -q - r;
-      if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+      if (isValidHex({ q, r }, gridRadius, gameState.mapShape || 'rectangle')) {
         const hex = new HexCoord(q, r);
 
         // Check distance from queen on this side
         const queenR = isNorthSide ? -queenOffset : queenOffset;
-        const distToQueen = Math.max(
-          Math.abs(q - 0),
-          Math.abs(r - queenR),
-          Math.abs(s - (-queenR))
-        );
+        const distToQueen = isCustomMap
+          ? Math.min(...leaders.map(l => Math.max(
+              Math.abs(q - l.position.q),
+              Math.abs(r - l.position.r),
+              Math.abs(s - (-l.position.q - l.position.r))
+            )), Infinity)
+          : Math.max(
+              Math.abs(q - 0),
+              Math.abs(r - queenR),
+              Math.abs(s - (-queenR))
+            );
 
         // Only include if far enough from queen
         if (distToQueen >= 3) {
@@ -1157,8 +1199,11 @@ export function endTurn(rawGameState) {
         delete updatedResources[resourceAtPosition.id];
       }
 
-      // Determine which side of the board (north = r < 0, south = r >= 0)
-      const isNorthSide = anthill.position.r < 0;
+      // Determine which side of the board (north = r < 0, south = r >= 0).
+      // On river maps the sides are the two river banks.
+      const isNorthSide = gameState.mapShape === MapShape.RIVER
+        ? isNorthOfRiver(anthill.position)
+        : anthill.position.r < 0;
 
       // Respawn resource on same side
       const newResource = respawnResource(

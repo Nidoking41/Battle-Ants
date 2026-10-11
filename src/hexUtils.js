@@ -85,9 +85,116 @@ function hexRound(q, r) {
   return new HexCoord(rq, rr);
 }
 
+// ---- River (2-player 'river' maps) ----
+// The river runs east-west across the middle of the 2-player hexagon, one
+// water hex per column, so it cuts the map into a north bank (the north
+// queen's side) and a south bank. Hex columns are staggered, so a level line
+// has to wobble: even columns sit exactly on the middle line and odd columns
+// sit half a hex above it (east half) or below it (west half). That wobble is
+// chosen so the river looks the same when the map is turned half a turn,
+// which keeps it fair for both players.
+// Three columns are left as land crossings: the middle one and one toward
+// each end. Water is simply not part of the board (same idea as campaign
+// water), so nothing can walk onto it, stand on it or be placed on it. Ranged
+// attacks only look at distance, so they still reach across.
+// The layout depends only on the map radius - it is never random.
+
+// The row (r) of the river hex in column q.
+export function getRiverRow(q) {
+  return (q >= 0 ? -Math.ceil(q / 2) : -Math.floor(q / 2)) || 0;
+}
+
+export function getRiverCrossingOffset(gridRadius) {
+  return Math.max(2, Math.round(gridRadius * 2 / 3));
+}
+
+// True for every hex in the river's line, water and crossings alike.
+export function isOnRiverLine(hex, gridRadius) {
+  return Math.abs(hex.q) <= gridRadius && hex.r === getRiverRow(hex.q);
+}
+
+export function isRiverWater(hex, gridRadius) {
+  if (!isOnRiverLine(hex, gridRadius)) return false;
+  return hex.q !== 0 && Math.abs(hex.q) !== getRiverCrossingOffset(gridRadius);
+}
+
+// Which bank a hex is on. Hexes on the river line itself are on neither.
+export function isNorthOfRiver(hex) {
+  return hex.r < getRiverRow(hex.q);
+}
+
+export function isSouthOfRiver(hex) {
+  return hex.r > getRiverRow(hex.q);
+}
+
+// Returns { water: HexCoord[], crossings: HexCoord[] } for a map radius.
+export function getRiverLayout(gridRadius) {
+  const water = [];
+  const crossings = [];
+  for (let q = -gridRadius; q <= gridRadius; q++) {
+    const hex = new HexCoord(q, getRiverRow(q));
+    (isRiverWater(hex, gridRadius) ? water : crossings).push(hex);
+  }
+  return { water, crossings };
+}
+
+// ---- Lake (small 2-player 'lake' maps) ----
+// The small map is too tight for a river, so it gets a lake instead: the
+// centre hex and the ring of six hexes around it. Units walk round either
+// side. Same rules as river water: off the board, but ranged attacks reach
+// across. Never random.
+export const LAKE_RADIUS = 1;
+
+export function isLakeWater(hex) {
+  return Math.max(Math.abs(hex.q), Math.abs(hex.r), Math.abs(hex.q + hex.r)) <= LAKE_RADIUS;
+}
+
+export function getLakeHexes() {
+  const water = [];
+  for (let q = -LAKE_RADIUS; q <= LAKE_RADIUS; q++) {
+    for (let r = -LAKE_RADIUS; r <= LAKE_RADIUS; r++) {
+      const hex = new HexCoord(q, r);
+      if (isLakeWater(hex)) water.push(hex);
+    }
+  }
+  return water;
+}
+
+// ---- Water in general (river or lake) ----
+// True if this map shape has built-in water.
+export function hasMapWater(mapShape) {
+  return mapShape === 'river' || mapShape === 'lake';
+}
+
+// True if the hex is water on this map (always false on maps without water).
+export function isMapWater(hex, gridRadius, mapShape) {
+  if (mapShape === 'river') return isRiverWater(hex, gridRadius);
+  if (mapShape === 'lake') return isLakeWater(hex);
+  return false;
+}
+
+// Every water hex on this map, for drawing.
+export function getMapWaterHexes(gridRadius, mapShape) {
+  if (mapShape === 'river') return getRiverLayout(gridRadius).water;
+  if (mapShape === 'lake') return getLakeHexes();
+  return [];
+}
+
 // Check if hex is valid on the board
 // For diamond grids (2-player rectangle maps)
 export function isValidHex(hex, gridSize, mapShape = 'rectangle') {
+  // Custom (campaign) maps: mapShape is an object carrying the set of
+  // playable hexes. Anything not in it is void - impassable and unplaceable.
+  if (mapShape && typeof mapShape === 'object' && mapShape.type === 'custom') {
+    return mapShape.hexes[`${hex.q},${hex.r}`] === true;
+  }
+  if (mapShape === 'river' || mapShape === 'lake') {
+    // 2-player hexagon minus the river's or lake's water hexes
+    return Math.abs(hex.q) <= gridSize &&
+           Math.abs(hex.r) <= gridSize &&
+           Math.abs(hex.q + hex.r) <= gridSize &&
+           !isMapWater(hex, gridSize, mapShape);
+  }
   if (mapShape === 'square') {
     // For 4-player rectangular maps, use offset coordinate bounds
     const width = gridSize; // gridSize is sideLength for square maps

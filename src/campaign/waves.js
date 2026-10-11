@@ -37,7 +37,7 @@ export function spawnDueWaves(state, createAnt) {
       for (let i = 0; i < count; i++) {
         const pos = candidates.shift();
         if (!pos) return; // nest is packed; the rest of this wave is lost
-        const ant = createAnt(type, ENEMY, pos);
+        const ant = createAnt(type, ENEMY, pos, state.players?.[ENEMY]?.heroId || null);
         ant.id = `camp_wave${wave.turn}_${type}${++n}`;
         ants[ant.id] = ant;
       }

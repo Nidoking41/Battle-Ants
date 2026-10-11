@@ -6,7 +6,7 @@ import { loadProgress, markLevelComplete, isUnlocked, isCompleted, resetProgress
 import { isVital, resolveCombat } from '../combatSystem';
 import { scoreLevel } from './score';
 import { unitStrength, calculateArmyStrength } from '../gameState';
-import { getNeighbors, hexDistance } from '../hexUtils';
+import { getNeighbors, hexDistance, isValidHex } from '../hexUtils';
 import { createAnt } from '../gameState';
 
 // Runs a full round: player1's end of turn, then player2's, so income and
@@ -40,7 +40,12 @@ describe('campaign level 1', () => {
     expect(owned('player1').filter(a => a.type === 'queen')).toHaveLength(0);
     expect(owned('player2')).toHaveLength(4);
     expect(owned('player2').filter(a => a.type === 'queen')).toHaveLength(1);
-    expect(state.campaign.enemyHunts).toBe(false);
+    // Light, steady pressure: the enemy hatches only drones, a scout arrives
+    // every three rounds, and every scout goes for the larva
+    expect(state.campaign.enemyHunts).toBe(true);
+    expect(state.campaign.enemyHuntsWithScouts).toBe(true);
+    expect(state.campaign.enemyUnitMix).toEqual({ drone: 1 });
+    expect(state.campaign.waves.map(w => w.turn)).toEqual([3, 6, 9, 12, 15, 18]);
 
     expect(state.players.player1.resources).toEqual({ food: 25, minerals: 0 });
 
@@ -124,9 +129,9 @@ describe('campaign level 2 - queen larva', () => {
     expect(state.ants[PLAYER_LARVA_ID].type).toBe('queenLarva');
     expect(mine.filter(a => a.type === 'queen')).toHaveLength(0);
     expect(mine.filter(a => a.type === 'soldier')).toHaveLength(2);
-    // Opening slots swapped: 2 spitters, 2 scouts, no drones
-    expect(mine.filter(a => a.type === 'spitter')).toHaveLength(2);
-    expect(mine.filter(a => a.type === 'scout')).toHaveLength(2);
+    // Opening slots swapped: 3 spitters (one is a guard), 1 scout, no drones
+    expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
+    expect(mine.filter(a => a.type === 'scout')).toHaveLength(1);
     expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
     expect(mine).toHaveLength(7); // larva + 3 opening + 3 guards
     expect(state.campaign.roster).toEqual([]);
@@ -142,8 +147,10 @@ describe('campaign level 2 - queen larva', () => {
     const enemyQueen = theirs.find(a => a.type === 'queen');
     const toward = Math.sign(enemyQueen.position.r - larva.position.r);
     const treeAt = (q, r) => Object.values(state.trees).some(t => t.position.q === q && t.position.r === r);
-    level.map.trees.forEach(o => {
-      expect(treeAt(larva.position.q + o.dq, larva.position.r + o.dr * toward)).toBe(true);
+    // The layout puts three trees two hexes out on the enemy's side of her
+    expect(toward).toBe(-1);
+    [[0, -2], [-1, -1], [1, -2]].forEach(([dq, dr]) => {
+      expect(treeAt(larva.position.q + dq, larva.position.r + dr)).toBe(true);
     });
   });
 
@@ -223,15 +230,15 @@ describe('campaign level 2 - queen larva', () => {
 
   test('score counts kept units and the value of what was killed, not economy', () => {
     const state = buildCampaignGameState(level);
-    expect(state.campaign.startingUnitIds).toHaveLength(6); // 2 soldiers, 2 spitters, 2 scouts
+    expect(state.campaign.startingUnitIds).toHaveLength(6); // 2 soldiers, 3 spitters, 1 scout
 
     const fresh = scoreLevel(state);
     expect(fresh.kept).toBe(6);
     expect(fresh.kills).toBe(0);
     expect(fresh.killStrength).toBe(0);
-    // 2 Marauders (20) + 2 Spitters (20) + 2 Scouts (10) = 100
-    expect(fresh.survivorStrength).toBe(100);
-    expect(fresh.score).toBe(100);
+    // 2 Marauders (20) + 3 Spitters (20) + 1 Scout (10) = 110
+    expect(fresh.survivorStrength).toBe(110);
+    expect(fresh.score).toBe(110);
 
     // A player Marauder kills an enemy Marauder: kill value recorded, score rises
     const mine = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'soldier');
@@ -329,10 +336,446 @@ describe('campaign progress', () => {
   });
 });
 
+describe('level schema: heroes, upgrades, tiers, anthills, ids', () => {
+  const { getSpawningPoolHexes } = require('../gameState');
+  const { QueenTiers } = require('../antTypes');
+  const base = getLevel(2);
+
+  test('heroes flow through to players, leaders and every campaign-placed unit', () => {
+    // A queen instead of the larva, so the objectives must follow (level 2's
+    // "protect the larva" would fail on turn 1 and end the level).
+    const level = {
+      ...base,
+      player: { ...base.player, hero: 'thorgrim', queenTier: 'queen' },
+      enemy: { ...base.enemy, hero: 'gorlak' },
+      objectives: [{ type: 'survive', untilTurn: 10, text: 's' }, { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'p' }]
+    };
+    const state = buildCampaignGameState(level);
+    expect(state.players.player1.heroId).toBe('thorgrim');
+    expect(state.players.player2.heroId).toBe('gorlak');
+    expect(state.ants[PLAYER_QUEEN_ID].heroId).toBe('thorgrim');
+    // Thorgrim: health x1.2 - a slot-swapped Spitter (18) becomes 21
+    const spitter = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'spitter');
+    expect(spitter.maxHealth).toBeGreaterThan(18);
+    // Gorlak: melee attack x1.2 - his guard Marauders carry a bonus
+    const theirs = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'soldier');
+    expect(theirs.bonusAttack || 0).toBeGreaterThan(0);
+    // Waves inherit it too
+    const later = fullRound(fullRound(state));
+    const wave = Object.values(later.ants).find(a => a.id.startsWith('camp_wave3_soldier'));
+    expect(wave.bonusAttack || 0).toBeGreaterThan(0);
+  });
+
+  test('pre-granted upgrades merge over the defaults', () => {
+    const level = { ...base, player: { ...base.player, upgrades: { burrow: 1, meleeAttack: 2 } } };
+    const state = buildCampaignGameState(level);
+    const u = state.players.player1.upgrades;
+    expect(u.meleeAttack).toBe(2);
+    expect(u.burrow).toBe(1);
+    expect(u.defense).toBe(0);
+    expect(u.rangedAttack).toBe(0);
+  });
+
+  test('a pre-set queen tier starts at full energy with its spawn spots', () => {
+    const level = { ...base, player: { ...base.player, queenTier: 'broodQueen' } };
+    const state = buildCampaignGameState(level);
+    const q = state.ants[PLAYER_QUEEN_ID];
+    expect(q.queenTier).toBe('broodQueen');
+    expect(q.energy).toBe(QueenTiers.broodQueen.maxEnergy);
+    expect(q.maxEnergy).toBe(75);
+    expect(getSpawningPoolHexes(q, getNeighbors)).toHaveLength(4);
+    const plain = buildCampaignGameState({ ...base, player: { ...base.player, queenTier: 'queen' } });
+    expect(plain.ants[PLAYER_QUEEN_ID].energy).toBe(50);
+  });
+
+  test('pre-built anthills sit on the nearest nodes, pay out, and keep the node', () => {
+    const level = { ...base, enemy: { ...base.enemy, anthills: [{ type: 'food', count: 1 }] }, player: { ...base.player, anthills: [{ type: 'food', count: 1, reinforced: true }] } };
+    const state = buildCampaignGameState(level);
+    const hills = Object.values(state.anthills);
+    expect(hills).toHaveLength(2);
+    const mine = hills.find(h => h.owner === 'player1');
+    const theirs = hills.find(h => h.owner === 'player2');
+    expect(mine.isComplete).toBe(true);
+    expect(mine.maxHealth).toBe(30); // reinforced
+    expect(theirs.maxHealth).toBe(20);
+    expect(state.resources[theirs.resourceId]).toBeDefined();
+    const before = state.players.player2.resources.food;
+    const after = fullRound(state);
+    expect(after.players.player2.resources.food).toBe(before + 5 + 5); // queen + hill
+    expect(after.campaign.gathered.food).toBe(5); // only the player's hill counts
+  });
+
+  test('guards and slot entries keep explicit ids', () => {
+    const level = { ...base, player: { ...base.player, units: [{ type: 'spitter', id: 'my_spitter' }, 'scout', 'scout'], guards: [{ type: 'soldier', offset: { dq: -1, dr: 0 }, id: 'my_guard' }] } };
+    const state = buildCampaignGameState(level);
+    expect(state.ants.my_spitter.type).toBe('spitter');
+    expect(state.ants.my_guard.type).toBe('soldier');
+  });
+});
+
+describe('new objective types and deadlines', () => {
+  const base = getLevel(2);
+  const withObjectives = objectives => buildCampaignGameState({ ...base, objectives });
+
+  test('hatch counts from stats.antsHatched', () => {
+    const state = withObjectives([{ type: 'hatch', count: 2, text: 'x' }]);
+    expect(evaluateAllObjectives(state).won).toBe(false);
+    state.stats.player1.antsHatched.scout = 2;
+    expect(evaluateAllObjectives(state).won).toBe(true);
+  });
+
+  test('destroyAnthills and killUnits complete from the world', () => {
+    const state = withObjectives([
+      { type: 'destroyAnthills', count: 1, text: 'x' },
+      { type: 'killUnits', unitIds: ['a', 'b', 'c'], count: 2, text: 'y' }
+    ]);
+    state.ants.a = { id: 'a', owner: 'player2', type: 'scout', position: { q: 0, r: 0 } };
+    expect(evaluateAllObjectives(state).won).toBe(false);
+    state.stats.player1.anthillsDestroyed = 1;
+    const r = evaluateAllObjectives(state);
+    expect(r.objectives[0].status).toBe('complete');
+    expect(r.objectives[1].status).toBe('complete'); // b and c are absent = dead
+    expect(r.won).toBe(true);
+  });
+
+  test('byTurn fails a pending objective once the turn has passed, and completion is sticky', () => {
+    let state = withObjectives([{ type: 'killUnit', unitId: 'never', byTurn: 3, text: 'x' }, { type: 'protect', unitId: PLAYER_LARVA_ID, text: 'p' }]);
+    state.ants.never = { id: 'never', owner: 'player2', type: 'scout', position: { q: 0, r: 0 } };
+    state.turn = 3;
+    expect(evaluateAllObjectives(state).objectives[0].status).toBe('pending');
+    state.turn = 4;
+    const r = evaluateAllObjectives(state);
+    expect(r.objectives[0].status).toBe('failed');
+    expect(r.lost).toBe(true);
+    // Completed before the deadline stays complete after it, even though the
+    // unit is no longer on the hex
+    const done = withObjectives([{ type: 'reachHex', at: { q: 99, r: 99 }, byTurn: 2, text: 'x' }]);
+    done.campaign.objectives[0].status = 'complete';
+    done.turn = 10;
+    expect(evaluateAllObjectives(done).objectives[0].status).toBe('complete');
+  });
+});
+
+describe('AI level controls', () => {
+  const { resolveAIConfig, chooseUnitToProduce, huntTarget } = require('../aiController');
+  const base = getLevel(2);
+
+  test('a strict unit mix never hatches outside the list and returns null when broke', () => {
+    const state = buildCampaignGameState({ ...base, enemy: { ...base.enemy, unitMix: { soldier: 1 } } });
+    const config = resolveAIConfig(state, 'medium');
+    expect(config.strictMix).toBe(true);
+    state.players.player2.resources = { food: 100, minerals: 100 };
+    const strategy = { shouldExpand: true, shouldAttack: false, shouldDefend: false };
+    for (let i = 0; i < 20; i++) expect(chooseUnitToProduce(state, 'player2', config, strategy)).toBe('soldier');
+    state.players.player2.resources = { food: 0, minerals: 0 };
+    expect(chooseUnitToProduce(state, 'player2', config, strategy)).toBeNull();
+    // Without a level mix the normal config comes back untouched
+    expect(resolveAIConfig(createInitialGameState(), 'hard').strictMix).toBeUndefined();
+  });
+
+  test('hunt targets the player leader, or a named unit while it lives', () => {
+    const state = buildCampaignGameState({ ...base, player: { ...base.player, queenTier: 'queen' } });
+    expect(huntTarget(state, 'player2')).toEqual(state.ants[PLAYER_QUEEN_ID].position);
+    const spitter = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'spitter');
+    const named = { ...state, campaign: { ...state.campaign, enemyHunts: `unit:${spitter.id}` } };
+    expect(huntTarget(named, 'player2')).toEqual(spitter.position);
+    const gone = { ...named, ants: { ...named.ants } };
+    delete gone.ants[spitter.id];
+    expect(huntTarget(gone, 'player2')).toEqual(state.ants[PLAYER_QUEEN_ID].position);
+    expect(huntTarget({ ...state, campaign: { ...state.campaign, enemyHunts: false } }, 'player2')).toBeNull();
+  });
+});
+
+describe('levels 3-6 content', () => {
+  const { ENEMY_QUEEN_ID } = require('./levels');
+  const { normalizeCutsceneLines } = require('./Cutscene');
+  const { executeAITurn } = require('../aiController');
+  const { createEgg } = require('../gameState');
+
+  test('cutscene lines resolve rival portraits and names', () => {
+    const lines = normalizeCutsceneLines(getLevel(3).cutscene);
+    const skraz = lines.find(l => l.speaker);
+    expect(skraz.speaker).toMatch(/Skrazzit/);
+    expect(skraz.portrait).toBe('hero_blue.png');
+    expect(lines[0].portrait).toBe('hero_black.png');
+    expect(lines[0].speaker).toBeNull();
+  });
+
+  test('level 3: a real queen with Vexxara, a scout-only swarm, and eggs get sniped', async () => {
+    const level = getLevel(3);
+    const state = buildCampaignGameState(level);
+    expect(state.ants[PLAYER_QUEEN_ID].type).toBe('queen');
+    expect(state.players.player1.heroId).toBe('vexxara');
+    expect(state.players.player2.heroId).toBe('skrazzit');
+    expect(state.campaign.enemyUnitMix).toEqual({ scout: 1 });
+
+    // An enemy scout beside an UNGUARDED player egg breaks it on its turn.
+    // (With a unit in reach the AI hits the unit instead - a guarded egg lives.)
+    Object.values(state.ants).filter(a => a.owner === 'player1' && a.type !== 'queen').forEach(a => { delete state.ants[a.id]; });
+    const queen = state.ants[PLAYER_QUEEN_ID];
+    const eggHex = getNeighbors(queen.position).find(h =>
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r));
+    const egg = createEgg('soldier', 'player1', eggHex, state.turn);
+    state.eggs[egg.id] = egg;
+    const scoutHex = getNeighbors(eggHex).find(h =>
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      hexDistance(h, queen.position) >= 2 &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r));
+    const scout = createAnt('scout', 'player2', scoutHex);
+    scout.id = 'sniper';
+    state.ants[scout.id] = scout;
+    state.currentPlayer = 'player2';
+
+    const { gameState: after, combatActions } = await executeAITurn(state, 'player2', 'easy');
+    const hit = combatActions.find(c => c.attackerId === 'sniper');
+    expect(hit).toBeDefined();
+    expect(hit.targetPosition.q).toBe(eggHex.q);
+    expect(hit.targetPosition.r).toBe(eggHex.r);
+    expect((after.eggs[egg.id]?.health ?? 0)).toBeLessThan(10);
+  }, 15000);
+
+  test('level 4: the lake blocks the straight road, and nothing stands in it', () => {
+    const state = buildCampaignGameState(getLevel(4));
+    expect(state.mapWater.length).toBeGreaterThan(0);
+    // Water is drawn but never playable
+    state.mapWater.forEach(w => expect(isValidHex(w, state.gridRadius, state.mapShape)).toBe(false));
+    // The hex halfway between the leaders is water
+    const p1 = state.ants[PLAYER_QUEEN_ID].position;
+    const p2 = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'queen').position;
+    const mid = { q: p1.q, r: Math.round((p1.r + p2.r) / 2) };
+    expect(state.mapWater.some(w => w.q === mid.q && w.r === mid.r)).toBe(true);
+    // ...but a route still exists: the AI's own reachability from the enemy queen grows past the lake
+    const { getMovementRange } = require('../hexUtils');
+    const reach = getMovementRange(p2, 12, state.gridRadius, [], state.mapShape);
+    expect(reach.some(h => h.q === p1.q && h.r === p1.r - 1)).toBe(true);
+  });
+
+  test('level 4: Skrazzit starts with two mineral hills on the ridge', () => {
+    const state = buildCampaignGameState(getLevel(4));
+    const hills = Object.values(state.anthills).filter(h => h.owner === 'player2');
+    expect(hills).toHaveLength(2);
+    hills.forEach(h => {
+      expect(h.resourceType).toBe('minerals');
+      expect(h.isComplete).toBe(true);
+      expect(state.resources[h.resourceId]).toBeDefined();
+    });
+    expect(state.campaign.objectives.map(o => o.type)).toEqual(['gather', 'destroyAnthills', 'killUnit', 'protect']);
+  });
+
+  test('level 5: Gorlak has upgraded melee, a mineral hill, a lane map, and a deadline', () => {
+    const state = buildCampaignGameState(getLevel(5));
+    expect(state.players.player2.upgrades.meleeAttack).toBe(2);
+    expect(state.players.player2.heroId).toBe('gorlak');
+    expect(Object.values(state.anthills).filter(h => h.owner === 'player2')).toHaveLength(1);
+    expect(state.ants[ENEMY_QUEEN_ID]).toBeDefined();
+    const kill = state.campaign.objectives.find(o => o.type === 'killUnit');
+    expect(kill.unitId).toBe(ENEMY_QUEEN_ID);
+    expect(kill.byTurn).toBe(14);
+    // The void spine: the centre column between the lanes is not on the map
+    const p1 = state.ants[PLAYER_QUEEN_ID].position;
+    const p2 = state.ants[ENEMY_QUEEN_ID].position;
+    const midQ = p1.q; // both leaders share the column
+    const midR = Math.round((p1.r + p2.r) / 2);
+    expect(isValidHex({ q: midQ, r: midR }, state.gridRadius, state.mapShape)).toBe(false);
+  });
+
+  test('level 6: Brood Queen with a placed force, Thorgrim\'s Bullet Ants, and the wave ids the objective names', () => {
+    let state = buildCampaignGameState(getLevel(6));
+    const q = state.ants[PLAYER_QUEEN_ID];
+    expect(q.queenTier).toBe('broodQueen');
+    expect(q.energy).toBe(75);
+    const mine = Object.values(state.ants).filter(a => a.owner === 'player1' && a.type !== 'queen');
+    expect(mine.filter(a => a.type === 'healer')).toHaveLength(2);
+    expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
+    expect(mine.filter(a => a.type === 'soldier')).toHaveLength(2);
+    expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
+    expect(state.ants.camp_player2_B1.type).toBe('tank');
+    expect(state.ants.camp_player2_B2.maxHealth).toBeGreaterThan(55); // Thorgrim: x1.2 health
+    expect(state.campaign.roster).toEqual(['healer']);
+
+    state = fullRound(fullRound(state)); // turn 3: the second pair lands
+    expect(state.ants.camp_wave3_tank1).toBeDefined();
+    expect(state.ants.camp_wave3_tank2).toBeDefined();
+    const ids = state.campaign.objectives.find(o => o.type === 'killUnits').unitIds;
+    ids.forEach(id => expect(state.ants[id]).toBeDefined());
+  });
+});
+
+describe('custom map layouts', () => {
+  const { parseLayout } = require('./mapLayout');
+  const { isValidHex, getMovementRange } = require('../hexUtils');
+
+  // A tiny map: a 3-hex column with a hole, enemy at top, player at bottom.
+  //   x: 0 1 2
+  const ROWS = [
+    ' 2 ',   // y0: (1,0)
+    '. .',   // y1: (0,1) (2,1)
+    ' T ',   // y2: (1,2)
+    '. .',   // y3: (0,3) (2,3)
+    ' 1 '    // y4: (1,4)
+  ];
+
+  test('parses double-height text into axial hexes with even recentering', () => {
+    const l = parseLayout(ROWS);
+    expect(l.mapHexes).toHaveLength(7);
+    // Every declared cell has x + y even; q = x - dx, r = (y - dy - q) / 2 with even shifts
+    l.mapHexes.forEach(h => expect(Number.isInteger(h.r)).toBe(true));
+    expect(l.leaders.player1).toBeDefined();
+    expect(l.leaders.player2).toBeDefined();
+    // Player is south (larger r) of the enemy
+    expect(l.leaders.player1.r).toBeGreaterThan(l.leaders.player2.r);
+    expect(l.trees).toHaveLength(1);
+    // The tree sits directly between the two leaders on the same column
+    expect(l.trees[0].q).toBe(l.leaders.player1.q);
+    expect(l.trees[0].r).toBe(l.leaders.player1.r - 1);
+    expect(l.leaders.player2.r).toBe(l.leaders.player1.r - 2);
+    expect(isValidHex(l.leaders.player1, l.gridRadius, l.mapShape)).toBe(true);
+    expect(isValidHex({ q: 40, r: 40 }, l.gridRadius, l.mapShape)).toBe(false);
+  });
+
+  test('rejects art that has slipped a column and unknown characters', () => {
+    expect(() => parseLayout(['.1'])).toThrow(/off-grid/);
+    expect(() => parseLayout([' 1 ', 'x x'], {})).toThrow(/legend/);
+    expect(() => parseLayout([' 1 ', '? ?'])).toThrow(/unknown/);
+    expect(() => parseLayout(['. .'])).toThrow(/missing player leader/);
+  });
+
+  test('a level built from a layout has exactly that shape, and nothing stands in void', () => {
+    const level = {
+      id: 99, name: 'Test',
+      map: { layout: ROWS, legend: { A: 'soldier' } },
+      player: { queenTier: 'queen', units: 'default' },
+      enemy: { queenTier: 'queen', units: 'default', waves: [{ turn: 2, units: [{ type: 'scout', count: 2 }] }] },
+      objectives: [{ type: 'survive', untilTurn: 5, text: 'x' }]
+    };
+    let state = buildCampaignGameState(level);
+    expect(state.mapHexes).toHaveLength(7);
+    expect(state.mapShape.type).toBe('custom');
+    expect(Object.keys(state.trees)).toHaveLength(1);
+    expect(Object.keys(state.resources)).toHaveLength(0);
+
+    const onMap = h => isValidHex(h, state.gridRadius, state.mapShape);
+    const allUnits = s => Object.values(s.ants);
+    allUnits(state).forEach(a => expect(onMap(a.position)).toBe(true));
+    // Leaders are where the markers put them
+    const p1 = state.ants[PLAYER_QUEEN_ID];
+    const p2 = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'queen');
+    expect(p1.position.r - p2.position.r).toBe(2);
+    // The opening units were re-seated on the map, not left on the old hexagon
+    expect(allUnits(state).filter(a => a.owner === 'player1')).toHaveLength(4);
+
+    // Movement never enters void: from the player's hex, range 3, all results on-map
+    getMovementRange(p1.position, 3, state.gridRadius, [], state.mapShape).forEach(h => expect(onMap(h)).toBe(true));
+
+    // Waves land on the map (or not at all)
+    state = fullRound(state);
+    allUnits(state).forEach(a => expect(onMap(a.position)).toBe(true));
+  });
+
+  test('legend markers place units for each side with stable ids', () => {
+    const level = {
+      id: 98, name: 'Markers',
+      map: { layout: [' 2 ', 'A A', ' . ', 'a a', ' 1 '], legend: { a: 'spitter', A: 'soldier' } },
+      player: { queenTier: 'queen', units: [] },
+      enemy: { queenTier: 'queen', units: [] },
+      objectives: []
+    };
+    const state = buildCampaignGameState(level);
+    expect(state.ants['camp_player1_a1'].type).toBe('spitter');
+    expect(state.ants['camp_player1_a2'].owner).toBe('player1');
+    expect(state.ants['camp_player2_A1'].type).toBe('soldier');
+    expect(state.ants['camp_player2_A2'].owner).toBe('player2');
+  });
+
+  test('every shipped level builds, with its leaders and units on the map', () => {
+    const { LEVELS } = require('./levels');
+    LEVELS.forEach(level => {
+      const state = buildCampaignGameState(level);
+      const onMap = h => isValidHex(h, state.gridRadius, state.mapShape);
+      const ants = Object.values(state.ants);
+      expect(ants.some(a => a.owner === 'player1' && (a.type === 'queen' || a.type === 'queenLarva'))).toBe(true);
+      expect(ants.some(a => a.owner === 'player2' && (a.type === 'queen' || a.type === 'queenLarva'))).toBe(true);
+      ants.forEach(a => expect(onMap(a.position)).toBe(true));
+      Object.values(state.trees).forEach(t => expect(onMap(t.position)).toBe(true));
+      Object.values(state.resources).forEach(r => expect(onMap(r.position)).toBe(true));
+      // No two things on one hex
+      const keys = ants.map(a => `${a.position.q},${a.position.r}`);
+      expect(new Set(keys).size).toBe(keys.length);
+      if (level.map?.layout) {
+        const p1 = ants.find(a => a.owner === 'player1' && (a.type === 'queen' || a.type === 'queenLarva'));
+        const p2 = ants.find(a => a.owner === 'player2' && (a.type === 'queen' || a.type === 'queenLarva'));
+        const apart = hexDistance(p1.position, p2.position);
+        // Levels 1-2 were tuned at six hexes apart; later maps set their own distance
+        if (level.id <= 2) expect(apart).toBe(6);
+        else expect(apart).toBeGreaterThanOrEqual(4);
+      }
+    });
+  });
+
+  test('normal games are untouched by the mask branch', () => {
+    const state = createInitialGameState();
+    expect(state.mapHexes).toBeUndefined();
+    expect(typeof state.mapShape).toBe('string');
+    expect(isValidHex({ q: 0, r: 0 }, state.gridRadius, state.mapShape)).toBe(true);
+  });
+});
+
 describe('non-campaign games are untouched', () => {
   test('endTurn adds no campaign slice and never ends the game on objectives', () => {
     const state = fullRound(createInitialGameState());
     expect(state.campaign).toBeUndefined();
     expect(state.gameOver).toBe(false);
+  });
+});
+
+describe('level 3 - lose no more than 1 egg', () => {
+  test('the goal fails on the second destroyed egg, and never blocks the win', () => {
+    const level = getLevel(3);
+    expect(level.objectives.map(o => o.type)).toEqual(['hatch', 'survive', 'loseAtMost']);
+    const state = buildCampaignGameState(level);
+    const withLost = n => ({ ...state, stats: { ...state.stats, player1: { ...state.stats.player1, eggsLost: n } } });
+    const goal = state.campaign.objectives.find(o => o.type === 'loseAtMost');
+    expect(evaluateAllObjectives(withLost(0)).objectives.find(o => o.type === 'loseAtMost').status).toBe('pending');
+    expect(evaluateAllObjectives(withLost(1)).lost).toBe(false);
+    expect(evaluateAllObjectives(withLost(2)).lost).toBe(true);
+    expect(goal.text).toBe('Lose no more than 1 egg');
+  });
+
+  test('destroying an egg counts it against its owner', () => {
+    const { attackEgg } = require('../combatSystem');
+    const state = buildCampaignGameState(getLevel(3));
+    const egg = { id: 'test_egg', antType: 'scout', owner: 'player1', position: { q: 0, r: 0 }, health: 1, maxHealth: 10, turnLaid: 1 };
+    const enemy = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'scout');
+    const s1 = { ...state, eggs: { test_egg: egg }, ants: { ...state.ants, [enemy.id]: { ...enemy, position: { q: 1, r: 0 } } } };
+    const after = attackEgg(s1, enemy.id, 'test_egg').gameState;
+    expect(after.eggs.test_egg).toBeUndefined();
+    expect(after.stats.player1.eggsLost).toBe(1);
+  });
+});
+
+describe('level 4 - the enemy queen must die too', () => {
+  const { ENEMY_QUEEN_ID } = require('./levels');
+  const killQueen = (state) => {
+    const queen = state.ants[ENEMY_QUEEN_ID];
+    const mine = Object.values(state.ants).find(a => a.owner === 'player1' && a.type !== 'queen');
+    const spot = getNeighbors(queen.position).find(h => !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r));
+    const s = { ...state, ants: { ...state.ants, [queen.id]: { ...queen, health: 1 }, [mine.id]: { ...mine, position: spot, hasMoved: false, hasAttacked: false } } };
+    return resolveCombat(s, mine.id, queen.id).gameState;
+  };
+
+  test('killing her early does not end the level while the other goals are open', () => {
+    const after = killQueen(buildCampaignGameState(getLevel(4)));
+    expect(after.ants[ENEMY_QUEEN_ID]).toBeUndefined();
+    expect(after.gameOver).toBeFalsy();
+  });
+
+  test('once the other goals are done, killing her wins at once', () => {
+    const state = buildCampaignGameState(getLevel(4));
+    state.campaign = { ...state.campaign, objectives: state.campaign.objectives.map(o =>
+      (o.type === 'gather' || o.type === 'destroyAnthills') ? { ...o, status: 'complete' } : o) };
+    const after = killQueen(state);
+    expect(after.gameOver).toBe(true);
+    expect(after.winner).toBe('player1');
   });
 });

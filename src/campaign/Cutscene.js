@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { getHeroById } from '../heroQueens';
 
 // Campaign cutscene: a portrait on black with narration at the bottom.
 // Lines type out one at a time. Click / Space / Enter finishes the current
@@ -7,17 +8,38 @@ import React, { useEffect, useState, useCallback } from 'react';
 // Driven entirely by level data - `cutscene: { portrait, lines }` - so any
 // level can have one without touching this file. `portrait` is a filename
 // under public/sprites/, resolved the same way hero portraits are elsewhere.
+//
+// A line is either a string (narration, shown over the level's portrait) or
+// an object for a speaking character:
+//   { hero: 'gorlak', text }              - a rival: name and portrait looked up
+//   { speaker, portrait, text }           - anyone else
+// The portrait swaps per line, so rivals can talk trash in their own face.
 
 const TYPE_MS = 28; // per character
 
+export function normalizeCutsceneLines(cutscene) {
+  return (cutscene?.lines || []).map(line => {
+    if (typeof line === 'string') return { text: line, portrait: cutscene.portrait || null, speaker: null };
+    if (line.hero) {
+      const hero = getHeroById(line.hero);
+      return {
+        text: line.text,
+        portrait: line.portrait || hero?.portraitImage || cutscene.portrait || null,
+        speaker: line.speaker || hero?.name || null
+      };
+    }
+    return { text: line.text, portrait: line.portrait || cutscene.portrait || null, speaker: line.speaker || null };
+  });
+}
+
 function Cutscene({ cutscene, title, onDone }) {
-  const lines = cutscene?.lines || [];
+  const lines = normalizeCutsceneLines(cutscene);
   const [lineIdx, setLineIdx] = useState(0);
   const [shown, setShown] = useState(0); // characters of the current line revealed
   const [portraitLoaded, setPortraitLoaded] = useState(false);
 
-  const current = lines[lineIdx] || '';
-  const lineDone = shown >= current.length;
+  const current = lines[lineIdx] || { text: '', portrait: null, speaker: null };
+  const lineDone = shown >= current.text.length;
   const isLast = lineIdx >= lines.length - 1;
 
   // Typewriter for the current line
@@ -27,12 +49,15 @@ function Cutscene({ cutscene, title, onDone }) {
     return () => clearTimeout(id);
   }, [shown, lineDone]);
 
+  // A new portrait fades in from black again
+  useEffect(() => { setPortraitLoaded(false); }, [current.portrait]);
+
   const advance = useCallback(() => {
-    if (!lineDone) { setShown(current.length); return; }
+    if (!lineDone) { setShown(current.text.length); return; }
     if (isLast) { onDone(); return; }
     setLineIdx(i => i + 1);
     setShown(0);
-  }, [lineDone, isLast, current.length, onDone]);
+  }, [lineDone, isLast, current.text.length, onDone]);
 
   // Keyboard: Space / Enter advance, Escape skips
   useEffect(() => {
@@ -85,7 +110,7 @@ function Cutscene({ cutscene, title, onDone }) {
       </button>
 
       {/* Portrait */}
-      {cutscene.portrait && (
+      {current.portrait && (
         <div style={{
           flex: 1,
           display: 'flex',
@@ -95,7 +120,8 @@ function Cutscene({ cutscene, title, onDone }) {
           padding: '40px 20px 20px'
         }}>
           <img
-            src={`${process.env.PUBLIC_URL}/sprites/${cutscene.portrait}`}
+            key={current.portrait}
+            src={`${process.env.PUBLIC_URL}/sprites/${current.portrait}`}
             alt=""
             onLoad={() => setPortraitLoaded(true)}
             style={{
@@ -135,13 +161,24 @@ function Cutscene({ cutscene, title, onDone }) {
             {title}
           </div>
         )}
+        {current.speaker && (
+          <div style={{
+            color: '#f0c419',
+            fontSize: '15px',
+            fontWeight: 'bold',
+            letterSpacing: '1px',
+            marginBottom: '6px'
+          }}>
+            {current.speaker}
+          </div>
+        )}
         <div style={{
           minHeight: '4.5em',
           fontSize: '21px',
           lineHeight: 1.5,
           textShadow: '0 2px 8px rgba(0,0,0,0.8)'
         }}>
-          {current.slice(0, shown)}
+          {current.text.slice(0, shown)}
           {!lineDone && <span style={{ opacity: 0.6 }}>▌</span>}
         </div>
         <div style={{

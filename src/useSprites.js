@@ -64,6 +64,27 @@ export function useSprites() {
     }));
   };
 
+  // Start an idle animation for an ant only if it does not have one yet (or
+  // it has changed type). Unlike setAntAnimation this never restarts an
+  // animation that is already running, so it is safe to call for every ant
+  // whenever the board changes.
+  const ensureAntAnimation = (antId, antType, playerColor = null) => {
+    setAntAnimations(prev => {
+      const current = prev[antId];
+      if (current && current.antType === antType) return prev;
+      return {
+        ...prev,
+        [antId]: {
+          antType,
+          animation: 'idle',
+          playerColor,
+          frame: 0,
+          timestamp: Date.now()
+        }
+      };
+    });
+  };
+
   // Remove ant animation when ant is deleted
   const removeAntAnimation = (antId) => {
     setAntAnimations(prev => {
@@ -136,6 +157,7 @@ export function useSprites() {
 
   return {
     setAntAnimation,
+    ensureAntAnimation,
     removeAntAnimation,
     getAntFrame,
     setEggAnimation,

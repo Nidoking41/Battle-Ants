@@ -35,6 +35,20 @@ export function isVital(ant) {
   return !!ant && (ant.type === 'queen' || ant.type === 'queenLarva');
 }
 
+// Campaign levels can ask for more than the enemy queen. When a level's goals
+// include killing a unit AND other goals that are not done yet, that unit's
+// death ticks its goal off but does not end the level - the goals check at
+// the end of the turn decides the win instead. Only for the enemy's units:
+// losing your own queen or larva still ends the level at once.
+export function campaignDefersWin(gameState, deadAnt) {
+  const objectives = gameState?.campaign?.objectives;
+  if (!objectives || !deadAnt || deadAnt.owner === 'player1') return false;
+  const isThisKill = o => o.type === 'killUnit' && o.unitId === deadAnt.id;
+  if (!objectives.some(isThisKill)) return false;
+  const failOnly = new Set(['protect', 'loseAtMost']);
+  return objectives.some(o => !isThisKill(o) && !failOnly.has(o.type) && o.status !== 'complete');
+}
+
 export function checkWinCondition(gameState, killerPlayerId, deadQueenOwner) {
   const playerCount = gameState.playerCount || 2;
 
@@ -121,8 +135,19 @@ export function attackEgg(gameState, attackerId, eggId) {
   const updatedEggs = { ...updatedGameState.eggs };
 
   if (newEggHealth <= 0) {
-    // Egg is destroyed
+    // Egg is destroyed. Count it against its owner (read by the campaign's
+    // loseAtMost objective, e.g. "Lose no more than 1 egg").
     delete updatedEggs[eggId];
+    if (updatedGameState.stats?.[egg.owner]) {
+      const ownerStats = updatedGameState.stats[egg.owner];
+      updatedGameState = {
+        ...updatedGameState,
+        stats: {
+          ...updatedGameState.stats,
+          [egg.owner]: { ...ownerStats, eggsLost: (ownerStats.eggsLost || 0) + 1 }
+        }
+      };
+    }
   } else {
     updatedEggs[eggId] = {
       ...egg,
@@ -278,7 +303,7 @@ export function detonateBomber(gameState, bomberId) {
       updatedGameState.stats[bomber.owner].killStrength = (updatedGameState.stats[bomber.owner].killStrength || 0) + unitStrength(target, updatedGameState.players[target.owner]);
 
       // Check if bomber killed a queen
-      if (isVital(target)) {
+      if (isVital(target) && !campaignDefersWin(updatedGameState, target)) {
         // Update ants first so checkWinCondition sees the dead queen removed
         updatedGameState.ants = updatedAnts;
         const winResult = checkWinCondition(updatedGameState, bomber.owner, target.owner);
@@ -418,7 +443,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
     }
 
     // Check if it was a queen
-    if (isVital(defender)) {
+    if (isVital(defender) && !campaignDefersWin(updatedGameState, defender)) {
       // Update ants first so checkWinCondition sees the dead queen removed
       updatedGameState.ants = updatedAnts;
       const winResult = checkWinCondition(updatedGameState, attacker.owner, defender.owner);
@@ -482,7 +507,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
         updatedGameState.stats[target.owner].antsLost = (updatedGameState.stats[target.owner].antsLost || 0) + 1;
         updatedGameState.stats[attacker.owner].killStrength = (updatedGameState.stats[attacker.owner].killStrength || 0) + unitStrength(target, updatedGameState.players[target.owner]);
 
-        if (isVital(target)) {
+        if (isVital(target) && !campaignDefersWin(updatedGameState, target)) {
           updatedGameState.gameOver = true;
           updatedGameState.winner = attacker.owner;
         }
@@ -554,7 +579,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
       }
 
       // Check if it was a queen (attacker died from counterattack)
-      if (isVital(attacker)) {
+      if (isVital(attacker) && !campaignDefersWin(updatedGameState, attacker)) {
         // Update ants first so checkWinCondition sees the dead queen removed
         updatedGameState.ants = updatedAnts;
         const winResult = checkWinCondition(updatedGameState, defender.owner, attacker.owner);
