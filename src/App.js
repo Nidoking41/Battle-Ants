@@ -4197,6 +4197,11 @@ function App() {
       getValidTeleportDestinations(getGameStateForLogic(), selectedAnt) : [];
     const healTargets = selectedAction === 'heal' && selectedAnt ?
       getValidHealTargets(getGameStateForLogic(), selectedAnt) : [];
+    // Every hex the selected queen/healer could heal into (same range rule as the heal click)
+    const healSource = selectedAction === 'heal' && selectedAnt ? gameState.ants[selectedAnt] : null;
+    const healSourceRange = healSource && (healSource.type === 'queen' || healSource.type === 'healer')
+      ? (healSource.type === 'healer' ? getAntTypeById(healSource.type).healRange : getAntTypeById(healSource.type).attackRange)
+      : 0;
     const ensnareTargets = selectedAction === 'ensnare' && selectedAnt ?
       getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
     const cordycepsTargets = selectedAction === 'cordyceps' && selectedAnt ?
@@ -4484,7 +4489,10 @@ function App() {
       const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
       const isAttackable = enemiesInRange.some(e => hexEquals(e.position, hex));
       const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
-      const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex));
+      const isInHealRange = healSourceRange > 0 && hexDistance(healSource.position, hex) <= healSourceRange;
+      // Wounded friendly units inside the range (covers the queen, who has no target list)
+      const isHealTarget = healTargets.some(ally => hexEquals(ally.position, hex)) ||
+        (isInHealRange && ant && ant.id !== healSource.id && ant.owner === healSource.owner && ant.health < ant.maxHealth);
       const isEnsnareTarget = ensnareTargets.some(enemy => hexEquals(enemy.position, hex));
       const isCordycepsTarget = cordycepsTargets.some(enemy => hexEquals(enemy.position, hex));
       const isPlagueTarget = plagueTargets.some(enemy => hexEquals(enemy.position, hex));
@@ -4526,6 +4534,10 @@ function App() {
       }
       if (isTeleportDestination) {
         fillColor = '#BB8FCE'; // Purple for teleport destinations
+        useBirthingPoolPattern = false;
+      }
+      if (isInHealRange) {
+        fillColor = '#D5F5D5'; // Pale green for the heal's range
         useBirthingPoolPattern = false;
       }
       if (isHealTarget) {

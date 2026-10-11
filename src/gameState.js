@@ -2388,8 +2388,10 @@ export function getSpawningPoolHexes(queen, getNeighborsFunc) {
 
   // Return the first N spots based on queen tier and hero bonuses
   // We'll use a consistent ordering to make it predictable
-  // Order: top-right, right, bottom-right, bottom-left, left, top-left
-  return allNeighbors.slice(0, spawningSpots);
+  // Spots are handed out in left/right pairs so they sit on either side of the
+  // queen: lower-right, lower-left, upper-right, upper-left, top, bottom
+  const spotOrder = [0, 4, 1, 3, 2, 5];
+  return spotOrder.slice(0, spawningSpots).map(i => allNeighbors[i]);
 }
 
 
