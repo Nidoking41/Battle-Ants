@@ -1248,7 +1248,7 @@ export function endTurn(rawGameState) {
         });
 
         // Check if anthill is depleted
-        if (newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD) {
+        if (newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD[anthill.resourceType]) {
           depletedAnthills.push(anthill);
         }
       }

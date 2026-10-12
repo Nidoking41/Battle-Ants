@@ -87,7 +87,7 @@ export const AntTypes = {
   ACID: {
     id: 'spitter',
     name: 'Acid Ant',
-    cost: { food: 12, minerals: 10 },
+    cost: { food: 12, minerals: 7 },
     hatchTime: 1,
     maxHealth: 18,
     attack: 9,
@@ -102,7 +102,7 @@ export const AntTypes = {
   BOMBER: {
     id: 'bomber',
     name: 'Acid Bomber',
-    cost: { food: 8, minerals: 12 },
+    cost: { food: 8, minerals: 9 },
     requiresQueenTier: 'broodQueen', // Unlocked by the first queen upgrade
     hatchTime: 1,
     maxHealth: 20,
@@ -183,7 +183,7 @@ export const AntTypes = {
   CORDYPHAGE: {
     id: 'cordyphage',
     name: 'Cordyphage',
-    cost: { food: 15, minerals: 20 },
+    cost: { food: 15, minerals: 15 },
     hatchTime: 1,
     maxHealth: 25,
     attack: 0, // Cannot attack
@@ -231,10 +231,13 @@ export const GameConstants = {
   ANTHILL_BUILD_COST: 5, // Food cost to start building an anthill
   // Total resources an anthill yields before it depletes and the node respawns
   // elsewhere. Anthills are deliberately temporary - this is the whole lifespan.
-  ANTHILL_TOTAL_YIELD: 56,
+  ANTHILL_TOTAL_YIELD: {
+    food: 56,
+    minerals: 40 // 10 turns at 4 a turn
+  },
   ANTHILL_PASSIVE_INCOME: {
     food: 5,  // Per turn for food anthills
-    minerals: 7 // Per turn for mineral anthills
+    minerals: 4 // Per turn for mineral anthills
   },
   // Queen energy system
   QUEEN_BASE_ENERGY: 25,
@@ -247,7 +250,7 @@ export const GameConstants = {
   TREE_DEFENSE_BONUS: 1,
   // Cannibalism upgrade
   CANNIBALISM_FOOD_GAIN: 5,
-  CANNIBALISM_MINERAL_GAIN: 5,
+  CANNIBALISM_MINERAL_GAIN: 3,
   // Map sizes for multiplayer
   TRIANGLE_SIDE_LENGTH: 15, // 3-player triangle map (15 hexes per side)
   SQUARE_SIZE: 16 // 4-player square map (16x12 hexes, ~149 hexes)
@@ -261,9 +264,9 @@ export const Upgrades = {
     icon: '⚔️',
     maxTier: 3,
     costs: [
-      { food: 15, minerals: 10 }, // Tier 1
-      { food: 20, minerals: 15 }, // Tier 2
-      { food: 25, minerals: 20 }  // Tier 3
+      { food: 15, minerals: 8 }, // Tier 1
+      { food: 20, minerals: 12 }, // Tier 2
+      { food: 25, minerals: 16 }  // Tier 3
     ]
   },
   RANGED_ATTACK: {
@@ -273,9 +276,9 @@ export const Upgrades = {
     icon: '🏹',
     maxTier: 3,
     costs: [
-      { food: 15, minerals: 10 }, // Tier 1
-      { food: 20, minerals: 15 }, // Tier 2
-      { food: 25, minerals: 20 }  // Tier 3
+      { food: 15, minerals: 8 }, // Tier 1
+      { food: 20, minerals: 12 }, // Tier 2
+      { food: 25, minerals: 16 }  // Tier 3
     ]
   },
   DEFENSE: {
@@ -287,14 +290,14 @@ export const Upgrades = {
     // units at 1 damage, which pushes past "armor piercing" into unkillable.
     maxTier: 2,
     costs: [
-      { food: 20, minerals: 15 }, // Tier 1
-      { food: 25, minerals: 20 }  // Tier 2
+      { food: 20, minerals: 12 }, // Tier 1
+      { food: 25, minerals: 16 }  // Tier 2
     ]
   },
   CANNIBALISM: {
     id: 'cannibalism',
     name: 'Cannibalism',
-    description: '+5 Food and +5 Minerals when melee units kill',
+    description: '+5 Food and +3 Minerals when melee units kill',
     icon: '🍖',
     maxTier: 1,
     costs: [

@@ -314,11 +314,11 @@ export const LEVELS = [
         'Food feeds the colony. Minerals build the army. Every Marauder, every Spitter, every upgrade costs them.',
         'There are four mineral nodes on this ground, all on the ridge between the nests - and two of them are already his.',
         { hero: 'skrazzit', text: 'Two hills on the ridge before you have laid an egg. You cannot build what you cannot afford, Lifebinder.' },
-        'A hill pays seven minerals a turn until the node runs dry. His hills are targets: an anthill has no armour, and two blows from a Marauder bring one down.',
-        'Mine sixty minerals, burn two of his hills - and then finish him. Skrazzit dies on this ridge.'
+        'A hill pays four minerals a turn until the node runs dry. His hills are targets: an anthill has no armour, and two blows from a Marauder bring one down.',
+        'Mine forty minerals, burn two of his hills - and then finish him. Skrazzit dies on this ridge.'
       ]
     },
-    briefing: ['Take the ridge. Mine 60 minerals, destroy 2 enemy anthills, and kill Skrazzit\'s queen.'],
+    briefing: ['Take the ridge. Mine 40 minerals, destroy 2 enemy anthills, and kill Skrazzit\'s queen.'],
     // The Line: a lake fills the middle of the ridge, so there is no straight
     // road - you go round by the left shore or the right. Four mineral nodes
     // in two point-symmetric pairs on the shores, one pair leaning to each
@@ -363,7 +363,7 @@ export const LEVELS = [
       anthills: [{ type: 'minerals', count: 2 }]
     },
     objectives: [
-      { type: 'gather', resource: 'minerals', amount: 60, text: 'Mine 60 minerals' },
+      { type: 'gather', resource: 'minerals', amount: 40, text: 'Mine 40 minerals' },
       { type: 'destroyAnthills', count: 2, text: 'Destroy 2 enemy anthills' },
       // Killing her early does not end the level while the other two goals are
       // still open (see campaignDefersWin in combatSystem.js).

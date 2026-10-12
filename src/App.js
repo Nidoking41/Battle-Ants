@@ -6354,8 +6354,8 @@ function App() {
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD}</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {Math.max(0, GameConstants.ANTHILL_TOTAL_YIELD - (selectedAnthill.resourcesGathered || 0))}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType]}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {Math.max(0, GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType] - (selectedAnthill.resourcesGathered || 0))}</p>
               <div style={{
                 width: '100%',
                 height: '20px',
@@ -6366,7 +6366,7 @@ function App() {
                 border: '1px solid rgba(192, 192, 192, 0.2)'
               }}>
                 <div style={{
-                  width: `${Math.min(100, ((selectedAnthill.resourcesGathered || 0) / GameConstants.ANTHILL_TOTAL_YIELD) * 100)}%`,
+                  width: `${Math.min(100, ((selectedAnthill.resourcesGathered || 0) / GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType]) * 100)}%`,
                   height: '100%',
                   backgroundColor: selectedAnthill.resourceType === 'food' ? '#4ade80' : '#60a5fa',
                   transition: 'width 0.3s ease'
