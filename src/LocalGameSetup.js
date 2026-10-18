@@ -110,7 +110,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '6px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                <div className="hero-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
@@ -236,7 +236,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ marginTop: '6px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#e0e0e0' }}>Choose Hero:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                <div className="hero-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}

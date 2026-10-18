@@ -90,6 +90,28 @@ const ResourceIcon = ({ type, size = 16 }) => (
 const FoodIcon = (props) => <ResourceIcon type="food" {...props} />;
 const MineralIcon = (props) => <ResourceIcon type="minerals" {...props} />;
 
+// Energy a queen or Weaver spends on one heal, after hero discounts (Vexxara)
+const getHealCostFor = (state, ant) => {
+  const { getHealEnergyCost } = require('./heroQueens');
+  const base = ant.type === 'healer' ? AntTypes.HEALER.healEnergyCost : GameConstants.HEAL_ENERGY_COST;
+  return getHealEnergyCost(base, state.players?.[ant.owner]?.heroId);
+};
+
+// Per-turn income for a player: completed anthills plus the queen's food
+const getPlayerIncome = (state, playerId) => {
+  let food = 0;
+  let minerals = 0;
+  Object.values(state.anthills || {}).forEach(anthill => {
+    if (anthill.owner === playerId && anthill.isComplete) {
+      if (anthill.resourceType === 'food') food += GameConstants.ANTHILL_PASSIVE_INCOME.food;
+      else minerals += GameConstants.ANTHILL_PASSIVE_INCOME.minerals;
+    }
+  });
+  const queen = Object.values(state.ants || {}).find(ant => ant.type === 'queen' && ant.owner === playerId);
+  if (queen) food += QueenTiers[queen.queenTier || 'queen'].foodIncome;
+  return { food, minerals };
+};
+
 // ---- Land tiles ----
 // Four kinds of ground, each drawn with a pixel-art texture (see the
 // <pattern>s in renderHexGrid). `color` is the plain colour underneath, used
@@ -224,16 +246,16 @@ function App() {
     if (!hero) return;
     // One activation can be reported twice (the button or AI replay, then the
     // state watcher below) - play it once
-    if (lastHeroFlashRef.current.playerId === playerId && Date.now() - lastHeroFlashRef.current.time < 3000) return;
+    if (lastHeroFlashRef.current.playerId === playerId && Date.now() - lastHeroFlashRef.current.time < 5000) return;
     lastHeroFlashRef.current = { playerId, time: Date.now() };
     // A black beam would vanish on the dark band, so black players get a pale violet
     const beamColor = String(player.color).toUpperCase() === '#000000' ? '#a99bd1' : player.color;
     const key = Date.now();
     setHeroFlash({ key, portrait: hero.portraitImage, name: hero.name, ability: hero.heroAbility?.name || 'Hero Power', color: beamColor });
-    setTimeout(() => setHeroFlash(prev => (prev && prev.key === key ? null : prev)), 1600);
+    setTimeout(() => setHeroFlash(prev => (prev && prev.key === key ? null : prev)), 3200);
     // Right after the flash, a card explains what the power does
-    setTimeout(() => setHeroInfo({ key, name: hero.heroAbility?.name || 'Hero Power', description: hero.heroAbility?.description || '', color: beamColor }), 1500);
-    setTimeout(() => setHeroInfo(prev => (prev && prev.key === key ? null : prev)), 6000);
+    setTimeout(() => setHeroInfo({ key, name: hero.heroAbility?.name || 'Hero Power', description: hero.heroAbility?.description || '', color: beamColor }), 3000);
+    setTimeout(() => setHeroInfo(prev => (prev && prev.key === key ? null : prev)), 7500);
   };
   const [heroInfo, setHeroInfo] = useState(null);
 
@@ -252,6 +274,42 @@ function App() {
 
   // Campaign tutorial pop-up (level.tutorialTip): hidden once the player clicks Got it
   const [tipDismissed, setTipDismissed] = useState(false);
+  // Campaign UI pop-ups (level.uiTips): which step is showing, and where its
+  // target button sits on screen
+  const [uiTipStep, setUiTipStep] = useState(0);
+  const [uiTipRect, setUiTipRect] = useState(null);
+  const uiTips = (gameState.campaign && !gameState.gameOver && getLevel(gameState.campaign.levelId)?.uiTips) || null;
+  const activeUiTip = uiTips && uiTipStep < uiTips.length ? uiTips[uiTipStep] : null;
+
+  // While a UI pop-up is up: make sure its button is on screen (the queen's
+  // buttons only exist while she is selected), ring it, and track where it is
+  // so the note can sit beside it.
+  useEffect(() => {
+    if (!activeUiTip) { setUiTipRect(null); return undefined; }
+    if (activeUiTip.target.startsWith('queen')) {
+      const queen = Object.values(gameState.ants || {}).find(a => a.owner === 'player1' && a.type === 'queen');
+      if (queen && selectedAnt !== queen.id) { setSelectedAnt(queen.id); setSelectedAction(null); }
+    }
+    let ringed = null;
+    const measure = () => {
+      const el = document.querySelector(`[data-tip="${activeUiTip.target}"]`);
+      if (el !== ringed) {
+        if (ringed) ringed.classList.remove('ui-tip-target');
+        if (el) el.classList.add('ui-tip-target');
+        ringed = el;
+      }
+      const r = el ? el.getBoundingClientRect() : null;
+      setUiTipRect(prev => {
+        if (!r) return null;
+        if (prev && prev.left === r.left && prev.top === r.top && prev.width === r.width) return prev;
+        return { left: r.left, top: r.top, width: r.width, height: r.height };
+      });
+    };
+    measure();
+    const timer = setInterval(measure, 250);
+    return () => { clearInterval(timer); if (ringed) ringed.classList.remove('ui-tip-target'); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUiTip, selectedAnt]);
 
   // Window size for responsive SVG
   const [windowSize, setWindowSize] = useState({
@@ -1672,7 +1730,7 @@ function App() {
           }
           setGameState(prev => withHeroActive(prev));
           playHeroFlash('player2', aiState);
-          await new Promise(resolve => setTimeout(resolve, 1700));
+          await new Promise(resolve => setTimeout(resolve, 3300));
         }
 
         for (let i = 0; i < actions.length; i++) {
@@ -1945,6 +2003,7 @@ function App() {
   const handleStartCampaignLevel = (levelId, { skipCutscene = false } = {}) => {
     const level = getLevel(levelId);
     setTipDismissed(false); // a level's tutorial pop-up shows again each time it starts
+    setUiTipStep(0);
     if (level?.cutscene && !skipCutscene) {
       setPendingCutsceneLevel(levelId);
       return;
@@ -2812,9 +2871,7 @@ function App() {
       }
 
       // Get the appropriate heal energy cost
-      const healEnergyCost = healer.type === 'healer'
-        ? AntTypes.HEALER.healEnergyCost
-        : GameConstants.HEAL_ENERGY_COST;
+      const healEnergyCost = getHealCostFor(currentState, healer);
 
       // Check energy
       if (!hasEnoughEnergy(healer, healEnergyCost)) {
@@ -5483,6 +5540,21 @@ function App() {
               fill={ant.health > ant.maxHealth * 0.5 ? '#2ecc71' : ant.health > ant.maxHealth * 0.25 ? '#f39c12' : '#e74c3c'}
               style={{ pointerEvents: 'none' }}
             />
+            {/* Health on a 1-10 scale (10 = full), never below 1 while alive */}
+            <text
+              x="23"
+              y="5"
+              textAnchor="start"
+              fontSize="13"
+              fontWeight="bold"
+              fill="#ffffff"
+              stroke="#000000"
+              strokeWidth="3"
+              paintOrder="stroke"
+              style={{ pointerEvents: 'none' }}
+            >
+              {Math.max(1, Math.round((10 * ant.health) / ant.maxHealth))}
+            </text>
           </g>
           {/* Energy bar (queens only) */}
           {ant.type === 'queen' && ant.energy !== undefined && (
@@ -5603,7 +5675,7 @@ function App() {
         {isMyTurn() ? (
           <>
               {/* Upgrades Button */}
-              <button
+              <button data-tip="upgrades"
                 onClick={() => setShowUpgradesModal(true)}
                 style={{
                   width: '100%',
@@ -5840,6 +5912,29 @@ function App() {
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#b0b0b0' }}>Opponent's Turn</h3>
               <p style={{ fontSize: '14px', color: '#888' }}>Waiting for opponent...</p>
+              {/* What the player whose turn it is has to spend */}
+              {(() => {
+                // Read the unfogged state: fog of war shows enemy stockpiles as '??'
+                const fullState = getGameStateForLogic();
+                const opponent = fullState.players?.[fullState.currentPlayer];
+                if (!opponent?.resources) return null;
+                const income = getPlayerIncome(fullState, fullState.currentPlayer);
+                return (
+                  <div style={{ marginTop: '16px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: '8px', textAlign: 'left' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: opponent.color || '#e0e0e0' }}>
+                      {opponent.name || 'Opponent'}'s Resources
+                    </h4>
+                    <p style={{ color: '#e0e0e0', margin: '5px 0', fontSize: '15px' }}>
+                      <FoodIcon /> Food: {opponent.resources.food}
+                      {income.food > 0 && <span style={{ color: '#4ade80', fontWeight: 'bold' }}> (+{income.food}/turn)</span>}
+                    </p>
+                    <p style={{ color: '#e0e0e0', margin: '5px 0', fontSize: '15px' }}>
+                      <MineralIcon /> Minerals: {opponent.resources.minerals}
+                      {income.minerals > 0 && <span style={{ color: '#60a5fa', fontWeight: 'bold' }}> (+{income.minerals}/turn)</span>}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -6219,27 +6314,8 @@ function App() {
                 );
               }
 
-              // Calculate income from anthills
-              let foodIncome = 0;
-              let mineralIncome = 0;
-              Object.values(gameState.anthills || {}).forEach(anthill => {
-                if (anthill.owner === myPlayerId && anthill.isComplete) {
-                  if (anthill.resourceType === 'food') {
-                    foodIncome += GameConstants.ANTHILL_PASSIVE_INCOME.food;
-                  } else {
-                    mineralIncome += GameConstants.ANTHILL_PASSIVE_INCOME.minerals;
-                  }
-                }
-              });
-
-              // Add queen food income
-              const queen = Object.values(gameState.ants || {}).find(
-                ant => ant.type === 'queen' && ant.owner === myPlayerId
-              );
-              if (queen) {
-                const queenTier = queen.queenTier || 'queen';
-                foodIncome += QueenTiers[queenTier].foodIncome;
-              }
+              // Income from anthills and the queen
+              const { food: foodIncome, minerals: mineralIncome } = getPlayerIncome(gameState, myPlayerId);
 
               return (
                 <>
@@ -6394,7 +6470,7 @@ function App() {
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(192, 192, 192, 0.3)' }}>
               <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Selected Ant</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth} ({Math.max(1, Math.round((10 * gameState.ants[selectedAnt].health) / gameState.ants[selectedAnt].maxHealth))})</p>
               {(() => {
                 const ant = gameState.ants[selectedAnt];
                 if (ant.type === 'queen' || ant.type === 'queenLarva') return null; // Queens don't rank up
@@ -6569,7 +6645,7 @@ function App() {
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
-                      ✨ Heal (25⚡) (H)
+                      ✨ Heal ({getHealCostFor(gameState, gameState.ants[selectedAnt])}⚡) (H)
                     </button>
                     <button
                       onClick={() => setSelectedAction('ensnare')}
@@ -6587,7 +6663,7 @@ function App() {
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
-                      🕸️ Ensnare (20⚡) (E)
+                      🕸️ Ensnare ({AntTypes.HEALER.ensnareEnergyCost}⚡) (E)
                     </button>
                   </>
                 ) : gameState.ants[selectedAnt].type === 'cordyphage' ? (
@@ -6609,7 +6685,7 @@ function App() {
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
-                      ☠️ Plague (25⚡) (P)
+                      ☠️ Plague ({AntTypes.CORDYPHAGE.plagueEnergyCost}⚡) (P)
                     </button>
                     {gameState.players[gameState.currentPlayer].upgrades.cordycepsPurge > 0 && (
                       <button
@@ -6628,7 +6704,7 @@ function App() {
                           boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
-                        🧠 Cordyceps (35⚡)
+                        🧠 Cordyceps ({AntTypes.CORDYPHAGE.cordycepsEnergyCost}⚡)
                       </button>
                     )}
                   </>
@@ -6673,7 +6749,7 @@ function App() {
                     </button>
                   </>
                 ) : (
-                  <button
+                  <button data-tip="queenAttack"
                     onClick={() => setSelectedAction('attack')}
                     style={{
                       marginRight: '5px',
@@ -6708,7 +6784,7 @@ function App() {
                       >
                         Lay Egg
                       </button>
-                      <button
+                      <button data-tip="queenHeal"
                         onClick={() => setSelectedAction('heal')}
                         style={{
                           marginRight: '5px',
@@ -6722,7 +6798,7 @@ function App() {
                           boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                         }}
                       >
-                        Heal (H, 25⚡)
+                        Heal (H, {getHealCostFor(gameState, gameState.ants[selectedAnt])}⚡)
                       </button>
                       {(gameState.ants[selectedAnt]?.queenTier === 'broodQueen' || gameState.ants[selectedAnt]?.queenTier === 'swarmQueen') && (
                         <button
@@ -6741,7 +6817,7 @@ function App() {
                             boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                           }}
                         >
-                          👁️ Reveal (30⚡)
+                          👁️ Reveal ({AntTypes.QUEEN.revealEnergyCost}⚡)
                         </button>
                       )}
                       <button
@@ -7195,6 +7271,28 @@ function App() {
           <div className="hero-info-desc">{heroInfo.description}</div>
         </div>
       )}
+
+      {/* Campaign UI pop-up: a note beside the ringed button, stepped through
+          with Next. The note sits on whichever side of the button has room. */}
+      {activeUiTip && uiTipRect && (() => {
+        const boxW = 280;
+        const onLeftHalf = uiTipRect.left + uiTipRect.width / 2 < window.innerWidth / 2;
+        const left = onLeftHalf ? uiTipRect.left + uiTipRect.width + 16 : uiTipRect.left - boxW - 16;
+        const top = Math.max(10, Math.min(uiTipRect.top - 10, window.innerHeight - 190));
+        const last = uiTipStep === uiTips.length - 1;
+        return (
+          <div className="ui-tip" style={{ left: `${Math.max(10, left)}px`, top: `${top}px`, width: `${boxW}px` }}>
+            <div className={`ui-tip-arrow ${onLeftHalf ? 'ui-tip-arrow-left' : 'ui-tip-arrow-right'}`} />
+            <div className="ui-tip-title">{activeUiTip.title}</div>
+            <div className="ui-tip-text">{activeUiTip.text}</div>
+            <div className="ui-tip-buttons">
+              <span className="ui-tip-count">{uiTipStep + 1} / {uiTips.length}</span>
+              {!last && <button onClick={() => setUiTipStep(uiTips.length)}>Skip</button>}
+              <button className="ui-tip-next" onClick={() => setUiTipStep(uiTipStep + 1)}>{last ? 'Got it' : 'Next'}</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Camera Controls Info - Bottom left above "How to Play" button */}
       <div style={{

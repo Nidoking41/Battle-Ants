@@ -104,7 +104,7 @@ body, html {
   z-index: 3000;
   pointer-events: none;
   overflow: hidden;
-  animation: hf-dim 1.5s ease-out forwards;
+  animation: hf-dim 3s ease-out forwards;
 }
 .hero-flash-band {
   position: absolute;
@@ -118,7 +118,7 @@ body, html {
   border-bottom: 4px solid var(--hero-color);
   box-shadow: 0 0 40px var(--hero-color);
   transform-origin: center;
-  animation: hf-band 1.5s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  animation: hf-band 3s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
   overflow: hidden;
 }
 .hero-flash-lines {
@@ -143,7 +143,7 @@ body, html {
     repeating-linear-gradient(to right, transparent 0, transparent 26px, rgba(255, 255, 255, 0.35) 26px, rgba(255, 255, 255, 0.35) 34px),
     linear-gradient(to bottom, transparent 0%, var(--hero-color) 18%, #ffffff 42%, #ffffff 58%, var(--hero-color) 82%, transparent 100%);
   box-shadow: 0 0 24px var(--hero-color), 0 0 60px var(--hero-color);
-  animation: hf-beam 1.5s ease-out forwards, hf-beam-pulse 0.12s linear infinite;
+  animation: hf-beam 3s ease-out forwards, hf-beam-pulse 0.12s linear infinite;
 }
 .hero-flash-portrait {
   position: absolute;
@@ -158,7 +158,7 @@ body, html {
   border: 4px solid var(--hero-color);
   border-radius: 10px;
   box-shadow: 0 0 22px var(--hero-color);
-  animation: hf-portrait 1.5s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  animation: hf-portrait 3s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
 }
 .hero-flash-text {
   position: absolute;
@@ -167,7 +167,7 @@ body, html {
   text-align: right;
   font-family: sans-serif;
   text-transform: uppercase;
-  animation: hf-text 1.5s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  animation: hf-text 3s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
 }
 .hero-flash-name {
   color: #ffffff;
@@ -278,4 +278,121 @@ body, html {
   font-size: 15px !important;
   line-height: 1.15;
   overflow: hidden;
+}
+
+/* Hero picker on the setup screens: one compact row per hero (portrait on the
+   left, name and description beside it) so all five fit without scrolling */
+.hero-picker {
+  display: flex !important;
+  flex-direction: column;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+}
+
+.hero-picker > div {
+  display: grid !important;
+  grid-template-columns: 64px 1fr;
+  column-gap: 10px;
+  align-items: center;
+  width: auto !important;
+  padding: 6px 8px !important;
+  text-align: left !important;
+}
+
+.hero-picker > div > img {
+  grid-row: 1 / span 2;
+  width: 64px !important;
+  margin: 0 !important;
+}
+
+.hero-picker > div > div:first-of-type {
+  align-self: end;
+}
+
+.hero-picker > div > div:last-of-type {
+  align-self: start;
+}
+
+/* Campaign UI pop-ups (level.uiTips): the button being explained pulses in
+   gold and a note sits beside it, in the same gold as the map pop-up */
+.ui-tip-target {
+  position: relative;
+  z-index: 2600;
+  animation: ui-tip-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ui-tip-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px #ffd34d, 0 0 10px 2px rgba(255, 211, 77, 0.6); }
+  50% { box-shadow: 0 0 0 5px #ffd34d, 0 0 22px 6px rgba(255, 211, 77, 0.9); }
+}
+
+.ui-tip {
+  position: fixed;
+  z-index: 2700;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: rgba(20, 16, 28, 0.95);
+  border: 2px solid #ffd34d;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  color: #f0e8d8;
+  font-family: sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.ui-tip-arrow {
+  position: absolute;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+}
+
+.ui-tip-arrow-left {
+  left: -11px;
+  border-right: 10px solid #ffd34d;
+}
+
+.ui-tip-arrow-right {
+  right: -11px;
+  border-left: 10px solid #ffd34d;
+}
+
+.ui-tip-title {
+  color: #ffd34d;
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.ui-tip-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ui-tip-count {
+  margin-right: auto;
+  color: #a09888;
+  font-size: 12px;
+}
+
+.ui-tip-buttons button {
+  padding: 3px 12px;
+  background: transparent;
+  color: #ffd34d;
+  border: 1px solid #ffd34d;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.ui-tip-buttons .ui-tip-next {
+  background: #ffd34d;
+  color: #1a1a2e;
 }

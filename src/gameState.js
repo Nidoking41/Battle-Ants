@@ -2479,9 +2479,9 @@ export function updateHeroPower(gameState, playerId, damageAmount, multiplier = 
   if (player.heroPower >= chargeRequired) return gameState;
 
   // Calculate new hero power based on hero's charge requirement
-  // 150 total damage = chargeRequired power (ready to activate)
+  // 300 total damage = chargeRequired power (ready to activate)
   // Apply multiplier (1.0 for dealt, 0.65 for received)
-  const powerGain = (damageAmount / 150) * chargeRequired * multiplier;
+  const powerGain = (damageAmount / 300) * chargeRequired * multiplier;
   const newPower = Math.min(chargeRequired, (player.heroPower || 0) + powerGain);
 
   return {

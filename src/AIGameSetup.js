@@ -125,7 +125,7 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '15px', color: '#e0e0e0' }}>Choose Your Hero:</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', flex: 1, alignContent: 'start' }}>
+                <div className="hero-picker" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}
@@ -296,7 +296,7 @@ function AIGameSetup({ onStartGame, onBack }) {
               </h3>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', fontSize: '15px', color: '#e0e0e0' }}>Choose AI Hero:</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', flex: 1, alignContent: 'start' }}>
+                <div className="hero-picker" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', flex: 1, alignContent: 'start' }}>
                   {heroOptions.map(hero => (
                     <div
                       key={hero.id}

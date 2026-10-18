@@ -39,6 +39,9 @@
 //   *.guards           extra units placed at {dq, dr} offsets from that side's
 //                      leader; a taken or off-map hex falls back to the
 //                      nearest free one
+//   uiTips             optional pop-ups at level start that ring a button and
+//                      explain it: [{ target, title, text }], target = the
+//                      button's data-tip name in App.js
 //   cutscene           optional intro shown when the level starts (skipped on
 //                      Retry): { portrait: '<file under public/sprites/>', lines: [] }
 //   objectives         see objectives.js for the supported types
@@ -291,6 +294,14 @@ export const LEVELS = [
         { turn: 5, units: [{ type: 'scout', count: 2 }] }
       ]
     },
+    // Pop-ups at the start, stepped through with Next: each rings a button
+    // (by its data-tip name in App.js) and explains it. The queen's buttons
+    // only show while she is selected, so App.js selects her for those steps.
+    uiTips: [
+      { target: 'upgrades', title: 'Upgrades', text: 'Spend food and minerals here on permanent boosts for your whole colony - harder hits, tougher armour and more. Check it whenever you have resources to spare.' },
+      { target: 'queenAttack', title: 'Queen: Attack', text: 'Your Queen can fight. Press Attack (A), then click an enemy up to two hexes away. Use it to stop scouts before they reach your eggs.' },
+      { target: 'queenHeal', title: 'Queen: Heal', text: 'Heal (H) spends some of her energy to restore a wounded ant near her. Energy also pays for eggs, so choose when to spend it.' }
+    ],
     objectives: [
       { type: 'hatch', count: 4, text: 'Hatch 4 ants' },
       { type: 'survive', untilTurn: 8, text: 'Survive 8 turns' },
