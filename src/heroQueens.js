@@ -82,13 +82,12 @@ export const HeroQueens = {
   VEXXARA: {
     id: 'vexxara',
     name: 'Vexxara the Lifebinder',
-    description: 'Healing is 50% cheaper and queens can heal twice per turn',
+    description: 'Healing is 50% cheaper for queens',
     icon: '💚',
     portraitImage: 'hero_black.png',
     chargeRequired: 600,
     bonuses: {
-      healCostMultiplier: 0.50,  // 50% cheaper healing (0.50x energy cost)
-      queenDoubleHeal: true      // Queens can heal twice per turn
+      healCostMultiplier: 0.50   // 50% cheaper healing (0.50x energy cost)
     },
     heroAbility: {
       name: 'Divine Restoration',

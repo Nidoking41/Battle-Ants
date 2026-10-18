@@ -93,8 +93,8 @@ const MineralIcon = (props) => <ResourceIcon type="minerals" {...props} />;
 // Energy a queen or Weaver spends on one heal, after hero discounts (Vexxara)
 const getHealCostFor = (state, ant) => {
   const { getHealEnergyCost } = require('./heroQueens');
-  const base = ant.type === 'healer' ? AntTypes.HEALER.healEnergyCost : GameConstants.HEAL_ENERGY_COST;
-  return getHealEnergyCost(base, state.players?.[ant.owner]?.heroId);
+  if (ant.type === 'healer') return AntTypes.HEALER.healEnergyCost; // hero discounts are for queens only
+  return getHealEnergyCost(GameConstants.HEAL_ENERGY_COST, state.players?.[ant.owner]?.heroId);
 };
 
 // Per-turn income for a player: completed anthills plus the queen's food
@@ -2912,6 +2912,12 @@ function App() {
       // Perform heal - get fresh state for multiplayer consistency
       const freshState = getGameStateForLogic();
       const newState = healAnt(freshState, selectedAnt, friendlyAtHex.id);
+      if (newState === freshState) {
+        // healAnt refused (e.g. this queen has used all her heals this turn):
+        // say so instead of showing a heal that never happened
+        showFeedback('This unit cannot heal again this turn!');
+        return;
+      }
 
       // Show heal animation (green +HP number)
       const healAmount = healer.type === 'healer'

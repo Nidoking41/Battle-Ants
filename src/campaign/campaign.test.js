@@ -5,7 +5,7 @@ import { getLevel, PLAYER_QUEEN_ID, PLAYER_LARVA_ID } from './levels';
 import { loadProgress, markLevelComplete, isUnlocked, isCompleted, resetProgress, bestScore } from './progress';
 import { isVital, resolveCombat } from '../combatSystem';
 import { scoreLevel } from './score';
-import { unitStrength, calculateArmyStrength } from '../gameState';
+import { unitStrength, calculateArmyStrength, getSpawningPoolHexes as spawnSpotsOf } from '../gameState';
 import { getNeighbors, hexDistance, isValidHex } from '../hexUtils';
 import { createAnt } from '../gameState';
 
@@ -257,6 +257,16 @@ describe('campaign level 2 - queen larva', () => {
     // Losing a unit drops kept and survivor value
     delete after.ants[mine.id];
     expect(scoreLevel(after).kept).toBe(5);
+  });
+
+  test('a win adds a speed score of 500 - 20 per turn, never below 0; a loss adds none', () => {
+    const state = buildCampaignGameState(level);
+    const army = scoreLevel(state).survivorStrength;
+    const won = turn => scoreLevel({ ...state, gameOver: true, winner: 'player1', turn });
+    expect(won(10).speedScore).toBe(300);
+    expect(won(10).score).toBe(300 + army);
+    expect(won(30).speedScore).toBe(0);
+    expect(scoreLevel({ ...state, gameOver: true, winner: 'player2', turn: 5 }).speedScore).toBe(0);
   });
 
   test('unit strength includes upgrades, and army strength is its sum', () => {
@@ -563,11 +573,16 @@ describe('levels 3-6 content', () => {
     expect(state.campaign.objectives.map(o => o.type)).toEqual(['gather', 'destroyAnthills', 'killUnit', 'protect']);
   });
 
-  test('level 5: Gorlak has upgraded melee, a mineral hill, a lane map, and a deadline', () => {
+  test('level 5: Gorlak starts with no head start, a lane map, and a deadline', () => {
     const state = buildCampaignGameState(getLevel(5));
-    expect(state.players.player2.upgrades.meleeAttack).toBe(2);
+    expect(state.players.player2.upgrades.meleeAttack || 0).toBe(0);
     expect(state.players.player2.heroId).toBe('gorlak');
-    expect(Object.values(state.anthills).filter(h => h.owner === 'player2')).toHaveLength(1);
+    expect(state.players.player2.resources).toEqual({ food: 10, minerals: 0 });
+    expect(Object.values(state.anthills).filter(h => h.owner === 'player2')).toHaveLength(0);
+    // Your two drones start on the queen's two egg spots, one each side
+    const spots = spawnSpotsOf(state.ants[PLAYER_QUEEN_ID], getNeighbors).map(h => `${h.q},${h.r}`);
+    const drones = Object.values(state.ants).filter(a => a.owner === 'player1' && a.type === 'drone').map(a => `${a.position.q},${a.position.r}`);
+    expect(drones.sort()).toEqual(spots.sort());
     expect(state.ants[ENEMY_QUEEN_ID]).toBeDefined();
     const kill = state.campaign.objectives.find(o => o.type === 'killUnit');
     expect(kill.unitId).toBe(ENEMY_QUEEN_ID);

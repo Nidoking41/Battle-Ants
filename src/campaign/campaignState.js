@@ -1,5 +1,5 @@
-import { createInitialGameState, createAnt, createAnthillInProgress, completeAnthill } from '../gameState';
-import { HexCoord, hexesInRange, hexDistance, isValidHex } from '../hexUtils';
+import { createInitialGameState, createAnt, createAnthillInProgress, completeAnthill, getSpawningPoolHexes } from '../gameState';
+import { HexCoord, hexesInRange, hexDistance, isValidHex, getNeighbors } from '../hexUtils';
 import { QueenTiers } from '../antTypes';
 import { PLAYER_QUEEN_ID, PLAYER_LARVA_ID, ENEMY_QUEEN_ID } from './levels';
 import { parseLayout } from './mapLayout';
@@ -141,8 +141,16 @@ function applyLayout(state, level) {
     const followers = Object.values(state.ants).filter(a => a.owner === pid && !isLeader(a));
     followers.forEach(a => { delete state.ants[a.id]; });
     state.ants[queen.id] = { ...queen, position: target };
-    followers.forEach(a => {
-      const pos = nearestFree(state, target);
+    // Drones start on the queen's egg spots, one each side, so both flanks'
+    // resources are a move away; everything else takes the nearest free hex.
+    const eggSpots = queen.type === 'queen'
+      ? getSpawningPoolHexes(state.ants[queen.id], getNeighbors)
+        .filter(h => isValidHex(h, state.gridRadius, state.mapShape))
+      : [];
+    const ordered = [...followers.filter(a => a.type === 'drone'), ...followers.filter(a => a.type !== 'drone')];
+    ordered.forEach(a => {
+      const spot = a.type === 'drone' && eggSpots.find(h => !occupiedAt(state, h));
+      const pos = spot || nearestFree(state, target);
       if (!pos) return; // no room on this map for the opening units
       state.ants[a.id] = { ...a, position: pos };
     });

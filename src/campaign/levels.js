@@ -436,11 +436,11 @@ export const LEVELS = [
       queenTier: 'queen',
       behavior: 'ai',
       aiDifficulty: 'medium',
-      upgrades: { meleeAttack: 2 },
       unitMix: { soldier: 0.7, scout: 0.3 },
-      resources: { food: 60, minerals: 30 },
+      // No head start: he builds his economy like you do. His edge is the
+      // two Marauder waves.
+      resources: { food: 10, minerals: 0 },
       units: 'default',
-      anthills: [{ type: 'minerals', count: 1 }],
       hunt: true,
       waves: [
         { turn: 4, units: [{ type: 'soldier', count: 2 }] },

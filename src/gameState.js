@@ -1327,7 +1327,10 @@ export function endTurn(rawGameState) {
         ...ant,
         hasMoved: false,
         hasAttacked: false,
-        hasBuilt: false
+        hasBuilt: false,
+        // Heals are counted per turn
+        hasHealed: false,
+        healCount: 0
       };
 
       // Regenerate energy for queens at the start of their turn
@@ -1400,7 +1403,9 @@ export function endTurn(rawGameState) {
         ...ant,
         hasMoved: false,
         hasAttacked: false,
-        hasBuilt: false
+        hasBuilt: false,
+        hasHealed: false,
+        healCount: 0
       };
     }
   });

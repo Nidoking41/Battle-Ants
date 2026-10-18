@@ -62,16 +62,25 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
           fontSize: '14px',
           minWidth: '260px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
-            <span style={{ color: '#bbb' }}>Units kept alive</span>
-            <span>{s.kept} / {s.starting}</span>
-          </div>
+          {won && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+              <span style={{ color: '#bbb' }}>Speed (won in {s.turns} turns)</span>
+              <span>{s.speedScore}</span>
+            </div>
+          )}
+          {/* Only the first two levels hand you a fixed force to protect */}
+          {campaign.levelId <= 2 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
+              <span style={{ color: '#bbb' }}>Units kept alive</span>
+              <span>{s.kept} / {s.starting}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
             <span style={{ color: '#bbb' }}>Enemies destroyed</span>
             <span>{s.kills}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
-            <span style={{ color: '#bbb' }}>Army value kept</span>
+            <span style={{ color: '#bbb' }}>Army value</span>
             <span>{s.survivorStrength}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '3px 0' }}>
