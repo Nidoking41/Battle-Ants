@@ -586,7 +586,7 @@ describe('levels 3-6 content', () => {
     expect(state.ants[ENEMY_QUEEN_ID]).toBeDefined();
     const kill = state.campaign.objectives.find(o => o.type === 'killUnit');
     expect(kill.unitId).toBe(ENEMY_QUEEN_ID);
-    expect(kill.byTurn).toBe(14);
+    expect(kill.byTurn).toBeUndefined(); // no time limit
     // The void spine: the centre column between the lanes is not on the map
     const p1 = state.ants[PLAYER_QUEEN_ID].position;
     const p2 = state.ants[ENEMY_QUEEN_ID].position;

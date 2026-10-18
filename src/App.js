@@ -6396,7 +6396,7 @@ function App() {
                   <div style={{ fontSize: '14px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
                     • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
                     • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
-                    • +5 Energy Regen/Turn<br/>
+                    • +{nextTierData.energyRegen - QueenTiers[currentTier].energyRegen} Energy Regen/Turn ({QueenTiers[currentTier].energyRegen}⚡ → {nextTierData.energyRegen}⚡)<br/>
                     • +{nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} Food Income/Turn ({QueenTiers[currentTier].foodIncome}<FoodIcon /> → {nextTierData.foodIncome}<FoodIcon />)
                   </div>
                 </button>
@@ -7203,7 +7203,7 @@ function App() {
                     </div>
                   </div>
                   {/* Activate Button */}
-                  <button
+                  <button data-tip="heroAbility"
                     onClick={() => {
                       // Explain why nothing happens instead of failing silently
                       if (!isMyTurn()) {
@@ -7284,11 +7284,16 @@ function App() {
         const boxW = 280;
         const onLeftHalf = uiTipRect.left + uiTipRect.width / 2 < window.innerWidth / 2;
         const left = onLeftHalf ? uiTipRect.left + uiTipRect.width + 16 : uiTipRect.left - boxW - 16;
-        const top = Math.max(10, Math.min(uiTipRect.top - 10, window.innerHeight - 190));
+        // A button in the lower half gets the note hanging upward from its
+        // bottom edge, so a long note never runs off the bottom of the screen
+        const low = uiTipRect.top + uiTipRect.height / 2 > window.innerHeight / 2;
+        const vertical = low
+          ? { bottom: `${Math.max(10, window.innerHeight - (uiTipRect.top + uiTipRect.height) - 10)}px` }
+          : { top: `${Math.max(10, uiTipRect.top - 10)}px` };
         const last = uiTipStep === uiTips.length - 1;
         return (
-          <div className="ui-tip" style={{ left: `${Math.max(10, left)}px`, top: `${top}px`, width: `${boxW}px` }}>
-            <div className={`ui-tip-arrow ${onLeftHalf ? 'ui-tip-arrow-left' : 'ui-tip-arrow-right'}`} />
+          <div className="ui-tip" style={{ left: `${Math.max(10, left)}px`, width: `${boxW}px`, ...vertical }}>
+            <div className={`ui-tip-arrow ${onLeftHalf ? 'ui-tip-arrow-left' : 'ui-tip-arrow-right'}${low ? ' ui-tip-arrow-low' : ''}`} />
             <div className="ui-tip-title">{activeUiTip.title}</div>
             <div className="ui-tip-text">{activeUiTip.text}</div>
             <div className="ui-tip-buttons">

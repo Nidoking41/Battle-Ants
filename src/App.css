@@ -351,6 +351,11 @@ body, html {
   border-bottom: 9px solid transparent;
 }
 
+.ui-tip-arrow-low {
+  top: auto;
+  bottom: 18px;
+}
+
 .ui-tip-arrow-left {
   left: -11px;
   border-right: 10px solid #ffd34d;

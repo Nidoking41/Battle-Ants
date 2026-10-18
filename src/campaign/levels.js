@@ -387,7 +387,7 @@ export const LEVELS = [
   // Level 5 - Iron (vs Gorlak the Crusher)
   // Upgrades and the armour math. Defence is +2 flat per tier, so it blanks
   // weak hitters and barely dents strong ones. Melee-vs-ranged is free both
-  // ways. First time limit. A basic queen throughout, so the roster is the
+  // ways. No time limit - the score rewards a quick win. A basic queen throughout, so the roster is the
   // four basic castes only - no Bullet Ant (that is a Swarm Queen unit).
   {
     id: 5,
@@ -399,10 +399,10 @@ export const LEVELS = [
         'He is not wrong about the hitting. He is wrong about the armour.',
         'Defence takes two off every blow, flat. A Scout that hits for six now hits for four. A Marauder that hits for eleven still lands nine. Armour blanks the weak and shrugs at the strong.',
         'And ranged units are never struck back. A Spitter hitting a Marauder takes nothing in return - and a Marauder hitting a Spitter takes nothing either. Choose your trades.',
-        'Kill his queen inside fourteen turns. The Upgrades button is your first move.'
+        'Kill his queen. The Upgrades button is your first move.'
       ]
     },
-    briefing: ['Buy Defence. Trade Spitters into his melee. Kill his queen by turn 14.'],
+    briefing: ['Buy Defence. Trade Spitters into his melee. Kill his queen.'],
     // Two Lanes: a water channel splits the field; he comes down both.
     map: {
       layout: [
@@ -447,8 +447,12 @@ export const LEVELS = [
         { turn: 8, units: [{ type: 'soldier', count: 2 }] }
       ]
     },
+    // First level where Vexxara's hero power will charge up in a real fight
+    uiTips: [
+      { target: 'heroAbility', title: "Vexxara's Power: Divine Restoration", text: 'Every blow you land fills the bar under Vexxara, and blows you take fill it a little too. When it is full, press Activate Ability: every one of your units heals 15, all energy refills, and your ants hit 10% harder for the turn.' }
+    ],
     objectives: [
-      { type: 'killUnit', unitId: ENEMY_QUEEN_ID, byTurn: 14, text: "Kill Gorlak's queen" },
+      { type: 'killUnit', unitId: ENEMY_QUEEN_ID, text: "Kill Gorlak's queen" },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
   },

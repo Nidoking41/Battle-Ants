@@ -371,14 +371,14 @@ export const QueenTiers = {
     name: 'Queen',
     spawningSpots: 2,
     maxEnergy: 25,
-    energyRegen: 7,
+    energyRegen: 4,
     foodIncome: 5
   },
   broodQueen: {
     name: 'Brood Queen',
     spawningSpots: 4,
     maxEnergy: 50,
-    energyRegen: 10,
+    energyRegen: 7,
     foodIncome: 6,
     cost: { food: 20, minerals: 10 }
   },
@@ -386,7 +386,7 @@ export const QueenTiers = {
     name: 'Swarm Queen',
     spawningSpots: 6,
     maxEnergy: 75,
-    energyRegen: 12,
+    energyRegen: 10,
     foodIncome: 7,
     cost: { food: 20, minerals: 15 }
   }
