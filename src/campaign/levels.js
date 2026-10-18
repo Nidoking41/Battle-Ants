@@ -403,11 +403,13 @@ export const LEVELS = [
       ]
     },
     briefing: ['Buy Defence. Trade Spitters into his melee. Kill his queen.'],
-    // Two Lanes: a water channel splits the field; he comes down both.
+    // Two Lanes: a water channel splits the field; he comes down both. Each
+    // leader sits on a single hex at the very back of the map.
     map: {
       layout: [
+        '     2     ',
         '    . .    ',
-        '   . 2 .   ',
+        '   . . .   ',
         '  F . . M  ',
         ' . . ~ . . ',
         '. . . . . .',
@@ -419,8 +421,9 @@ export const LEVELS = [
         '. T . . T .',
         ' . . ~ . . ',
         '  M . . F  ',
-        '   . 1 .   ',
-        '    . .    '
+        '   . . .   ',
+        '    . .    ',
+        '     1     '
       ]
     },
     player: {
@@ -447,8 +450,11 @@ export const LEVELS = [
         { turn: 8, units: [{ type: 'soldier', count: 2 }] }
       ]
     },
-    // First level where Vexxara's hero power will charge up in a real fight
+    // Vexxara's queen is a fighter here, not just an egg-layer - and this is
+    // the first real fight her hero power charges up in
     uiTips: [
+      { target: 'queenAttack', title: 'Your Queen Is a Unit', text: 'Vexxara fights too. Select her, press Attack (A), then click an enemy up to two hexes away. She is tough - use her to hold the line against his Marauders.' },
+      { target: 'queenHeal', title: 'Queen: Heal', text: 'Heal (H) restores 15 health to one of your ants near her, using her energy. Vexxara heals for less energy than other queens, but energy also pays for eggs, so choose.' },
       { target: 'heroAbility', title: "Vexxara's Power: Divine Restoration", text: 'Every blow you land fills the bar under Vexxara, and blows you take fill it a little too. When it is full, press Activate Ability: every one of your units heals 15, all energy refills, and your ants hit 10% harder for the turn.' }
     ],
     objectives: [

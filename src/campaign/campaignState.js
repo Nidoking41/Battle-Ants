@@ -144,8 +144,7 @@ function applyLayout(state, level) {
     // Drones start on the queen's egg spots, one each side, so both flanks'
     // resources are a move away; everything else takes the nearest free hex.
     const eggSpots = queen.type === 'queen'
-      ? getSpawningPoolHexes(state.ants[queen.id], getNeighbors)
-        .filter(h => isValidHex(h, state.gridRadius, state.mapShape))
+      ? getSpawningPoolHexes(state.ants[queen.id], getNeighbors, state)
       : [];
     const ordered = [...followers.filter(a => a.type === 'drone'), ...followers.filter(a => a.type !== 'drone')];
     ordered.forEach(a => {

@@ -82,12 +82,12 @@ export const HeroQueens = {
   VEXXARA: {
     id: 'vexxara',
     name: 'Vexxara the Lifebinder',
-    description: 'Healing is 50% cheaper for queens',
+    description: 'Queen heals cost 7 energy instead of 10',
     icon: '💚',
     portraitImage: 'hero_black.png',
     chargeRequired: 600,
     bonuses: {
-      healCostMultiplier: 0.50   // 50% cheaper healing (0.50x energy cost)
+      healCostMultiplier: 0.70   // 30% cheaper queen heals (10 energy -> 7)
     },
     heroAbility: {
       name: 'Divine Restoration',
@@ -187,7 +187,8 @@ export function getHealEnergyCost(baseEnergyCost, heroId) {
   const hero = getHeroById(heroId);
   if (!hero || !hero.bonuses.healCostMultiplier) return baseEnergyCost;
 
-  return Math.ceil(baseEnergyCost * hero.bonuses.healCostMultiplier);
+  // Round, not ceil: 10 * 0.7 is 7.000000000000001 in floating point
+  return Math.round(baseEnergyCost * hero.bonuses.healCostMultiplier);
 }
 
 // Check if queen can heal twice (Vexxara)

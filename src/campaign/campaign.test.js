@@ -580,7 +580,8 @@ describe('levels 3-6 content', () => {
     expect(state.players.player2.resources).toEqual({ food: 10, minerals: 0 });
     expect(Object.values(state.anthills).filter(h => h.owner === 'player2')).toHaveLength(0);
     // Your two drones start on the queen's two egg spots, one each side
-    const spots = spawnSpotsOf(state.ants[PLAYER_QUEEN_ID], getNeighbors).map(h => `${h.q},${h.r}`);
+    const spots = spawnSpotsOf(state.ants[PLAYER_QUEEN_ID], getNeighbors, state).map(h => `${h.q},${h.r}`);
+    expect(spots).toHaveLength(2);
     const drones = Object.values(state.ants).filter(a => a.owner === 'player1' && a.type === 'drone').map(a => `${a.position.q},${a.position.r}`);
     expect(drones.sort()).toEqual(spots.sort());
     expect(state.ants[ENEMY_QUEEN_ID]).toBeDefined();

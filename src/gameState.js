@@ -2445,8 +2445,10 @@ export function getValidEnsnareTargets(gameState, healerId) {
   });
 }
 
-// Get valid spawning pool hexes for a queen based on tier
-export function getSpawningPoolHexes(queen, getNeighborsFunc) {
+// Get valid spawning pool hexes for a queen based on tier. Pass the game state
+// to skip spots that are off the map (a queen at the tip of a hand-drawn map
+// takes the next spots in the order instead).
+export function getSpawningPoolHexes(queen, getNeighborsFunc, gameState = null) {
   const queenTier = QueenTiers[queen.queenTier || 'queen'];
   let spawningSpots = queenTier.spawningSpots;
 
@@ -2467,7 +2469,11 @@ export function getSpawningPoolHexes(queen, getNeighborsFunc) {
   // Spots are handed out in left/right pairs so they sit on either side of the
   // queen: lower-right, lower-left, upper-right, upper-left, top, bottom
   const spotOrder = [0, 4, 1, 3, 2, 5];
-  return spotOrder.slice(0, spawningSpots).map(i => allNeighbors[i]);
+  const ordered = spotOrder.map(i => allNeighbors[i]);
+  const usable = gameState
+    ? ordered.filter(h => isValidHex(h, gameState.gridRadius, gameState.mapShape || 'rectangle'))
+    : ordered;
+  return usable.slice(0, spawningSpots);
 }
 
 

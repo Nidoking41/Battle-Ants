@@ -333,7 +333,7 @@ function performQueenActions(gameState, aiPlayer, config, strategy) {
   let eggsLaid = 0;
   while (hasEnoughEnergy(queen, eggEnergyCost)) {
     // Get available spawning pool hexes (filter out occupied ones)
-    const allSpawningHexes = getSpawningPoolHexes(queen, getNeighbors);
+    const allSpawningHexes = getSpawningPoolHexes(queen, getNeighbors, gameState);
     const spawningPool = allSpawningHexes.filter(hex => {
       // Custom maps: a spawn spot beside void is not a spawn spot
       if (!isValidHex(hex, state.gridRadius || 6, state.mapShape || 'rectangle')) return false;
@@ -887,7 +887,7 @@ function handleDroneUnit(gameState, drone, aiPlayer, config, reservedNodes) {
   // Nothing to build: fall back near our queen and stay out of trouble - but
   // never on her egg-laying spots. A drone parked on one stops her hatching there.
   const queen = findQueen(state, aiPlayer);
-  const eggSpots = queen ? getSpawningPoolHexes(queen, getNeighbors) : [];
+  const eggSpots = queen ? getSpawningPoolHexes(queen, getNeighbors, state) : [];
   const onEggSpot = hex => eggSpots.some(spot => hexEquals(spot, hex));
   return fightOrAdvance(state, drone, aiPlayer, queen ? queen.position : drone.position, { caution: 3, avoid: onEggSpot });
 }

@@ -2945,7 +2945,7 @@ function App() {
       }
 
       // Check if hex is in the spawning pool
-      const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
+      const spawningPool = getSpawningPoolHexes(ant, getNeighbors, currentState);
       const isInSpawningPool = spawningPool.some(n => hexEquals(n, hex));
       console.log('Spawning pool check:', {
         spawningPoolSize: spawningPool.length,
@@ -4284,7 +4284,7 @@ function App() {
       return [...validMoveHexes, ...treeHexesInRange];
     } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
       // Get spawning pool hexes based on queen tier
-      const spawningPool = getSpawningPoolHexes(ant, getNeighbors);
+      const spawningPool = getSpawningPoolHexes(ant, getNeighbors, gameState);
       console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
 
       // Filter out occupied hexes (ants, eggs, and trees) and, on custom maps,
@@ -4584,7 +4584,7 @@ function App() {
     Object.values(gameState.ants).forEach(a => {
       if (a.type !== 'queen') return;
       creepKeys.add(`${a.position.q},${a.position.r}`);
-      getSpawningPoolHexes(a, getNeighbors).forEach(n => creepKeys.add(`${n.q},${n.r}`));
+      getSpawningPoolHexes(a, getNeighbors, gameState).forEach(n => creepKeys.add(`${n.q},${n.r}`));
     });
     const isCreepHex = (cq, cr) => creepKeys.has(`${cq},${cr}`);
 
