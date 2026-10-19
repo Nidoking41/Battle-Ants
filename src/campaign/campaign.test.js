@@ -606,9 +606,11 @@ describe('levels 3-6 content', () => {
     expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
     expect(mine.filter(a => a.type === 'soldier')).toHaveLength(2);
     expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
+    expect(mine.filter(a => a.type === 'bombardier')).toHaveLength(2);
+    expect(mine.filter(a => a.type === 'bomber')).toHaveLength(1);
     expect(state.ants.camp_player2_B1.type).toBe('tank');
     expect(state.ants.camp_player2_B2.maxHealth).toBeGreaterThan(55); // Thorgrim: x1.2 health
-    expect(state.campaign.roster).toEqual(['healer', 'bomber', 'bombardier']);
+    expect(state.campaign.roster).toEqual([]); // no hatching on this level
 
     state = fullRound(fullRound(state)); // turn 3: the second pair lands
     expect(state.ants.camp_wave3_tank1).toBeDefined();

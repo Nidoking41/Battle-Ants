@@ -476,11 +476,11 @@ export const LEVELS = [
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
-        'She grows again. A Brood Queen lays from four spots, sees further, and hatches three new castes: the Weaver, the Acid Bomber and the Bombardier.',
+        'She grows again. A Brood Queen sees further and commands three new castes: the Weaver, the Acid Bomber and the Bombardier. All three stand with you today.',
         'A Weaver cannot fight. She heals twenty at arm\'s length, and she ensnares - a unit caught in her web cannot move for three turns.',
         { hero: 'thorgrim', text: 'Webs. Healers. My Bullet Ants will walk straight through your little nurses and eat your queen.' },
         'They will, if they reach her. Bullet Ants are a Swarm Queen\'s brood, one growth beyond yours: fifty-five health, twenty-four attack, and they do not stop. Do not let them close. Snare the lead one, pour Spitters into it, heal the line.',
-        'A Bombardier shells from three hexes away but cannot fire at anything beside her, or after she moves. An Acid Bomber splashes everything around her target. Hatch what the corridor needs.',
+        'A Bombardier shells from three hexes away but cannot fire at anything beside her, or after she moves. An Acid Bomber splashes everything around her target. There is no time to lay - fight with what you have.',
         'And when the bar under Vexxara fills - every blow you land charges it - fire it. Every unit heals, every Weaver refills.',
         'Four Bullet Ants are coming down the corridor. Kill them all.'
       ]
@@ -505,21 +505,22 @@ export const LEVELS = [
         ' m m ',
         's s s',
         ' w w ',
-        '. 1 .',
-        ' . . ',
+        'b 1 b',
+        ' x . ',
         '  .  '
       ],
-      legend: { B: 'tank', m: 'soldier', s: 'spitter', w: 'healer' }
+      legend: { B: 'tank', m: 'soldier', s: 'spitter', w: 'healer', b: 'bombardier', x: 'bomber' }
     },
     player: {
       hero: 'vexxara',
       queenTier: 'broodQueen',
       // Swarm Queen unlocks nothing on this level, so no upgrade on offer
       queenUpgrades: false,
-      // There are no resource nodes in the corridor: this stockpile is all
-      // there is - enough for about three of the Brood castes
+      // No hatching: the whole fight is the force placed on the map (two
+      // Bombardiers and an Acid Bomber on top of the line). The stockpile is
+      // for Upgrades - there are no resource nodes in the corridor.
       resources: { food: 60, minerals: 45 },
-      roster: ['healer', 'bomber', 'bombardier'],
+      roster: [],
       units: []
     },
     enemy: {
