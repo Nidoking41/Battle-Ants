@@ -695,14 +695,17 @@ export function moveAnt(gameState, antId, targetPosition) {
     return gameState;
   }
 
-  // Normal move - just update position
+  // Normal move - just update position. A unit that cannot move and attack
+  // in the same turn (the Bombardier) goes dormant once it has moved.
+  const dormant = getAntTypeById(ant.type)?.cannotMoveAndAttack;
   return {
     ...gameState,
     ants: {
       ...gameState.ants,
       [antId]: {
         ...ant,
-        position: targetPosition
+        position: targetPosition,
+        ...(dormant ? { hasAttacked: true } : {})
       }
     }
   };
