@@ -507,14 +507,14 @@ export const LEVELS = [
         '. . . T .',
         ' . . . . ',
         '. . . . .',
-        ' . m m . ',
+        ' . . . . ',
         '. s s s .',
         ' . w w . ',
         '. b 1 b .',
         ' . x . . ',
         '    .    '
       ],
-      legend: { B: 'tank', m: 'soldier', s: 'spitter', w: 'healer', b: 'bombardier', x: 'bomber' }
+      legend: { B: 'tank', s: 'spitter', w: 'healer', b: 'bombardier', x: 'bomber' }
     },
     player: {
       hero: 'vexxara',

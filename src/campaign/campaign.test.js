@@ -604,7 +604,7 @@ describe('levels 3-6 content', () => {
     const mine = Object.values(state.ants).filter(a => a.owner === 'player1' && a.type !== 'queen');
     expect(mine.filter(a => a.type === 'healer')).toHaveLength(2);
     expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
-    expect(mine.filter(a => a.type === 'soldier')).toHaveLength(2);
+    expect(mine.filter(a => a.type === 'soldier')).toHaveLength(0); // no Marauders on this level
     expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
     expect(mine.filter(a => a.type === 'bombardier')).toHaveLength(2);
     expect(mine.filter(a => a.type === 'bomber')).toHaveLength(1);
