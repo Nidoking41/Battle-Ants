@@ -200,7 +200,7 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
             e.target.style.borderColor = '#666';
           }}
         >
-          Versus AI
+          Scrimmage
         </button>
 
         {/* Online Multiplayer */}

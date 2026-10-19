@@ -94,7 +94,7 @@ function AIGameSetup({ onStartGame, onBack }) {
         border: '2px solid rgba(192, 192, 192, 0.3)',
         boxSizing: 'border-box'
       }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '22px', color: '#e0e0e0' }}>VS AI Setup</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '22px', color: '#e0e0e0' }}>Scrimmage Setup</h1>
         <h3 style={{ textAlign: 'center', marginBottom: '10px', color: '#b0b0b0', fontSize: '13px' }}>
           Single Player
         </h3>
@@ -250,9 +250,10 @@ function AIGameSetup({ onStartGame, onBack }) {
                       border: difficulty === diff.value ? '2px solid #aaa' : '2px solid #666',
                       borderRadius: '5px',
                       cursor: 'pointer',
-                      textAlign: 'left',
+                      textAlign: 'center',
                       display: 'flex',
                       flexDirection: 'column',
+                      alignItems: 'center',
                       gap: '4px',
                       boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
                       transition: 'all 0.2s'
@@ -366,19 +367,6 @@ function AIGameSetup({ onStartGame, onBack }) {
           >
             Start Game
           </button>
-        </div>
-
-        <div style={{
-          marginTop: '6px',
-          padding: '6px',
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          borderRadius: '5px',
-          fontSize: '10px',
-          color: '#ccc',
-          border: '1px solid rgba(192, 192, 192, 0.2)',
-          textAlign: 'center'
-        }}>
-          <strong>AI Mode:</strong> Test your skills against a computer opponent. Choose your difficulty and dominate the battlefield!
         </div>
       </div>
     </div>
