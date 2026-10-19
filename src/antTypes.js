@@ -106,14 +106,14 @@ export const AntTypes = {
     requiresQueenTier: 'broodQueen', // Unlocked by the first queen upgrade
     hatchTime: 1,
     maxHealth: 20,
-    attack: 14,
+    attack: 18, // Detonation damage - acid ignores defense
     defense: 0,
     moveRange: 2,
     attackRange: 2,
     splashDamage: true,
     splashRadius: 1, // affects adjacent hexes
     resourceGatherRate: 0.5,
-    description: 'Deals splash damage to enemies in a small radius.',
+    description: 'Explodes for 18 damage to everything next to it, ignoring defense.',
     icon: '💣🐜'
   },
 
@@ -168,14 +168,14 @@ export const AntTypes = {
     // Energy system for abilities
     maxEnergy: 50,
     startingEnergy: 25, // Starts at half energy
-    energyRegen: 10,
+    energyRegen: 7,
     // Abilities
     healRange: 1, // Melee range healing
     healAmount: 20,
     healEnergyCost: 15,
     ensnareRange: 2,
     ensnareDuration: 3, // turns
-    ensnareEnergyCost: 20,
+    ensnareEnergyCost: 30,
     description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
     icon: '✨🐜'
   },

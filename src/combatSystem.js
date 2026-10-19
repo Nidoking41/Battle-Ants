@@ -272,9 +272,8 @@ export function detonateBomber(gameState, bomberId) {
   }
 
   adjacentAnts.forEach(target => {
-    const targetType = getAntTypeById(target.type);
-    const defense = targetType.defense;
-    const damage = Math.max(1, bomberType.attack - Math.floor(defense));
+    // Acid: the blast ignores defense entirely
+    const damage = bomberType.attack;
     const newHealth = target.health - damage;
 
     // Track damage for animation
