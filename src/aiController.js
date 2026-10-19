@@ -986,7 +986,9 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // scouts are the only fighters the enemy has.)
   const hunt = huntTarget(gameState, aiPlayer);
   if (hunt && (unit.type !== 'scout' || gameState.campaign?.enemyHuntsWithScouts)) {
-    return fightOrAdvance(state, unit, aiPlayer, hunt, { caution: 0.4, advance: 1.6 });
+    // An aggressive level never weighs danger, so its hunters never back off
+    const opts = gameState.campaign?.enemyAggressive ? { caution: 0, advance: 2 } : { caution: 0.4, advance: 1.6 };
+    return fightOrAdvance(state, unit, aiPlayer, hunt, opts);
   }
 
   let objective, opts = {};

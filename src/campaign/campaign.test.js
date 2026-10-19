@@ -612,9 +612,12 @@ describe('levels 3-6 content', () => {
     expect(state.ants.camp_player2_B2.maxHealth).toBeGreaterThan(55); // Thorgrim: x1.2 health
     expect(state.campaign.roster).toEqual([]); // no hatching on this level
 
-    state = fullRound(fullRound(state)); // turn 3: the second pair lands
-    expect(state.ants.camp_wave3_tank1).toBeDefined();
-    expect(state.ants.camp_wave3_tank2).toBeDefined();
+    state = fullRound(fullRound(state)); // turn 3: not yet
+    expect(state.ants.camp_wave6_tank1).toBeUndefined();
+    state = fullRound(fullRound(fullRound(state))); // turn 6: the second pair lands
+    expect(state.ants.camp_wave6_tank1).toBeDefined();
+    expect(state.ants.camp_wave6_tank2).toBeDefined();
+    expect(state.campaign.enemyAggressive).toBe(true);
     const ids = state.campaign.objectives.find(o => o.type === 'killUnits').unitIds;
     ids.forEach(id => expect(state.ants[id]).toBeDefined());
   });

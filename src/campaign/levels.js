@@ -28,6 +28,8 @@
 //                      'passive' ends the enemy turn without acting
 //   enemy.hunt         true = enemy combat units march straight for the
 //                      player's Queen Larva instead of guarding home first
+//   enemy.aggressive   true = hunting units ignore danger and always press
+//                      forward (they never hold back or retreat)
 //   enemy.huntWithScouts  true = scouts join that hunt too (normally scouts
 //                      keep scouting). For levels where scouts are the only
 //                      fighters the enemy has.
@@ -535,14 +537,15 @@ export const LEVELS = [
       resources: { food: 0, minerals: 0 },
       units: [],
       hunt: true,
+      aggressive: true,
       waves: [
-        { turn: 3, units: [{ type: 'tank', count: 2 }] }
+        { turn: 6, units: [{ type: 'tank', count: 2 }] }
       ]
     },
     objectives: [
       {
         type: 'killUnits',
-        unitIds: ['camp_player2_B1', 'camp_player2_B2', 'camp_wave3_tank1', 'camp_wave3_tank2'],
+        unitIds: ['camp_player2_B1', 'camp_player2_B2', 'camp_wave6_tank1', 'camp_wave6_tank2'],
         text: 'Kill all four Bullet Ants'
       },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }

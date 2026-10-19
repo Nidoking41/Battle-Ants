@@ -70,6 +70,8 @@ export function buildCampaignGameState(level) {
     // instead of guarding home first. 'unit:<id>': march on that unit while it
     // lives, then the leader. Read by aiController.
     enemyHunts: level.enemy?.hunt || false,
+    // true: hunting units ignore danger entirely and charge (see aiController)
+    enemyAggressive: level.enemy?.aggressive || false,
     // true: scouts join the hunt as well (normally they keep scouting).
     enemyHuntsWithScouts: level.enemy?.huntWithScouts || false,
     // The force you start with, for the end-of-level "kept alive" count.
