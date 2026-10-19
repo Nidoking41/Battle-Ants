@@ -15,6 +15,7 @@ import {
   upgradeQueen,
   deductEnergy,
   healAlly,
+  healAnt,
   activateHeroAbility
 } from './gameState';
 
@@ -630,7 +631,67 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
     if (result.combatAction) combatActions.push({ ...result.combatAction, seq: seq++ });
     if (state.gameOver) break;
   }
+
+  // Last, the queen: she stays put, but she can still shoot something in
+  // range or heal a wounded unit near her - after the army has fought, so
+  // she sees who got hurt.
+  const queen = findQueen(state, aiPlayer);
+  if (queen && !state.gameOver) {
+    try {
+      const result = handleQueenUnit(state, queen, aiPlayer);
+      state = result.state;
+      if (result.combatAction) combatActions.push({ ...result.combatAction, seq: seq++ });
+    } catch (err) {
+      console.error('AI queen action errored, skipping:', err);
+    }
+  }
   return { state, movements, combatActions };
+}
+
+/**
+ * The queen's own turn: heal or attack, whichever is worth more. Heals keep
+ * enough energy back for one egg so the queen still lays afterwards.
+ */
+function handleQueenUnit(gameState, queen, aiPlayer) {
+  if (queen.hasAttacked) return { state: gameState };
+  const queenType = getAntTypeById('queen');
+  const reach = queenType.attackRange;
+
+  // Best attack: the same target scoring the army uses
+  let attack = null;
+  for (const enemy of enemiesOf(gameState, aiPlayer)) {
+    if (!canAttack(queen, enemy, gameState)) continue;
+    const value = targetValue(gameState, queen, enemy);
+    if (!attack || value > attack.value) attack = { target: enemy, value };
+  }
+
+  // Best heal: the ally missing the most health (more urgent when badly hurt)
+  let heal = null;
+  const { getHealEnergyCost } = require('./heroQueens');
+  const healCost = getHealEnergyCost(GameConstants.HEAL_ENERGY_COST, gameState.players[aiPlayer]?.heroId);
+  if ((queen.energy || 0) >= healCost + getEggLayCost(queen)) {
+    for (const ally of liveAnts(gameState)) {
+      if (ally.owner !== aiPlayer || ally.id === queen.id) continue;
+      if (hexDistance(queen.position, ally.position) > reach) continue;
+      const missing = (ally.maxHealth || getAntTypeById(ally.type)?.maxHealth || 0) - ally.health;
+      if (missing < 8) continue; // not worth a terminal action
+      const value = Math.min(GameConstants.HEAL_AMOUNT, missing) + (ally.health <= ally.maxHealth * 0.4 ? 15 : 0);
+      if (!heal || value > heal.value) heal = { target: ally, value };
+    }
+  }
+
+  if (heal && (!attack || heal.value > attack.value)) {
+    const healed = healAnt(gameState, queen.id, heal.target.id);
+    if (healed !== gameState) {
+      console.log(`AI queen healed ${heal.target.id}`);
+      return { state: healed };
+    }
+  }
+  if (attack) {
+    console.log(`AI queen attacked ${attack.target.id}`);
+    return applyAttack(gameState, queen.id, attack.target);
+  }
+  return { state: gameState };
 }
 
 // ---------- shared helpers ----------
