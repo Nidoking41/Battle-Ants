@@ -113,7 +113,7 @@ export const AntTypes = {
     splashDamage: true,
     splashRadius: 1, // affects adjacent hexes
     resourceGatherRate: 0.5,
-    description: 'Explodes for 18 damage to everything next to it, ignoring defense.',
+    description: 'Explodes for 18, ignores defense',
     icon: '💣🐜'
   },
 
