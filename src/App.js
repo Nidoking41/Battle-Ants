@@ -4335,6 +4335,9 @@ function App() {
     const healSourceRange = healSource && (healSource.type === 'queen' || healSource.type === 'healer')
       ? (healSource.type === 'healer' ? getAntTypeById(healSource.type).healRange : getAntTypeById(healSource.type).attackRange)
       : 0;
+    // Every hex a Weaver's Ensnare can reach
+    const ensnareSource = selectedAction === 'ensnare' && selectedAnt ? gameState.ants[selectedAnt] : null;
+    const ensnareRange = ensnareSource?.type === 'healer' ? AntTypes.HEALER.ensnareRange : 0;
     const ensnareTargets = selectedAction === 'ensnare' && selectedAnt ?
       getValidEnsnareTargets(getGameStateForLogic(), selectedAnt) : [];
     const cordycepsTargets = selectedAction === 'cordyceps' && selectedAnt ?
@@ -4671,6 +4674,10 @@ function App() {
       }
       if (isInHealRange) {
         fillColor = '#D5F5D5'; // Pale green for the heal's range
+        useBirthingPoolPattern = false;
+      }
+      if (ensnareRange > 0 && hexDistance(ensnareSource.position, hex) <= ensnareRange) {
+        fillColor = '#FAF3C8'; // Pale yellow for Ensnare's range (targets are the stronger khaki)
         useBirthingPoolPattern = false;
       }
       if (isHealTarget) {
