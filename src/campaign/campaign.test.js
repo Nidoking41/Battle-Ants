@@ -795,3 +795,17 @@ describe('level 4 - the enemy queen must die too', () => {
     expect(after.winner).toBe('player1');
   });
 });
+
+describe('level 6 - wave units are not dead before they arrive', () => {
+  test('the Bullet Ant count starts at 0 / 4, and killing the first two does not win', () => {
+    const { objectiveProgress, evaluateObjective } = require('./objectives');
+    const state = buildCampaignGameState(getLevel(6));
+    const kill = getLevel(6).objectives.find(o => o.type === 'killUnits');
+    expect(objectiveProgress(kill, state)).toBe('0 / 4');
+    const placedGone = { ...state, ants: { ...state.ants } };
+    delete placedGone.ants.camp_player2_B1;
+    delete placedGone.ants.camp_player2_B2;
+    expect(objectiveProgress(kill, placedGone)).toBe('2 / 4');
+    expect(evaluateObjective(kill, placedGone, 'player1')).not.toBe('complete');
+  });
+});

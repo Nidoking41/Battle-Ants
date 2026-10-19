@@ -2026,8 +2026,10 @@ function App() {
     }
     setShowVictoryModal(false);
     setShowGameSummary(false);
-    // buildTab persists across games; a roster can hide the tab it points at.
-    setBuildTab('basic');
+    // buildTab persists across games; open on a tab the level's roster
+    // actually has units on (level 6 has no basic units at all).
+    const startRoster = getLevel(levelId)?.player?.roster;
+    setBuildTab(filterRoster(BASIC_ANT_IDS, startRoster).length > 0 ? 'basic' : 'advanced');
     handleStartGame({ isCampaign: true, levelId });
   };
 
@@ -5785,7 +5787,12 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {filterRoster(buildTab === 'basic' ? BASIC_ANT_IDS : ADVANCED_ANT_IDS, gameState.campaign?.roster)
+                {(() => {
+                  // If the chosen tab has nothing on this level, show the other one
+                  const roster = gameState.campaign?.roster;
+                  const shown = filterRoster(buildTab === 'basic' ? BASIC_ANT_IDS : ADVANCED_ANT_IDS, roster);
+                  return shown.length > 0 ? shown : filterRoster(buildTab === 'basic' ? ADVANCED_ANT_IDS : BASIC_ANT_IDS, roster);
+                })()
                   .map(id => getAntTypeById(id))
                   .filter(ant => ant) // Remove any undefined
                   .map(ant => {

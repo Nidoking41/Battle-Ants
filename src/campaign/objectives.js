@@ -54,7 +54,7 @@ function baseStatus(objective, gameState, playerId) {
 
     case 'killUnits': {
       const ids = objective.unitIds || [];
-      const dead = ids.filter(id => !gameState.ants[id]).length;
+      const dead = ids.filter(id => isKilled(gameState, id)).length;
       return status(dead >= (objective.count ?? ids.length));
     }
 
@@ -133,7 +133,7 @@ export function objectiveProgress(objective, gameState) {
     }
     case 'killUnits': {
       const ids = objective.unitIds || [];
-      const dead = ids.filter(id => !gameState.ants?.[id]).length;
+      const dead = ids.filter(id => isKilled(gameState, id)).length;
       return `${Math.min(dead, objective.count ?? ids.length)} / ${objective.count ?? ids.length}`;
     }
     case 'hatch': {
@@ -150,4 +150,14 @@ export function objectiveProgress(objective, gameState) {
     default:
       return null;
   }
+}
+
+// A unit named by an objective counts as killed once it is gone from the
+// board - but a scripted wave unit (camp_wave<turn>_...) that has not arrived
+// yet is not dead, just not here yet.
+function isKilled(gameState, id) {
+  if (gameState.ants?.[id]) return false;
+  const wave = /^camp_wave(\d+)_/.exec(id);
+  if (wave && (gameState.turn || 0) < Number(wave[1])) return false;
+  return true;
 }

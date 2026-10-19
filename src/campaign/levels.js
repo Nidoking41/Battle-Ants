@@ -514,7 +514,11 @@ export const LEVELS = [
     player: {
       hero: 'vexxara',
       queenTier: 'broodQueen',
-      resources: { food: 30, minerals: 20 },
+      // Swarm Queen unlocks nothing on this level, so no upgrade on offer
+      queenUpgrades: false,
+      // There are no resource nodes in the corridor: this stockpile is all
+      // there is - enough for about three of the Brood castes
+      resources: { food: 60, minerals: 45 },
       roster: ['healer', 'bomber', 'bombardier'],
       units: []
     },
