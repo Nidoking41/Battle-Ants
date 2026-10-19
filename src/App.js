@@ -217,6 +217,7 @@ function App() {
   const [ambushAlerts, setAmbushAlerts] = useState([]); // Array of {id, position, timestamp} for ambush alerts
   const [buildTab, setBuildTab] = useState('basic'); // Which Build Ants tab is shown: 'basic' | 'advanced'
   const [pendingCutsceneLevel, setPendingCutsceneLevel] = useState(null); // Campaign level whose intro cutscene is playing
+  const [pendingOutro, setPendingOutro] = useState(null); // { levelId, then } - victory cutscene before leaving a won level
   const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
@@ -2190,6 +2191,16 @@ function App() {
     // startAmbientMusic(); // Disabled - audio quality too low
   };
 
+  // Leaving a won campaign level: play its victory cutscene first, if it has one
+  const afterLevelWin = (then) => {
+    const level = gameState.campaign && getLevel(gameState.campaign.levelId);
+    if (gameState.winner === 'player1' && level?.outro) {
+      setPendingOutro({ levelId: level.id, then });
+    } else {
+      then();
+    }
+  };
+
   const handleBackToMenu = () => {
     // stopAmbientMusic(); // Disabled - audio quality too low
     setGameMode(null);
@@ -2374,6 +2385,22 @@ function App() {
       <AIGameSetup
         onStartGame={handleStartGame}
         onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  if (pendingOutro) {
+    const level = getLevel(pendingOutro.levelId);
+    return (
+      <Cutscene
+        cutscene={level.outro}
+        title={`Level ${level.id}: ${level.name} - Victory`}
+        finishLabel="CONTINUE"
+        onDone={() => {
+          const then = pendingOutro.then;
+          setPendingOutro(null);
+          then();
+        }}
       />
     );
   }
@@ -7800,8 +7827,10 @@ function App() {
         <LevelComplete
           gameState={gameState}
           onRetry={() => handleStartCampaignLevel(gameState.campaign.levelId, { skipCutscene: true })}
-          onNext={getLevel(gameState.campaign.levelId + 1) ? () => handleStartCampaignLevel(gameState.campaign.levelId + 1) : null}
-          onMenu={handleBackToMenu}
+          onNext={getLevel(gameState.campaign.levelId + 1)
+            ? () => afterLevelWin(() => handleStartCampaignLevel(gameState.campaign.levelId + 1))
+            : null}
+          onMenu={() => afterLevelWin(handleBackToMenu)}
         />
       )}
 

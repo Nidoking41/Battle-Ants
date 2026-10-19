@@ -44,6 +44,9 @@
 //   uiTips             optional pop-ups at level start that ring a button and
 //                      explain it: [{ target, title, text }], target = the
 //                      button's data-tip name in App.js
+//   outro              optional cutscene after a win (same shape as cutscene),
+//                      played when leaving the score screen for the next
+//                      level or the menu
 //   cutscene           optional intro shown when the level starts (skipped on
 //                      Retry): { portrait: '<file under public/sprites/>', lines: [] }
 //   objectives         see objectives.js for the supported types
@@ -141,6 +144,15 @@ export const LEVELS = [
       title: 'Food',
       text: 'Move a Worker Drone onto this food, then press Build Anthill (B). The anthill mines food for you every turn.'
     },
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The food holds. The scouts that came for her lie still in the grass.',
+        'Fed and guarded, the heir sleeps - and in her sleep she begins to change.',
+        'Somewhere beyond the ridge, four rivals learn that the larva did not die.'
+      ]
+    },
     objectives: [
       { type: 'gather', resource: 'food', amount: 50, text: 'Mine 50 food' },
       { type: 'protect', unitId: PLAYER_LARVA_ID, text: 'Keep the Queen Larva alive' }
@@ -227,6 +239,15 @@ export const LEVELS = [
         { turn: 6, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }] }
       ]
     },
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'Ten turns, and the nest still stands. The Marauders broke on the trees.',
+        { hero: 'gorlak', text: 'A larva held my soldiers off? Then the next ones will not be so polite.' },
+        'Vexxara has not moved an inch. She will not need to for much longer: the moult has begun.'
+      ]
+    },
     objectives: [
       { type: 'survive', untilTurn: 10, text: 'Survive 10 turns' },
       { type: 'protect', unitId: PLAYER_LARVA_ID, text: 'Keep the Queen Larva alive' }
@@ -304,6 +325,15 @@ export const LEVELS = [
       { target: 'queenAttack', title: 'Queen: Attack', text: 'Your Queen can fight. Press Attack (A), then click an enemy up to two hexes away. Use it to stop scouts before they reach your eggs.' },
       { target: 'queenHeal', title: 'Queen: Heal', text: 'Heal (H) spends some of her energy to restore a wounded ant near her. Energy also pays for eggs, so choose when to spend it.' }
     ],
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        { hero: 'skrazzit', text: 'Four hatched and the nest still standing. Fine. You can lay eggs. Can you feed what hatches?' },
+        'Skrazzit pulls back to the ridge, where the minerals are. He means to out-build her.',
+        'A Queen who can lay is a Queen who needs an army. And an army needs minerals.'
+      ]
+    },
     objectives: [
       { type: 'hatch', count: 4, text: 'Hatch 4 ants' },
       { type: 'survive', untilTurn: 8, text: 'Survive 8 turns' },
@@ -374,6 +404,16 @@ export const LEVELS = [
       resources: { food: 40, minerals: 20 },
       units: 'default',
       anthills: [{ type: 'minerals', count: 2 }]
+    },
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        { hero: 'skrazzit', text: 'My hills... my swarm... You were supposed to starve.' },
+        'Skrazzit\'s queen falls on the ridge he claimed. The mineral line is hers.',
+        { hero: 'gorlak', text: 'The swarm-lord was always soft. Hills and numbers mean nothing when my Marauders arrive.' },
+        'Gorlak the Crusher is already marching. He does not believe in armour.'
+      ]
     },
     objectives: [
       { type: 'gather', resource: 'minerals', amount: 40, text: 'Mine 40 minerals' },
@@ -459,6 +499,16 @@ export const LEVELS = [
       { target: 'queenHeal', title: 'Queen: Heal', text: 'Heal (H) restores 15 health to one of your ants near her, using her energy. Vexxara heals for less energy than other queens, but energy also pays for eggs, so choose.' },
       { target: 'heroAbility', title: "Vexxara's Power: Divine Restoration", text: 'Every blow you land fills the bar under Vexxara, and blows you take fill it a little too. When it is full, press Activate Ability: every one of your units heals 15, all energy refills, and your ants hit 10% harder for the turn.' }
     ],
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        { hero: 'gorlak', text: 'Armour... Spitters that bite and never get bitten back... That is not fighting. That is cheating.' },
+        'Gorlak\'s queen falls between the two lanes. The Crusher is crushed.',
+        'And Vexxara grows again: a Brood Queen now, with three new castes at her call.',
+        { hero: 'thorgrim', text: 'Clever. But cleverness does not stop a Bullet Ant. Nothing does.' }
+      ]
+    },
     objectives: [
       { type: 'killUnit', unitId: ENEMY_QUEEN_ID, text: "Kill Gorlak's queen" },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
@@ -540,6 +590,16 @@ export const LEVELS = [
       aggressive: true,
       waves: [
         { turn: 6, units: [{ type: 'tank', count: 2 }] }
+      ]
+    },
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        { hero: 'thorgrim', text: 'Four of my finest... caught in webs and melted by acid.' },
+        'The corridor is quiet. The last Bullet Ant lies where the Weavers caught it.',
+        'Three rivals beaten. The throne is closer than it has ever been.',
+        'But Sorlorg the Precise has watched every one of these battles - and she has not yet made her move.'
       ]
     },
     objectives: [

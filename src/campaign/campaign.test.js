@@ -814,3 +814,18 @@ describe('level 6 - wave units are not dead before they arrive', () => {
     expect(evaluateObjective(kill, placedGone, 'player1')).not.toBe('complete');
   });
 });
+
+describe('victory cutscenes', () => {
+  test('every level has an outro whose lines all resolve to text and a portrait', () => {
+    const { LEVELS } = require('./levels');
+    const { normalizeCutsceneLines } = require('./Cutscene');
+    LEVELS.forEach(level => {
+      const lines = normalizeCutsceneLines(level.outro);
+      expect(lines.length).toBeGreaterThan(0);
+      lines.forEach(l => {
+        expect(l.text.length).toBeGreaterThan(0);
+        expect(l.portrait).toBeTruthy();
+      });
+    });
+  });
+});

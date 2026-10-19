@@ -32,7 +32,7 @@ export function normalizeCutsceneLines(cutscene) {
   });
 }
 
-function Cutscene({ cutscene, title, onDone }) {
+function Cutscene({ cutscene, title, onDone, finishLabel = 'BEGIN' }) {
   const lines = normalizeCutsceneLines(cutscene);
   const [lineIdx, setLineIdx] = useState(0);
   const [shown, setShown] = useState(0); // characters of the current line revealed
@@ -206,7 +206,7 @@ function Cutscene({ cutscene, title, onDone }) {
                 cursor: 'pointer'
               }}
             >
-              BEGIN
+              {finishLabel}
             </button>
           ) : (
             <span style={{ opacity: lineDone ? 1 : 0.4 }}>click or space to continue</span>
