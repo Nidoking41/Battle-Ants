@@ -486,28 +486,31 @@ export const LEVELS = [
       ]
     },
     briefing: ['Ensnare the lead Bullet Ant, focus it with Spitters and Bombardiers, heal the line, fire Vexxara. Kill all four.'],
-    // The Gauntlet: one corridor, trees at intervals, your nest in a bulb at the end.
+    // The Gauntlet: one corridor (five hexes wide), trees at intervals, your
+    // nest in a bulb at the end.
     map: {
       layout: [
-        '  2  ',
-        ' B B ',
-        '. . .',
-        ' . . ',
-        '. T .',
-        ' . . ',
-        '. . .',
-        ' T . ',
-        '. . .',
-        ' . . ',
-        '. . T',
-        ' . . ',
-        '. . .',
-        ' m m ',
-        's s s',
-        ' w w ',
-        'b 1 b',
-        ' x . ',
-        '  .  '
+        '    2    ',
+        ' . B B . ',
+        '. . . . .',
+        ' . . . . ',
+        '. . T . .',
+        ' . . . . ',
+        '. . . . .',
+        ' . T . . ',
+        '. . . . .',
+        ' . . . . ',
+        '. . . . .',
+        ' . . . . ',
+        '. . . T .',
+        ' . . . . ',
+        '. . . . .',
+        ' . m m . ',
+        '. s s s .',
+        ' . w w . ',
+        '. b 1 b .',
+        ' . x . . ',
+        '    .    '
       ],
       legend: { B: 'tank', m: 'soldier', s: 'spitter', w: 'healer', b: 'bombardier', x: 'bomber' }
     },
