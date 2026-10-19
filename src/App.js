@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
 import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
-import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, resolveAmbush } from './combatSystem';
+import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
@@ -382,13 +382,19 @@ function App() {
     const handleKeyDown = (event) => {
       if (event.key === 'Shift' && selectedAction === 'bombardier_splash' && bombardierTargetHex) {
         event.preventDefault();
-        setBombardierRotation(prev => (prev + 1) % 6);
+        // Cycle only through the shapes that lean back toward the Bombardier
+        const bombardier = getGameStateForLogic().ants[selectedAnt];
+        if (!bombardier) return;
+        const allowed = getAllowedSplashRotations(bombardier.position, bombardierTargetHex);
+        if (allowed.length === 0) return;
+        setBombardierRotation(prev => allowed[(allowed.indexOf(prev) + 1) % allowed.length]);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedAction, bombardierTargetHex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAction, bombardierTargetHex, selectedAnt]);
 
   // Cycle effect animation frames (ensnare, plague)
   useEffect(() => {
@@ -3686,7 +3692,8 @@ function App() {
       // First click: select target hex and show rotation preview
       if (!bombardierTargetHex || !hexEquals(bombardierTargetHex, hex)) {
         setBombardierTargetHex(hex);
-        setBombardierRotation(0); // Reset rotation
+        // Start on the first shape that leans back toward the Bombardier
+        setBombardierRotation(getAllowedSplashRotations(bombardier.position, hex)[0] ?? 0);
         return;
       }
 
@@ -4335,6 +4342,11 @@ function App() {
     const healSourceRange = healSource && (healSource.type === 'queen' || healSource.type === 'healer')
       ? (healSource.type === 'healer' ? getAntTypeById(healSource.type).healRange : getAntTypeById(healSource.type).attackRange)
       : 0;
+    // Every hex a Bombardier's Focus Fire can reach (2-3 hexes away)
+    const focusSource = selectedAction === 'attack' && selectedAnt ? gameState.ants[selectedAnt] : null;
+    const focusRange = focusSource?.type === 'bombardier'
+      ? { min: AntTypes.BOMBARDIER.minAttackRange, max: AntTypes.BOMBARDIER.attackRange }
+      : null;
     // Every hex a Weaver's Ensnare can reach
     const ensnareSource = selectedAction === 'ensnare' && selectedAnt ? gameState.ants[selectedAnt] : null;
     const ensnareRange = ensnareSource?.type === 'healer' ? AntTypes.HEALER.ensnareRange : 0;
@@ -4663,6 +4675,13 @@ function App() {
         // Different color for fog of war moves vs visible moves
         fillColor = isVisible ? '#AED6F1' : '#8B9DC3'; // Light blue for visible moves, darker blue for fog of war
         useBirthingPoolPattern = false;
+      }
+      if (focusRange) {
+        const d = hexDistance(focusSource.position, hex);
+        if (d >= focusRange.min && d <= focusRange.max) {
+          fillColor = '#F7D6C4'; // Pale orange for Focus Fire's range (targets stay red)
+          useBirthingPoolPattern = false;
+        }
       }
       if (isAttackable) {
         fillColor = '#FF6B6B'; // Red for attackable enemies

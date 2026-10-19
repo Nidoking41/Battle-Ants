@@ -709,6 +709,28 @@ export function moveAnt(gameState, antId, targetPosition) {
 }
 
 // Bombardier splash attack at target hex (affects 3-hex area in a line based on rotation)
+// Splash shapes are a triangle: the target hex plus its neighbours in
+// direction `rotation` and `rotation - 1` (6 possible). Only the shapes that
+// lean back toward the Bombardier are allowed - the ones whose two extra hexes
+// are, together, closer to her than the target is. That is 3 shapes for most
+// targets, 2 when the target is in a straight line from her.
+const SPLASH_DIRECTIONS = [
+  { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
+  { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 }
+];
+export function getAllowedSplashRotations(attackerPos, targetHex) {
+  const d = hexDistance(attackerPos, targetHex);
+  const allowed = [];
+  for (let rotation = 0; rotation < 6; rotation++) {
+    const a = SPLASH_DIRECTIONS[rotation];
+    const b = SPLASH_DIRECTIONS[(rotation + 5) % 6];
+    const da = hexDistance(attackerPos, { q: targetHex.q + a.q, r: targetHex.r + a.r });
+    const db = hexDistance(attackerPos, { q: targetHex.q + b.q, r: targetHex.r + b.r });
+    if (da + db < 2 * d) allowed.push(rotation);
+  }
+  return allowed;
+}
+
 export function bombardierSplashAttack(gameState, attackerId, targetHex, rotation = 0) {
   const attacker = gameState.ants[attackerId];
   if (!attacker || attacker.type !== 'bombardier') {
@@ -721,6 +743,10 @@ export function bombardierSplashAttack(gameState, attackerId, targetHex, rotatio
   // Check range to target hex
   const distance = hexDistance(attacker.position, targetHex);
   if (distance < attackerType.minAttackRange || distance > attackerType.attackRange) {
+    return { gameState, damageDealt: [], attackAnimation: null };
+  }
+  // The splash may not reach further away than its target
+  if (!getAllowedSplashRotations(attacker.position, targetHex).includes(rotation % 6)) {
     return { gameState, damageDealt: [], attackAnimation: null };
   }
 
