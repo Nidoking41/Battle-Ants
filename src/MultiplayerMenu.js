@@ -260,19 +260,6 @@ function MultiplayerMenu({ onStartGame, onEnterLobby, onEnterLocalSetup, onEnter
         >
           Local Game (Hot Seat)
         </button>
-
-        <div style={{
-          marginTop: '5px',
-          padding: '12px',
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          borderRadius: '5px',
-          fontSize: '12px',
-          color: '#ccc',
-          border: '1px solid rgba(192, 192, 192, 0.2)',
-          textAlign: 'center'
-        }}>
-          Choose your game mode to begin your ant empire!
-        </div>
       </div>
     </div>
   );
