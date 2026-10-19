@@ -31,5 +31,8 @@ describe('the AI queen fights and heals', () => {
     state = { ...state, ants: { ...state.ants, [drone.id]: { ...state.ants[drone.id], health: 3 }, [queen.id]: { ...queen, energy: 25 } } };
     const res = await executeAITurn(state, 'player2', 'easy');
     expect(res.gameState.ants[drone.id].health).toBeGreaterThan(3);
+    // ...and the replay gets a heal action carrying the +HP amount
+    const heal = res.combatActions.find(c => c.isHeal && c.targetId === drone.id);
+    expect(heal.healAmount).toBe(res.gameState.ants[drone.id].health - 3);
   }, 60000);
 });

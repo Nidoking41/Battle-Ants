@@ -684,7 +684,19 @@ function handleQueenUnit(gameState, queen, aiPlayer) {
     const healed = healAnt(gameState, queen.id, heal.target.id);
     if (healed !== gameState) {
       console.log(`AI queen healed ${heal.target.id}`);
-      return { state: healed };
+      // Rides along with the attacks so the turn replay can show the +HP pop-up
+      const amount = healed.ants[heal.target.id].health - heal.target.health;
+      return {
+        state: healed,
+        combatAction: {
+          isHeal: true,
+          attackerId: queen.id,
+          targetId: heal.target.id,
+          targetPosition: { q: heal.target.position.q, r: heal.target.position.r },
+          healAmount: amount,
+          timestamp: Date.now()
+        }
+      };
     }
   }
   if (attack) {

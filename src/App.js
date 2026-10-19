@@ -1784,6 +1784,22 @@ function App() {
           // Each attacker is looked up in the pre-combat state so units that
           // die during the AI's turn still play their attack.
           const combatAction = action.combatAction;
+
+          // A heal (the computer's queen): the green +HP pop-up and the
+          // health bar going up, then a beat before the next action
+          if (combatAction.isHeal) {
+            const id = combatAction.targetId;
+            if (hp[id] > 0) {
+              const unit = currentState.ants?.[id];
+              hp[id] = Math.min(unit?.maxHealth ?? Infinity, hp[id] + combatAction.healAmount);
+              shownHealth[id] = hp[id];
+              setGameState(prev => (prev.ants[id] ? { ...prev, ants: { ...prev.ants, [id]: { ...prev.ants[id], health: hp[id] } } } : prev));
+            }
+            showResourceGain(combatAction.healAmount, 'heal', combatAction.targetPosition);
+            await new Promise(resolve => setTimeout(resolve, 900));
+            continue;
+          }
+
           const { attackerId, targetPosition, isRanged, damageDealt, isDetonation } = combatAction;
           const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
 
