@@ -330,7 +330,7 @@ export const LEVELS = [
       portrait: 'hero_black.png',
       lines: [
         { hero: 'skrazzit', text: 'Four hatched and the nest still standing. Fine. You can lay eggs. Can you feed what hatches?' },
-        'Skrazzit pulls back to the ridge, where the minerals are. He means to out-build her.',
+        'Skrazzit pulls back to the ridge, where the minerals are. She means to out-build Vexxara.',
         'A Queen who can lay is a Queen who needs an army. And an army needs minerals.'
       ]
     },
@@ -355,17 +355,17 @@ export const LEVELS = [
       portrait: 'hero_black.png',
       lines: [
         'Food feeds the colony. Minerals build the army. Every Marauder, every Spitter, every upgrade costs them.',
-        'There are four mineral nodes on this ground, all on the ridge between the nests - and two of them are already his.',
+        'There are four mineral nodes on this ground, all on the ridge between the nests - and two of them are already hers.',
         { hero: 'skrazzit', text: 'Two hills on the ridge before you have laid an egg. You cannot build what you cannot afford, Lifebinder.' },
-        'A hill pays four minerals a turn until the node runs dry. His hills are targets: an anthill has no armour, and two blows from a Marauder bring one down.',
-        'Mine forty minerals, burn two of his hills - and then finish him. Skrazzit dies on this ridge.'
+        'A hill pays four minerals a turn until the node runs dry. Her hills are targets: an anthill has no armour, and two blows from a Marauder bring one down.',
+        'Mine forty minerals, burn two of her hills - and then finish her. Skrazzit dies on this ridge.'
       ]
     },
     briefing: ['Take the ridge. Mine 40 minerals, destroy 2 enemy anthills, and kill Skrazzit\'s queen.'],
     // The Line: a lake fills the middle of the ridge, so there is no straight
     // road - you go round by the left shore or the right. Four mineral nodes
     // in two point-symmetric pairs on the shores, one pair leaning to each
-    // nest, so Skrazzit pre-builds on his pair and the player races for
+    // nest, so Skrazzit pre-builds on her pair and the player races for
     // theirs. Food on the flanks, trees on the banks. Leaders seven apart.
     map: {
       layout: [
@@ -410,9 +410,9 @@ export const LEVELS = [
       portrait: 'hero_black.png',
       lines: [
         { hero: 'skrazzit', text: 'My hills... my swarm... You were supposed to starve.' },
-        'Skrazzit\'s queen falls on the ridge he claimed. The mineral line is hers.',
-        { hero: 'gorlak', text: 'The swarm-lord was always soft. Hills and numbers mean nothing when my Marauders arrive.' },
-        'Gorlak the Crusher is already marching. He does not believe in armour.'
+        'Skrazzit\'s queen falls on the ridge she claimed. The mineral line is hers.',
+        { hero: 'gorlak', text: 'The swarm-mother was always soft. Hills and numbers mean nothing when my Marauders arrive.' },
+        'Gorlak the Crusher is already marching. She does not believe in armour.'
       ]
     },
     objectives: [
@@ -438,14 +438,14 @@ export const LEVELS = [
       portrait: 'hero_black.png',
       lines: [
         { hero: 'gorlak', text: 'Armour is for cowards. My Marauders hit harder than anything you can hatch, and they are coming down both lanes.' },
-        'He is not wrong about the hitting. He is wrong about the armour.',
+        'She is not wrong about the hitting. She is wrong about the armour.',
         'Defence takes two off every blow, flat. A Scout that hits for six now hits for four. A Marauder that hits for eleven still lands nine. Armour blanks the weak and shrugs at the strong.',
         'And ranged units are never struck back. A Spitter hitting a Marauder takes nothing in return - and a Marauder hitting a Spitter takes nothing either. Choose your trades.',
-        'Kill his queen. The Upgrades button is your first move.'
+        'Kill her queen. The Upgrades button is your first move.'
       ]
     },
-    briefing: ['Buy Defence. Trade Spitters into his melee. Kill his queen.'],
-    // Two Lanes: a water channel splits the field; he comes down both. Each
+    briefing: ['Buy Defence. Trade Spitters into her melee. Kill her queen.'],
+    // Two Lanes: a water channel splits the field; she comes down both. Each
     // leader sits on a single hex at the very back of the map.
     map: {
       layout: [
@@ -482,7 +482,7 @@ export const LEVELS = [
       behavior: 'ai',
       aiDifficulty: 'medium',
       unitMix: { soldier: 0.7, scout: 0.3 },
-      // No head start: he builds his economy like you do. His edge is the
+      // No head start: she builds her economy like you do. Her edge is the
       // two Marauder waves.
       resources: { food: 10, minerals: 0 },
       units: 'default',
@@ -495,7 +495,7 @@ export const LEVELS = [
     // Vexxara's queen is a fighter here, not just an egg-layer - and this is
     // the first real fight her hero power charges up in
     uiTips: [
-      { target: 'queenAttack', title: 'Your Queen Is a Unit', text: 'Vexxara fights too. Select her, press Attack (A), then click an enemy up to two hexes away. She is tough - use her to hold the line against his Marauders.' },
+      { target: 'queenAttack', title: 'Your Queen Is a Unit', text: 'Vexxara fights too. Select her, press Attack (A), then click an enemy up to two hexes away. She is tough - use her to hold the line against her Marauders.' },
       { target: 'queenHeal', title: 'Queen: Heal', text: 'Heal (H) restores 15 health to one of your ants near her, using her energy. Vexxara heals for less energy than other queens, but energy also pays for eggs, so choose.' },
       { target: 'heroAbility', title: "Vexxara's Power: Divine Restoration", text: 'Every blow you land fills the bar under Vexxara, and blows you take fill it a little too. When it is full, press Activate Ability: every one of your units heals 15, all energy refills, and your ants hit 10% harder for the turn.' }
     ],
@@ -521,7 +521,7 @@ export const LEVELS = [
   // the Acid Bomber and the Bombardier. Ensnare roots a unit for three turns;
   // heal restores 20 and cleanses. Vexxara's own ability charges on damage
   // dealt and refills every Weaver. Thorgrim is a Swarm Queen, which is what
-  // lets him field Bullet Ants.
+  // lets her field Bullet Ants.
   {
     id: 6,
     name: 'The Broodmother',

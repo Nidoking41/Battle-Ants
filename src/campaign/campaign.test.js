@@ -367,7 +367,7 @@ describe('level schema: heroes, upgrades, tiers, anthills, ids', () => {
     // Thorgrim: health x1.2 - a slot-swapped Spitter (18) becomes 21
     const spitter = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'spitter');
     expect(spitter.maxHealth).toBeGreaterThan(18);
-    // Gorlak: melee attack x1.2 - his guard Marauders carry a bonus
+    // Gorlak: melee attack x1.2 - her guard Marauders carry a bonus
     const theirs = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'soldier');
     expect(theirs.bonusAttack || 0).toBeGreaterThan(0);
     // Waves inherit it too
