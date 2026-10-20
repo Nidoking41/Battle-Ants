@@ -65,6 +65,12 @@ export const SpriteConfig = {
       walk: { path: 'bombardier_walk.png', frames: 8 },
       attack: { path: 'bombardier_attack.png', frames: 8 }
     },
+    // Campaign Queen's Emissary (Emissary/emissary_idle_<color>.png: the Drone with a crown)
+    emissary: {
+      idle: { path: 'emissary_idle_red.png', frames: 8 },
+      walk: { path: 'emissary_idle_red.png', frames: 8 },
+      attack: { path: 'emissary_idle_red.png', frames: 8 }
+    },
     drone: {
       idle: { path: 'drone_idle.png', frames: 8 },
       walk: { path: 'drone_walk.png', frames: 8 },
@@ -102,7 +108,7 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'queenLarva', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
+const COLORED_ANT_TYPES = ['queen', 'queenLarva', 'emissary', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
@@ -110,6 +116,7 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
   'queenLarva': 'larva',
   'scout': 'scout',
   'drone': 'drone',
+  'emissary': 'emissary',
   'soldier': 'marauder',
   'tank': 'bullet',
   'spitter': 'acid',
@@ -126,6 +133,7 @@ const ANT_TYPE_TO_FOLDER = {
   'queenLarva': 'Larva',
   'scout': 'Scout',
   'drone': 'Drone',
+  'emissary': 'Emissary',
   'soldier': 'Marauder',
   'tank': 'Bullet',
   'spitter': 'Acid',

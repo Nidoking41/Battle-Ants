@@ -74,6 +74,11 @@ export function buildCampaignGameState(level) {
     enemyAggressive: level.enemy?.aggressive || false,
     // true: scouts join the hunt as well (normally they keep scouting).
     enemyHuntsWithScouts: level.enemy?.huntWithScouts || false,
+    // true: enemy units never move - they wait (hidden, with fog on) and
+    // attack whatever comes into range. Read by aiController.
+    enemyHoldPosition: level.enemy?.holdPosition || false,
+    // The map's goal hexes ('G' in the layout), for reachHex objectives with at: 'goal'
+    goalHexes: state.goalHexes || [],
     // The force you start with, for the end-of-level "kept alive" count.
     startingUnitIds: Object.values(state.ants)
       .filter(a => a.owner === 'player1' && a.type !== 'queen' && a.type !== 'queenLarva')
@@ -113,6 +118,7 @@ function applyLayout(state, level) {
   state.mapShape = layout.mapShape;
   state.mapHexes = layout.mapHexes;
   state.mapWater = layout.water; // drawn as blue hexes; never part of the mask
+  state.goalHexes = layout.goals; // 'G' markers: where an escort has to get to
   state.gridRadius = layout.gridRadius;
 
   // The generated nodes and trees are for a hexagon that no longer exists.

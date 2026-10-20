@@ -153,6 +153,24 @@ export const AntTypes = {
     icon: '⛏️🐜'
   },
 
+  // Campaign-only: a Drone wearing a crown, carrying the old queen's
+  // scent-mark. Never hatched; placed by levels that need an escort.
+  EMISSARY: {
+    id: 'emissary',
+    name: "Queen's Emissary",
+    cost: { food: 9999, minerals: 9999 }, // never buildable
+    campaignOnly: true,
+    hatchTime: 0,
+    maxHealth: 15,
+    attack: 4,
+    defense: 0,
+    moveRange: 2,
+    attackRange: 1,
+    resourceGatherRate: 0,
+    description: "Carries the old queen's scent-mark. Keep it alive.",
+    icon: '👑🐜'
+  },
+
   HEALER: {
     id: 'healer',
     name: 'Weaver Ant',

@@ -65,12 +65,17 @@ function baseStatus(objective, gameState, playerId) {
       // Only eggs are counted so far
       return status(false, (stats.eggsLost || 0) > objective.max);
 
-    case 'reachHex':
-      return status(ants.some(a =>
-        a.owner === playerId &&
-        a.position.q === objective.at.q &&
-        a.position.r === objective.at.r
-      ));
+    case 'reachHex': {
+      // at: one hex, a list of hexes, or 'goal' (the map's G hexes).
+      // unitId: only that unit counts (an escort); otherwise any of yours.
+      const targets = objective.at === 'goal'
+        ? (gameState.campaign?.goalHexes || [])
+        : (Array.isArray(objective.at) ? objective.at : [objective.at]);
+      const movers = objective.unitId
+        ? [gameState.ants?.[objective.unitId]].filter(Boolean)
+        : ants.filter(a => a.owner === playerId);
+      return status(movers.some(a => targets.some(t => a.position.q === t.q && a.position.r === t.r)));
+    }
 
     case 'hatch': {
       const hatched = stats.antsHatched || {};

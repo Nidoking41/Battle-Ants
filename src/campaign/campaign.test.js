@@ -716,14 +716,16 @@ describe('custom map layouts', () => {
       const onMap = h => isValidHex(h, state.gridRadius, state.mapShape);
       const ants = Object.values(state.ants);
       expect(ants.some(a => a.owner === 'player1' && (a.type === 'queen' || a.type === 'queenLarva'))).toBe(true);
-      expect(ants.some(a => a.owner === 'player2' && (a.type === 'queen' || a.type === 'queenLarva'))).toBe(true);
+      // A level can field an enemy with no leader on the map (level 7: Sorlorg's hidden guns)
+      const enemyLeader = level.enemy?.queenTier !== null;
+      expect(ants.some(a => a.owner === 'player2' && (a.type === 'queen' || a.type === 'queenLarva'))).toBe(enemyLeader);
       ants.forEach(a => expect(onMap(a.position)).toBe(true));
       Object.values(state.trees).forEach(t => expect(onMap(t.position)).toBe(true));
       Object.values(state.resources).forEach(r => expect(onMap(r.position)).toBe(true));
       // No two things on one hex
       const keys = ants.map(a => `${a.position.q},${a.position.r}`);
       expect(new Set(keys).size).toBe(keys.length);
-      if (level.map?.layout) {
+      if (level.map?.layout && enemyLeader) {
         const p1 = ants.find(a => a.owner === 'player1' && (a.type === 'queen' || a.type === 'queenLarva'));
         const p2 = ants.find(a => a.owner === 'player2' && (a.type === 'queen' || a.type === 'queenLarva'));
         const apart = hexDistance(p1.position, p2.position);
@@ -827,5 +829,41 @@ describe('victory cutscenes', () => {
         expect(l.portrait).toBeTruthy();
       });
     });
+  });
+});
+
+describe('level 7 - The Long Grass', () => {
+  const { evaluateAllObjectives } = require('./objectives');
+  const { executeAITurn } = require('../aiController');
+
+  test('fog, an escort, gold goal hexes and Sorlorg\'s hidden guns', () => {
+    const level = getLevel(7);
+    expect(level.fogOfWar).toBe(true);
+    const state = buildCampaignGameState(level);
+    expect(state.ants.camp_player1_e1.type).toBe('emissary');
+    expect(state.campaign.goalHexes).toHaveLength(7);
+    const theirs = Object.values(state.ants).filter(a => a.owner === 'player2').map(a => a.type).sort();
+    expect(theirs).toEqual(['bombardier', 'bombardier', 'bombardier', 'bombardier', 'soldier', 'soldier']);
+    expect(Object.values(state.ants).some(a => a.owner === 'player2' && a.type === 'queen')).toBe(false);
+    expect(state.campaign.roster).toEqual([]);
+  });
+
+  test('the enemy holds position: its units never move on its turn', async () => {
+    let state = buildCampaignGameState(getLevel(7));
+    const where = s => Object.values(s.ants).filter(a => a.owner === 'player2').map(a => `${a.id}@${a.position.q},${a.position.r}`).sort();
+    const before = where(state);
+    state = endTurn(state).gameState;
+    const res = await executeAITurn(state, 'player2', 'medium');
+    expect(where(res.gameState)).toEqual(before);
+  }, 60000);
+
+  test('the Emissary reaching a gold hex wins; losing it loses', () => {
+    const state = buildCampaignGameState(getLevel(7));
+    const goal = state.campaign.goalHexes[0];
+    const arrived = { ...state, ants: { ...state.ants, camp_player1_e1: { ...state.ants.camp_player1_e1, position: { q: goal.q, r: goal.r } } } };
+    expect(evaluateAllObjectives(arrived).won).toBe(true);
+    const lostIt = { ...state, ants: { ...state.ants } };
+    delete lostIt.ants.camp_player1_e1;
+    expect(evaluateAllObjectives(lostIt).lost).toBe(true);
   });
 });

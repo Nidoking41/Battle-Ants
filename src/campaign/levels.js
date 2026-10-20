@@ -610,6 +610,100 @@ export const LEVELS = [
       },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
+  },
+
+  // ---------------------------------------------------------------------
+  // Level 7 - The Long Grass (vs Sorlorg the Precise)
+  // The pheromone link is cut: first level with fog of war. Escort the
+  // Queen's Emissary (a crowned Drone) to the gold goal hexes at the far
+  // edge. Sorlorg's Bombardiers and Marauders hold still in the fog and fire
+  // on anything that comes into range, so scout ahead and use Reveal.
+  {
+    id: 7,
+    name: 'The Long Grass',
+    fogOfWar: true,
+    cutscene: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The trails have gone quiet. For as long as there has been a colony, every ant has known what every other ant could sense. Now the pheromone link is cut.',
+        'Your ants see only what is right in front of them. Beyond that is fog.',
+        'Something poisoned the trails, and someone cut what was left. The scouts say the rot leads toward the Throne Mound.',
+        'The colony will follow only a true heir. The old queen\'s scent-mark proves it - and the Queen\'s Emissary carries it.',
+        { hero: 'sorlorg', text: 'A crown on a Drone. How touching. My Bombardiers are already in the grass, Lifebinder. You will not see them until they fire.' },
+        'Bring the Emissary to the gold hexes at the far edge. Scout ahead, light up the grass with Reveal, and keep the Emissary out of reach of what you cannot see.'
+      ]
+    },
+    briefing: ['Get the Queen\'s Emissary to the gold hexes at the far side. Bombardiers hide in the fog: scout ahead and use Reveal.'],
+    // The Long Grass: a long field with a pond in the middle, Sorlorg's
+    // Bombardiers (B) spread through it and two Marauders (R) on guard.
+    // Your nest is at the bottom, the goal row (G) at the top.
+    map: {
+      layout: [
+        'G G G G G G G',
+        ' . . . . . . ',
+        '. T . . . T .',
+        ' . . B . . . ',
+        '. . . . T . .',
+        ' . T . . R . ',
+        '. . . ~ ~ . .',
+        ' . . ~ ~ ~ . ',
+        '. B . ~ ~ . B',
+        ' . . . . . . ',
+        '. . T . . T .',
+        ' . . R . . . ',
+        'T . . . . . T',
+        ' . B . . . . ',
+        '. . . . T . .',
+        ' T . . . . . ',
+        '. . . . . . .',
+        ' . . . . . . ',
+        '. . T . . . .',
+        ' . . . . . . ',
+        '. . s e s . .',
+        ' . m a a m . ',
+        '. . . w . . .',
+        ' . . . . . . ',
+        '. . . 1 . . .'
+      ],
+      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'broodQueen',
+      queenUpgrades: false,
+      // A fixed force: no hatching. The stockpile is for Upgrades.
+      resources: { food: 40, minerals: 30 },
+      roster: [],
+      units: []
+    },
+    enemy: {
+      hero: 'sorlorg',
+      queenTier: null, // Sorlorg herself is not here - only her hidden guns
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      holdPosition: true,
+      unitMix: {},
+      resources: { food: 0, minerals: 0 },
+      units: []
+    },
+    // Pop-up at the start: the Brood Queen's Reveal
+    uiTips: [
+      { target: 'queenReveal', title: 'Reveal', text: 'Your Brood Queen can push a pheromone pulse into the fog. Select her, press Reveal, then click any hex: it and the six around it are uncovered for this turn. It costs 20 energy.' }
+    ],
+    // Plays after a win, between the score screen and leaving the level
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        { hero: 'sorlorg', text: 'So the little heir can see in the dark after all. No matter. The mound is not the end of the grass.' },
+        'The Emissary reaches the Throne Mound. The colony smells the old queen\'s mark - and, for the first time, kneels to Vexxara.',
+        'But the Bombardiers were Sorlorg\'s, and Sorlorg was not among them. Her hunting grounds lie further on, deeper in the fog.'
+      ]
+    },
+    objectives: [
+      { type: 'reachHex', unitId: 'camp_player1_e1', at: 'goal', text: 'Bring the Emissary to the gold hexes' },
+      { type: 'protect', unitId: 'camp_player1_e1', text: 'Keep the Emissary alive' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
+    ]
   }
 ];
 

@@ -2048,20 +2048,21 @@ function App() {
         return;
       }
       const state = buildCampaignGameState(level);
-      // Reuses the entire existing AI turn loop. Fog is off so tutorial
-      // levels stay readable and there is one state, not a fogged copy.
+      // Reuses the entire existing AI turn loop. Fog is off unless the level
+      // asks for it (level.fogOfWar), so early levels stay readable.
+      const campaignFog = !!level.fogOfWar;
       setGameMode({
         ...mode,
         isAI: true,
         aiDifficulty: state.campaign.aiDifficulty,
-        fogOfWar: false,
+        fogOfWar: campaignFog,
         gameId: null,
         playerId: null,
         playerRole: 'player1',
         isMultiplayer: false
       });
       setFullGameState(state);
-      setGameState(state);
+      setGameState(campaignFog ? applyFogOfWar(state, 'player1') : state);
       return;
     }
 
@@ -4697,6 +4698,11 @@ function App() {
         // The ground stays underneath; the creep is drawn over it (see below)
         useBirthingPoolPattern = true;
       }
+      // Campaign goal hexes (an escort's destination) are drawn in gold
+      const isGoalHex = (gameState.campaign?.goalHexes || []).some(g => g.q === q && g.r === r);
+      if (isGoalHex) {
+        fillColor = '#E9D27A';
+      }
       // Don't color the entire hex for resources anymore - we'll add a colored circle instead
       if (isValidMove) {
         // Different color for fog of war moves vs visible moves
@@ -4772,7 +4778,7 @@ function App() {
               transform={`translate(${-x}, ${-y})`}
               points={`${x + 50},${y} ${x + 25},${y - 43} ${x - 25},${y - 43} ${x - 50},${y} ${x - 25},${y + 43} ${x + 25},${y + 43}`}
               fill={fillColor}
-              stroke={isSelected ? '#F39C12' : (isBirthingPool && !useBirthingPoolPattern) ? '#4B0082' : '#333'}
+              stroke={isSelected ? '#F39C12' : (isBirthingPool && !useBirthingPoolPattern) ? '#4B0082' : isGoalHex ? '#B8860B' : '#333'}
               strokeWidth={isSelected ? '3' : (isBirthingPool && !useBirthingPoolPattern) ? '2.5' : '2'}
               style={{ cursor: 'pointer' }}
               onClick={() => handleHexClick(hex)}
@@ -6883,7 +6889,7 @@ function App() {
                         Heal (H, {getHealCostFor(gameState, gameState.ants[selectedAnt])}⚡)
                       </button>
                       {(gameState.ants[selectedAnt]?.queenTier === 'broodQueen' || gameState.ants[selectedAnt]?.queenTier === 'swarmQueen') && (
-                        <button
+                        <button data-tip="queenReveal"
                           onClick={() => setSelectedAction('reveal')}
                           disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
                           style={{
@@ -7965,7 +7971,7 @@ function App() {
             <section style={{ marginBottom: '25px' }}>
               <h2 style={{ color: '#2196F3', marginBottom: '10px' }}>Unit Types & Stats</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
-                {Object.values(AntTypes).map(ant => (
+                {Object.values(AntTypes).filter(ant => !ant.campaignOnly).map(ant => (
                   <div key={ant.id} style={{
                     border: '2px solid #ddd',
                     borderRadius: '8px',

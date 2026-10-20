@@ -841,7 +841,7 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   const advance = opts.advance ?? 1;      // how much closing distance matters
 
   const stayHere = { hex: { q: unit.position.q, r: unit.position.r }, path: [], stay: true };
-  const options = [stayHere, ...reachableHexes(state, unit)];
+  const options = opts.stayOnly ? [stayHere] : [stayHere, ...reachableHexes(state, unit)];
 
   // Enemy eggs are targets too. An egg has 10 HP and no armour, and breaking
   // one denies a whole unit, so a Scout - the raider - prefers an egg over a
@@ -975,6 +975,11 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   const myQueen = findQueen(state, aiPlayer);
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
+
+  // Holding level: never move, just hit whatever is in range from where it stands
+  if (gameState.campaign?.enemyHoldPosition) {
+    return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
+  }
 
   // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).
   if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, enemyQueen);

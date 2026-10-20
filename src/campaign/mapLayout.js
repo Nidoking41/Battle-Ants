@@ -16,6 +16,7 @@ import { HexCoord } from '../hexUtils';
 //   '~'  water: drawn as a blue hex but NOT part of the map - nothing can
 //        enter it, stand on it, or be placed on it
 //   'T'  tree              'F' food node       'M' mineral node
+//   'G'  goal hex: open ground an escort objective must reach
 //   '1'  player leader     '2' enemy leader
 //   a-z  player unit marker, A-Z enemy unit marker - resolved via the level's
 //        `legend: { a: 'scout', A: 'soldier' }`
@@ -62,6 +63,7 @@ export function parseLayout(rows, legend = {}) {
   const trees = [];
   const leaders = {};
   const units = [];
+  const goals = [];
   let gridRadius = 0;
 
   cells.forEach(({ ch, x, y }) => {
@@ -80,6 +82,7 @@ export function parseLayout(rows, legend = {}) {
     mapHexes.push(pos);
 
     if (ch === OPEN) return;
+    if (ch === 'G') { goals.push(pos); return; }
     if (ch === 'T') { trees.push(pos); return; }
     if (ch === 'F') { resources.push({ type: 'food', position: pos }); return; }
     if (ch === 'M') { resources.push({ type: 'minerals', position: pos }); return; }
@@ -108,7 +111,8 @@ export function parseLayout(rows, legend = {}) {
     resources,
     trees,
     leaders,
-    units
+    units,
+    goals
   };
 }
 
