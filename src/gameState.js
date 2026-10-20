@@ -1,5 +1,5 @@
 import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater } from './hexUtils';
-import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById } from './antTypes';
+import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType } from './antTypes';
 import { getHeroById } from './heroQueens';
 
 // Reinforced Anthills upgrade: +50% anthill health
@@ -1707,7 +1707,7 @@ export function getAntAttack(ant, player) {
 
   // Apply melee attack upgrade (for attackRange <= 1)
   // Each tier adds +10% (rounded down, minimum +1 per tier)
-  if (antType.attackRange <= 1) {
+  if (isMeleeType(antType)) {
     const tier = player.upgrades.meleeAttack || 0;
     if (tier > 0) {
       const bonus = Math.max(tier, Math.floor(antType.attack * 0.1 * tier));

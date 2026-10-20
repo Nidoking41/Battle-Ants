@@ -1,4 +1,4 @@
-import { AntTypes, GameConstants, getAntTypeById } from './antTypes';
+import { AntTypes, GameConstants, getAntTypeById, isMeleeType } from './antTypes';
 import { hexDistance, getNeighbors } from './hexUtils';
 import { getAntAttack, getAntDefense, unitStrength } from './gameState';
 import { awardKillXp } from './experience';
@@ -159,7 +159,7 @@ export function attackEgg(gameState, attackerId, eggId) {
   const attackAnimation = {
     attackerId: attackerId,
     targetPosition: egg.position,
-    isRanged: attackerType.attackRange > 1
+    isRanged: !isMeleeType(attackerType)
   };
 
   return {
@@ -228,7 +228,7 @@ export function attackAnthill(gameState, attackerId, anthillId) {
   const attackAnimation = {
     attackerId: attackerId,
     targetPosition: anthill.position,
-    isRanged: attackerType.attackRange > 1
+    isRanged: !isMeleeType(attackerType)
   };
 
   return {
@@ -380,7 +380,7 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   const attackAnimation = {
     attackerId: attackerId,
     targetPosition: defender.position,
-    isRanged: attackerType.attackRange > 1
+    isRanged: !isMeleeType(attackerType)
   };
 
   // Check if it's a splash damage attack
@@ -523,7 +523,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   const defenderType = getAntTypeById(defender.type);
   const distance = hexDistance(attacker.position, defender.position);
   const defenderSurvived = updatedAnts[defenderId] && updatedAnts[defenderId].health > 0;
-  const isMeleeRange = distance <= 1 && attackerType.attackRange <= 1 && defenderType.attackRange <= 1;
+  // Melee includes long-reach fighters (the Mantis), whose blows are struck
+  // back even from 2 hexes away
+  const isMeleeRange = distance <= Math.max(1, attackerType.meleeReach ? attackerType.attackRange : 1) &&
+    isMeleeType(attackerType) && isMeleeType(defenderType);
 
   if (defenderSurvived && isMeleeRange) {
     // Defender counter-attacks with updated health

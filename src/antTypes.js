@@ -171,6 +171,45 @@ export const AntTypes = {
     icon: '👑🐜'
   },
 
+  // Campaign-only cordyceped bugs that guard the infected old queen.
+  // `large`: drawn 1.5x the size of an ant (still one hex).
+  TERMITE: {
+    id: 'termite',
+    name: 'Cordyceped Termite',
+    cost: { food: 9999, minerals: 9999 }, // never buildable
+    campaignOnly: true,
+    large: true,
+    hatchTime: 0,
+    maxHealth: 90,
+    attack: 18,
+    defense: 4,
+    moveRange: 1,
+    attackRange: 1,
+    resourceGatherRate: 0,
+    description: 'A fungus-ridden termite. Slow, but tougher than a Bullet Ant.',
+    icon: '🍄🪲'
+  },
+
+  // `meleeReach`: hits from 2 hexes but fights as melee - its targets strike
+  // back, and it strikes back - and it uses melee upgrades.
+  MANTIS: {
+    id: 'mantis',
+    name: 'Cordyceped Praying Mantis',
+    cost: { food: 9999, minerals: 9999 }, // never buildable
+    campaignOnly: true,
+    large: true,
+    meleeReach: true,
+    hatchTime: 0,
+    maxHealth: 45,
+    attack: 22,
+    defense: 1,
+    moveRange: 2,
+    attackRange: 2,
+    resourceGatherRate: 0,
+    description: 'A fungus-ridden mantis. Strikes from 2 hexes, but fights as melee.',
+    icon: '🍄🦗'
+  },
+
   HEALER: {
     id: 'healer',
     name: 'Weaver Ant',
@@ -228,6 +267,11 @@ export const AntTypes = {
 };
 
 // Helper function to get ant type by ID (e.g., 'soldier', 'tank', 'spitter')
+// Melee for combat purposes: range 1, or a long-reach fighter like the Mantis
+export function isMeleeType(antType) {
+  return !!antType && (antType.attackRange <= 1 || !!antType.meleeReach);
+}
+
 export function getAntTypeById(id) {
   return Object.values(AntTypes).find(type => type.id === id);
 }

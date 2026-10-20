@@ -5489,24 +5489,29 @@ function App() {
             </g>
           )}
           {/* Render sprite if available, otherwise fall back to emoji */}
-          {spriteFrame && !ant.isBurrowed ? (
+          {spriteFrame && !ant.isBurrowed ? (() => {
+            // Large units (campaign bugs) are drawn 1.5x on the same hex
+            const size = getAntTypeById(ant.type)?.large ? 120 : 80;
+            const half = size / 2;
+            return (
             <g opacity={hasActions ? 1 : 0.5}>
               <defs>
                 <clipPath id={`clip-${ant.id}`}>
-                  <rect x="-40" y="-40" width="80" height="80" />
+                  <rect x={-half} y={-half} width={size} height={size} />
                 </clipPath>
               </defs>
               <image
-                x={-40 - (spriteFrame.currentFrame * 80)}
-                y={-40}
-                width={80 * spriteFrame.frames}
-                height={80}
+                x={-half - (spriteFrame.currentFrame * size)}
+                y={-half}
+                width={size * spriteFrame.frames}
+                height={size}
                 href={spriteFrame.fullPath}
                 clipPath={`url(#clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
               />
             </g>
-          ) : null}
+            );
+          })() : null}
           {/* Emoji fallback (shown if burrowed or if sprite doesn't exist) */}
           {(!spriteFrame || ant.isBurrowed) && (
             <text
