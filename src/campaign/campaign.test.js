@@ -841,7 +841,7 @@ describe('level 7 - The Long Grass', () => {
     expect(level.fogOfWar).toBe(true);
     const state = buildCampaignGameState(level);
     expect(state.ants.camp_player1_e1.type).toBe('emissary');
-    expect(state.campaign.goalHexes.length).toBeGreaterThanOrEqual(7);
+    expect(state.campaign.goalHexes.length).toBe(1); // the Golden Throne
     const theirs = Object.values(state.ants).filter(a => a.owner === 'player2').map(a => a.type).sort();
     const count = t => theirs.filter(x => x === t).length;
     expect([count('bombardier'), count('scout'), count('soldier'), count('bomber')]).toEqual([5, 6, 4, 2]);

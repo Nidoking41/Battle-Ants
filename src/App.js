@@ -4867,6 +4867,17 @@ function App() {
                 </g>
               );
             })()}
+            {/* Campaign goal hex: the Golden Throne on its mound (32x40 art at 48x60) */}
+            {isGoalHex && (
+              <image
+                x={-24}
+                y={-41}
+                width={48}
+                height={60}
+                href={`${process.env.PUBLIC_URL}/sprites/anthill/golden_throne.png`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated', opacity: ant ? 0.55 : 1 }}
+              />
+            )}
             {anthill && (
               <g transform={ant ? "translate(15, -15)" : ""}>
                 {/* Anthill sprite (32x32 pixel art shown at 48px): a finished mound,

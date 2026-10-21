@@ -643,16 +643,17 @@ export const LEVELS = [
         'Your ants see only what is right in front of them. Beyond that is fog.',
         'Something poisoned the trails, and someone cut what was left. The scouts say the rot leads toward the Throne Mound.',
         'The colony will follow only a true heir. The old queen\'s scent-mark proves it - and the Queen\'s Emissary carries it.',
+        'Laid on the Golden Throne atop the Throne Mound, the old queen\'s seat, that mark becomes a new trail every ant can follow. It names Vexxara queen and begins to undo the silence.',
         { hero: 'sorlorg', text: 'A crown on a Drone. How touching. My Bombardiers are already in the grass, Lifebinder. You will not see them until they fire.' },
-        'Bring the Emissary to the gold hexes at the far edge. Scout ahead, light up the grass with Reveal, and keep the Emissary out of reach of what you cannot see.'
+        'Bring the Emissary to the Golden Throne at the far end of the grass. Scout ahead, light up the grass with Reveal, and keep the Emissary out of reach of what you cannot see.'
       ]
     },
-    briefing: ['Get the Queen\'s Emissary to the gold hexes at the far side. Bombardiers hide in the fog: scout ahead and use Reveal.'],
+    briefing: ['Get the Queen\'s Emissary to the Golden Throne at the far side. Bombardiers hide in the fog: scout ahead and use Reveal.'],
     // The Long Grass: a long, wide S-shaped trail running left to right, with a pond in each bend. Sorlorg's
     // Bombardiers (B) spread through it, two Marauders (R) on guard, and
     // Scouts (S) as spotters: with fog on, the enemy only fires at what its
     // own units can see, and a Bombardier sees only 2 of its 3 hexes of range.
-    // Your nest is at the left end, the goal column (G) at the right.
+    // Your nest is at the left end, the Golden Throne (G, one hex) at the right.
     map: {
       layout: [
         '                               . . .',
@@ -663,18 +664,18 @@ export const LEVELS = [
         '                          . . . . . . . .',
         '                         . . . . . . T . .',
         '                        . . . S ~ ~ . . . .',
-        '                       . . T T . . . S . X G',
-        '.                     . . . R . . . . . . K G',
-        ' .                   . . . . . . . . . . . G',
-        '. .                 T R . . . . . . . B . . G',
-        ' . .               T . . . T . . . . . . X G',
+        '                       . . T T . . . S . X .',
+        '.                     . . . R . . . . . . K .',
+        ' .                   . . . . . . . . . . . .',
+        '. .                 T R . . . . . . . B . . .',
+        ' . .               T . . . T . . . . . . X .',
         '. . .             . . . T . .         . . . G',
-        ' . . .           . . . S . T           T T G',
-        '. . . .         . . . . B .             T . G',
-        ' 1 . . . . . . T . . . . .               . G',
-        '. . . . . T . T B . T . .                 K G',
-        ' . w a . . T . . . . . .                   G',
-        '. . m . s . . . T . T T                     G',
+        ' . . .           . . . S . T           T T .',
+        '. . . .         . . . . B .             T . .',
+        ' 1 . . . . . . T . . . . .               . .',
+        '. . . . . T . T B . T . .                 K .',
+        ' . w a . . T . . . . . .                   .',
+        '. . m . s . . . T . T T                     .',
         ' . . . . . . . T ~ . .',
         '  . . e . . . . . . .',
         '   . a . . . R S . .',
@@ -731,12 +732,13 @@ export const LEVELS = [
       portrait: 'hero_black.png',
       lines: [
         { hero: 'sorlorg', text: 'So the little heir can see in the dark after all. No matter. The mound is not the end of the grass.' },
-        'The Emissary reaches the Throne Mound. The colony smells the old queen\'s mark - and, for the first time, kneels to Vexxara.',
+        'The Emissary climbs the Throne Mound and lays the old queen\'s mark on the Golden Throne. A new trail spreads, and for the first time the colony kneels to Vexxara.',
+        'But the tomb beneath the throne is open, and it is empty. Where the old queen was laid to rest there is only a pale, sweet-smelling rot.',
         'But the Bombardiers were Sorlorg\'s, and Sorlorg was not among them. Her hunting grounds lie further on, deeper in the fog.'
       ]
     },
     objectives: [
-      { type: 'reachHex', unitId: 'camp_player1_e1', at: 'goal', text: 'Bring the Emissary to the gold hexes' },
+      { type: 'reachHex', unitId: 'camp_player1_e1', at: 'goal', text: 'Bring the Emissary to the Golden Throne' },
       { type: 'protect', unitId: 'camp_player1_e1', text: 'Keep the Emissary alive' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
