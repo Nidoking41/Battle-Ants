@@ -2176,10 +2176,8 @@ export function healAlly(gameState, healerId, targetId) {
 
   const healerType = AntTypes.HEALER;
 
-  // Apply hero heal cost modifier
-  const currentPlayer = gameState.players[healer.owner];
-  const { getHealEnergyCost } = require('./heroQueens');
-  const healCost = getHealEnergyCost(healerType.healEnergyCost, currentPlayer?.heroId);
+  // Weaver heals always cost the full amount: hero heal discounts are for queens only
+  const healCost = healerType.healEnergyCost;
 
   // Check energy cost
   if ((healer.energy || 0) < healCost) return gameState;
@@ -2404,10 +2402,8 @@ export function getValidHealTargets(gameState, healerId) {
 
   const healerType = AntTypes.HEALER;
 
-  // Apply hero heal cost modifier
-  const currentPlayer = gameState.players[healer.owner];
-  const { getHealEnergyCost } = require('./heroQueens');
-  const healCost = getHealEnergyCost(healerType.healEnergyCost, currentPlayer?.heroId);
+  // Weaver heals always cost the full amount: hero heal discounts are for queens only
+  const healCost = healerType.healEnergyCost;
 
   if ((healer.energy || 0) < healCost) return [];
 
