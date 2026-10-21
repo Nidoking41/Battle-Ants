@@ -843,7 +843,7 @@ describe('level 7 - The Long Grass', () => {
     expect(state.ants.camp_player1_e1.type).toBe('emissary');
     expect(state.campaign.goalHexes).toHaveLength(7);
     const theirs = Object.values(state.ants).filter(a => a.owner === 'player2').map(a => a.type).sort();
-    expect(theirs).toEqual(['bombardier', 'bombardier', 'bombardier', 'bombardier', 'soldier', 'soldier']);
+    expect(theirs).toEqual(['bombardier', 'bombardier', 'bombardier', 'bombardier', 'scout', 'scout', 'scout', 'scout', 'soldier', 'soldier']);
     expect(Object.values(state.ants).some(a => a.owner === 'player2' && a.type === 'queen')).toBe(false);
     expect(state.campaign.roster).toEqual([]);
   });

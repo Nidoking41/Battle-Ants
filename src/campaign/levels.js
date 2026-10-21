@@ -635,24 +635,26 @@ export const LEVELS = [
     },
     briefing: ['Get the Queen\'s Emissary to the gold hexes at the far side. Bombardiers hide in the fog: scout ahead and use Reveal.'],
     // The Long Grass: a long field with a pond in the middle, Sorlorg's
-    // Bombardiers (B) spread through it and two Marauders (R) on guard.
+    // Bombardiers (B) spread through it, two Marauders (R) on guard, and
+    // Scouts (S) as spotters: with fog on, the enemy only fires at what its
+    // own units can see, and a Bombardier sees just 1 hex.
     // Your nest is at the bottom, the goal row (G) at the top.
     map: {
       layout: [
         'G G G G G G G',
         ' . . . . . . ',
         '. T . . . T .',
-        ' . . B . . . ',
+        ' . . B . S . ',
         '. . . . T . .',
         ' . T . . R . ',
         '. . . ~ ~ . .',
         ' . . ~ ~ ~ . ',
         '. B . ~ ~ . B',
-        ' . . . . . . ',
+        ' S . . . . S ',
         '. . T . . T .',
         ' . . R . . . ',
         'T . . . . . T',
-        ' . B . . . . ',
+        ' . B S . . . ',
         '. . . . T . .',
         ' T . . . . . ',
         '. . . . . . .',
@@ -665,7 +667,7 @@ export const LEVELS = [
         ' . . . . . . ',
         '. . . 1 . . .'
       ],
-      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier' }
+      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout' }
     },
     player: {
       hero: 'vexxara',

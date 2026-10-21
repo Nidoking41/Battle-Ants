@@ -1,6 +1,7 @@
 import { AntTypes, GameConstants, getAntTypeById, meetsQueenTier } from './antTypes';
 import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
+import { getVisibleHexes, isAntObscuredByTree } from './fogOfWar';
 import {
   canAfford,
   deductCost,
@@ -193,7 +194,21 @@ export function huntTarget(state, aiPlayer) {
  * @param {string} difficulty - 'easy', 'medium', or 'hard'
  * @returns {Object} Object with gameState and movements array for animation
  */
-export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy') {
+// Set for the length of one AI turn: true when the game has fog of war, so
+// the AI may only target what its own units can see (no peeking through fog
+// or into trees). AI turns run one at a time, so a module flag is safe.
+let aiFogOfWar = false;
+
+/** Can the AI side actually see this enemy unit right now? */
+function aiCanSee(state, aiPlayer, target) {
+  if (!aiFogOfWar || !target?.position) return true;
+  const visible = getVisibleHexes(state, aiPlayer);
+  if (!visible.has(`${target.position.q},${target.position.r}`)) return false;
+  return !isAntObscuredByTree(state, target, aiPlayer);
+}
+
+export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy', options = {}) {
+  aiFogOfWar = !!options.fogOfWar;
   try {
     const config = resolveAIConfig(gameState, difficulty);
     let state = { ...gameState, ants: sanitizeAnts(gameState.ants) };
@@ -660,7 +675,7 @@ function handleQueenUnit(gameState, queen, aiPlayer) {
   // Best attack: the same target scoring the army uses
   let attack = null;
   for (const enemy of enemiesOf(gameState, aiPlayer)) {
-    if (!canAttack(queen, enemy, gameState)) continue;
+    if (!canAttack(queen, enemy, gameState) || !aiCanSee(gameState, aiPlayer, enemy)) continue;
     const value = targetValue(gameState, queen, enemy);
     if (!attack || value > attack.value) attack = { target: enemy, value };
   }
@@ -835,7 +850,8 @@ function applyAttack(state, unitId, target) {
  * minus distance to the objective and danger. Picks the best, moves, attacks.
  */
 function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
-  const enemies = enemiesOf(state, aiPlayer);
+  // With fog on, only what this side can see can be targeted
+  const enemies = enemiesOf(state, aiPlayer).filter(e => aiCanSee(state, aiPlayer, e));
   const antType = getAntTypeById(unit.type);
   const caution = opts.caution ?? 1;      // how much danger matters
   const advance = opts.advance ?? 1;      // how much closing distance matters
@@ -847,7 +863,8 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   // one denies a whole unit, so a Scout - the raider - prefers an egg over a
   // chip on the queen (+40); a heavier unit still takes the queen, and a
   // queen KILL beats everything.
-  const enemyEggs = Object.values(state.eggs || {}).filter(e => e.owner !== aiPlayer && e.position);
+  const enemyEggs = Object.values(state.eggs || {}).filter(e => e.owner !== aiPlayer && e.position &&
+    (!aiFogOfWar || getVisibleHexes(state, aiPlayer).has(`${e.position.q},${e.position.r}`)));
   const eggValue = unit.type === 'scout' ? 55 : 30;
   const canHitEggs = antType.attackRange > 0 && unit.type !== 'bomber' &&
     (!unit.isBurrowed || unit.type === 'soldier');

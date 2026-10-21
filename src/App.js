@@ -1675,7 +1675,7 @@ function App() {
         const passiveEnemy = currentState.campaign?.behavior === 'passive';
         const { gameState: aiState, movements, combatActions } = passiveEnemy
           ? { gameState: currentState, movements: [], combatActions: [] }
-          : await executeAITurn(currentState, 'player2', gameMode.aiDifficulty);
+          : await executeAITurn(currentState, 'player2', gameMode.aiDifficulty, { fogOfWar: gameMode.fogOfWar !== false });
 
         // Replay the AI's actions in the order it took them. The AI resolves
         // each unit fully before the next acts, so a unit can walk into a hex
