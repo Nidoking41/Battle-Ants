@@ -90,6 +90,14 @@ function baseStatus(objective, gameState, playerId) {
     case 'destroyAnthills':
       return status((stats.anthillsDestroyed || 0) >= objective.count);
 
+    case 'destroyAnthill':
+      // One named anthill, e.g. the fungus garden
+      return status(!gameState.anthills?.[objective.anthillId]);
+
+    case 'convert':
+      // Enemy ants turned with Cordyceps Purge (stats.antsConverted)
+      return status((stats.antsConverted || 0) >= objective.count);
+
     default:
       console.warn(`Unknown campaign objective type: ${objective.type}`);
       return 'pending';
@@ -152,6 +160,8 @@ export function objectiveProgress(objective, gameState) {
     }
     case 'destroyAnthills':
       return `${Math.min(stats.anthillsDestroyed || 0, objective.count)} / ${objective.count}`;
+    case 'convert':
+      return `${Math.min(stats.antsConverted || 0, objective.count)} / ${objective.count}`;
     case 'loseAtMost':
       return `${stats.eggsLost || 0} lost`;
     default:

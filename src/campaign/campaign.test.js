@@ -1014,3 +1014,46 @@ describe('level 9 - The Rot Below', () => {
     expect(buildCampaignGameState(getLevel(7)).campaign.goalSprite).toBe('throne');
   });
 });
+
+describe('level 10 - Cordyceps', () => {
+  const { cordycepsPurge } = require('../gameState');
+  const { executeAITurn } = require('../aiController');
+  test('the garden, its Termite guards, and a Swarm Queen with Cordyceps Purge', () => {
+    const state = buildCampaignGameState(getLevel(10));
+    const garden = state.anthills.camp_player2_garden;
+    expect(garden.isGarden).toBe(true);
+    expect(garden.health).toBe(60);
+    const termites = Object.values(state.ants).filter(a => a.type === 'termite');
+    expect(termites).toHaveLength(2);
+    expect(termites.every(t => t.guard && t.owner === 'player2')).toBe(true);
+    expect(state.ants[PLAYER_QUEEN_ID].queenTier).toBe('swarmQueen');
+    expect(state.players.player1.upgrades.cordycepsPurge).toBe(1);
+  });
+
+  test('turning ants counts toward the goal; Termites cannot be turned', () => {
+    let state = buildCampaignGameState(getLevel(10));
+    const phage = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'cordyphage');
+    const victim = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'soldier');
+    const termite = Object.values(state.ants).find(a => a.type === 'termite');
+    const next = (target) => {
+      const nearby = getNeighbors(target.position)[0];
+      const s = { ...state, ants: { ...state.ants, [phage.id]: { ...phage, position: nearby, energy: 60, hasAttacked: false } } };
+      return cordycepsPurge(s, phage.id, target.id);
+    };
+    const turned = next(victim);
+    expect(turned.ants[victim.id].owner).toBe('player1');
+    expect(turned.stats.player1.antsConverted).toBe(1);
+    expect(next(termite).ants[termite.id].owner).toBe('player2');
+    const three = { ...turned, stats: { ...turned.stats, player1: { ...turned.stats.player1, antsConverted: 3 } } };
+    expect(evaluateAllObjectives(three).won).toBe(false); // the garden still stands
+    const burned = { ...three, anthills: { ...three.anthills } };
+    delete burned.anthills.camp_player2_garden;
+    expect(evaluateAllObjectives(burned).won).toBe(true);
+  });
+
+  test('garden guards stay at their post while Sorlorg plays normally', async () => {
+    const state = buildCampaignGameState(getLevel(10));
+    const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    Object.values(state.ants).filter(a => a.guard).forEach(g => expect(res.gameState.ants[g.id].position).toEqual(g.position));
+  }, 60000);
+});

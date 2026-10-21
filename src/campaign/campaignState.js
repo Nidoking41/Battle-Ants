@@ -63,6 +63,9 @@ export function buildCampaignGameState(level) {
     const m = /^camp_player2_([A-Z])\d+$/.exec(a.id);
     if (m && hunterMarkers.includes(m[1])) state.ants[a.id] = { ...a, hunter: true, dormant: true };
     if (m && burrowedMarkers.includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], isBurrowed: true };
+    // enemy.guardMarkers: these units hold their post even when the rest of the
+    // enemy army plays normally
+    if (m && (level.enemy?.guardMarkers || []).includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], guard: true };
   });
   placeTrees(state, level.map?.trees);
 
@@ -168,6 +171,15 @@ function applyLayout(state, level) {
     const res = Object.values(state.resources).find(r => r.position.q === pos.q && r.position.r === pos.r);
     const hill = completeAnthill(createAnthillInProgress(res.id, 'player2', pos, res.type, 2), false);
     hill.id = `camp_player2_nest${i + 1}`;
+    state.anthills[hill.id] = hill;
+  });
+  // 'Z' the fungus garden: an enemy anthill with three times the health
+  layout.gardens.forEach((pos, i) => {
+    const res = Object.values(state.resources).find(r => r.position.q === pos.q && r.position.r === pos.r);
+    const hill = completeAnthill(createAnthillInProgress(res.id, 'player2', pos, res.type, 2), false);
+    hill.id = i === 0 ? 'camp_player2_garden' : `camp_player2_garden${i + 1}`;
+    hill.isGarden = true;
+    hill.health = hill.maxHealth = 60;
     state.anthills[hill.id] = hill;
   });
 

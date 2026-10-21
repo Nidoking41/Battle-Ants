@@ -1091,7 +1091,7 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   }
 
   // Holding level (enemy.holdPosition): a guarded position.
-  if (gameState.campaign?.enemyHoldPosition) return handleGuardUnit(state, unit, aiPlayer, enemies);
+  if (gameState.campaign?.enemyHoldPosition || unit.guard) return handleGuardUnit(state, unit, aiPlayer, enemies);
 
   // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).
   if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, enemyQueen);

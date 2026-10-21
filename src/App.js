@@ -164,6 +164,8 @@ const PLAYER_COLOR_NAMES = {
 // five above, falls back to a plain mound (hasOwnerColor is then false and the
 // old coloured dot is drawn so ownership is still visible).
 function getAnthillSprite(anthill, players) {
+  // Sorlorg's fungus garden (campaign level 10)
+  if (anthill.isGarden) return { file: 'fungus_garden.png', hasOwnerColor: true };
   const colorName = PLAYER_COLOR_NAMES[String(players[anthill.owner]?.color || '').toUpperCase()];
   const shape = anthill.isComplete ? 'anthill' : 'anthill_building';
   return {
@@ -319,6 +321,11 @@ function App() {
     if (activeUiTip.target.startsWith('queen')) {
       const queen = Object.values(gameState.ants || {}).find(a => a.owner === 'player1' && a.type === 'queen');
       if (queen && selectedAnt !== queen.id) { setSelectedAnt(queen.id); setSelectedAction(null); }
+    }
+    // A tip about a unit's own button (selectType) selects one of those units first
+    if (activeUiTip.selectType) {
+      const unit = Object.values(gameState.ants || {}).find(a => a.owner === 'player1' && a.type === activeUiTip.selectType);
+      if (unit && selectedAnt !== unit.id) { setSelectedAnt(unit.id); setSelectedAction(null); }
     }
     let ringed = null;
     const measure = () => {
@@ -6823,7 +6830,7 @@ function App() {
                 ) : gameState.ants[selectedAnt].type === 'cordyphage' ? (
                   <>
                     {/* Cordyphage-specific: Plague and Cordyceps Purge buttons */}
-                    <button
+                    <button data-tip="plague"
                       onClick={() => setSelectedAction('plague')}
                       disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
                       style={{
@@ -6842,7 +6849,7 @@ function App() {
                       ☠️ Plague ({AntTypes.CORDYPHAGE.plagueEnergyCost}⚡) (P)
                     </button>
                     {gameState.players[gameState.currentPlayer].upgrades.cordycepsPurge > 0 && (
-                      <button
+                      <button data-tip="cordyceps"
                         onClick={() => setSelectedAction('cordyceps')}
                         disabled={!isMyTurn() || gameState.ants[selectedAnt].hasAttacked}
                         style={{

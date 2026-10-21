@@ -984,6 +984,108 @@ export const LEVELS = [
       { type: 'reachHex', at: 'goal', afterTurn: 8, text: 'Then get any ant to the Deep Chamber' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
+  },
+  // ---------------------------------------------------------------------
+  // Level 10 - Cordyceps (vs Sorlorg)
+  // Vexxara turns the rot into a weapon: her first Cordyphages. Turn 3 of
+  // Sorlorg's ants with Cordyceps Purge, then burn the fungus garden (Z), a
+  // tough enemy anthill on a tree-ringed rise in the middle of the valley,
+  // guarded by two cordyceped Termites. Sorlorg herself plays normally from
+  // her nest on the far side. Ends with the reveal: the old queen is alive.
+  {
+    id: 10,
+    name: 'Cordyceps',
+    fogOfWar: true,
+    speedBase: 700,
+    cutscene: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The fungus from the Deep Chamber is the same rot that poisoned the pheromone trails. Somebody has been growing it.',
+        'Vexxara studies it, and learns. Her first Cordyphages hatch: pale, quiet things that can plant the fungus in an enemy\'s head and make it hers.',
+        'The spores come from Sorlorg\'s fungus garden, on a rise in the middle of the damp valley. Two great Termites stand over it, and their eyes are white.',
+        { hero: 'sorlorg', text: 'You found my garden. Clever little queen. Do you even know what you are about to burn?' },
+        'Turn three of Sorlorg\'s ants with Cordyceps Purge, so you can question them. Then burn the garden to the ground.'
+      ]
+    },
+    briefing: ['Turn 3 of Sorlorg\'s ants with Cordyceps Purge, then destroy the fungus garden in the middle of the valley.'],
+    map: {
+      layout: [
+        '    T . T . . . . . . . . . . T . . . . . .',
+        '   . . . . T . . . . . . T . . . T . . . . T',
+        '  . . . . . T T T . . T . . . . T . . . . . .',
+        ' . . . . T . T . . . . F . . . . . F . . . . .',
+        '. . . . . . T . . . . . T . . . . . . . . . . .',
+        ' . . . . . . T . . . . . . T . . . . . 2 . . .',
+        '. T . . . . . T . T . ~ ~ . T . . M . . . . . .',
+        ' . T . . . . . ~ ~ . . ~ ~ . . T T T . . . F .',
+        '. . . . . ~ ~ ~ ~ ~ . . . ~ ~ . . . . . . . . T',
+        ' T ~ . . ~ ~ ~ ~ . . T . . ~ ~ . F . . . . . T',
+        '~ ~ ~ . ~ . . . T . T T . T ~ ~ . . X . . . T T',
+        ' ~ ~ . . . . . . . . . T . T . ~ ~ T . . M . .',
+        '. . . . . . . . . S . T T . . . ~ ~ ~ . ~ ~ ~ ~',
+        ' . . . . . . . . T . T . T . . T ~ ~ . . ~ ~ ~',
+        '. . . . . . . . . . T A . T . T . . . . . . T .',
+        ' . . . . . . . M . . B . . . . . . . . T . T .',
+        '. . . T . . . . . . T . K T T R . . . . . . . .',
+        ' . T . . . . . T . . . Z . . . . . . T . T . .',
+        '. . . T . . . . . . T K . T . . . . . T T . . .',
+        ' . . . . . T . . . . . . . . . . S . T . . . .',
+        '. . . . . T T . . T T . A B . . . . . . . . T T',
+        ' . ~ ~ ~ T ~ . . T . T . T . . M . . . . . . .',
+        '~ ~ ~ ~ . . ~ ~ R . . T T . . . T . . . . . . T',
+        ' ~ ~ M . T . ~ ~ . . . T . . . . T . . . . . .',
+        '. . . . . . . ~ ~ . . . . . T . . T . . . . ~ ~',
+        ' . T . . . T F . ~ ~ . . . . . . . T . . . ~ ~',
+        '. . . . m . . . . ~ ~ ~ . . T . T T . ~ . ~ ~ .',
+        ' . F . . c . . T . ~ ~ ~ ~ . ~ . . ~ ~ T . T .',
+        '. . . . . . M . . . T . ~ . . ~ ~ ~ ~ . . . . .',
+        ' . . a 1 . m T T . . . . . . ~ ~ ~ . T . . . .',
+        '. . . . . c . . . . . . . . . T T . . . . . . T',
+        ' T . . . . F . . T . . F . . . . . . . T . T .',
+        '  T . . . . . . . T . T . T T . . . . . . T .',
+        '   . . . . . T . . . . T . T . . T T . T T .',
+        '    . . . . . . . . . . . . . . . T . . . .'
+      ],
+      legend: { c: 'cordyphage', m: 'soldier', a: 'spitter', K: 'termite', B: 'bombardier', A: 'spitter', R: 'soldier', S: 'spitter', X: 'bomber' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'swarmQueen',
+      upgrades: { cordycepsPurge: 1 },
+      resources: { food: 40, minerals: 30 },
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage'],
+      units: 'default'
+    },
+    enemy: {
+      hero: 'sorlorg',
+      queenTier: 'broodQueen',
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      // K, B, A: the garden's guards hold their post; the rest of her army plays normally
+      guardMarkers: ['K', 'B', 'A'],
+      // Sorlorg leans on ranged ants
+      unitMix: { spitter: 0.35, bombardier: 0.2, bomber: 0.2, soldier: 0.15, drone: 0.1 },
+      resources: { food: 30, minerals: 20 },
+      units: 'default'
+    },
+    uiTips: [
+      { target: 'plague', selectType: 'cordyphage', title: 'Plague', text: 'Your Cordyphage cannot bite. Plague infects an enemy up to 3 hexes away: it loses a fifth of its health every turn for 3 turns. Costs 25 energy.' },
+      { target: 'cordyceps', selectType: 'cordyphage', title: 'Cordyceps Purge', text: 'Walk up next to an enemy ant and press Cordyceps: it becomes yours. Costs 50 energy, and a Cordyphage starts with 50. Queens and the infected Termites cannot be turned.' }
+    ],
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The fungus garden burns. Pale smoke rolls across the valley.',
+        'One of the ants Vexxara turned was Sorlorg\'s garden-keeper. With Vexxara\'s fungus in her head, she cannot lie.',
+        '"The old queen never died. Sorlorg fed her the spores the night of the funeral. The fungus walks in her body now, and it does what Sorlorg tells it."',
+        { hero: 'sorlorg', text: 'So now you know. Go on, take your throne from her. If you can.' }
+      ]
+    },
+    objectives: [
+      { type: 'convert', count: 3, text: 'Turn 3 of Sorlorg\'s ants with Cordyceps Purge' },
+      { type: 'destroyAnthill', anthillId: 'camp_player2_garden', text: 'Destroy the fungus garden' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
+    ]
   }
 ];
 
