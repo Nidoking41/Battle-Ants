@@ -497,6 +497,18 @@ function App() {
     ];
   };
 
+  // Select your queen without moving the camera (Q key / 👑 button), ready to lay
+  const selectQueen = () => {
+    const currentState = getGameStateForLogic();
+    const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : currentState.currentPlayer;
+    const queen = Object.values(currentState.ants).find(
+      a => a.type === 'queen' && a.owner === currentPlayerId && !a.isDead
+    );
+    if (!queen) return;
+    setSelectedAnt(queen.id);
+    setSelectedAction(hasEnoughEnergy(queen, getEggLayCost(queen)) ? 'layEgg' : null);
+  };
+
   // Center camera on queen
   const centerOnQueen = () => {
     const currentPlayerId = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
@@ -678,7 +690,7 @@ function App() {
                 }
               }
             }
-            return;
+            break; // nothing to attack: A pans the camera instead
           case 'b':
             console.log('Build hotkey triggered');
             e.preventDefault();
@@ -761,14 +773,8 @@ function App() {
               handleLayEgg('drone');
               return;
             }
-            // If in layEgg mode, select drone as pending egg type
-            if (selectedAction === 'layEgg') {
-              console.log('Drone egg type selected');
-              e.preventDefault();
-              setPendingEggType('drone');
-              return;
-            }
-            return;
+            // In lay-egg mode D stays a camera key (the hatch menu above still uses it)
+            break; // not choosing an egg: D pans the camera
           case 's':
             // Don't allow camera panning when ant type selector is showing
             if (showAntTypeSelector && selectedEggHex) {
@@ -777,14 +783,8 @@ function App() {
               handleLayEgg('scout');
               return;
             }
-            // If in layEgg mode, select scout as pending egg type
-            if (selectedAction === 'layEgg') {
-              console.log('Scout egg type selected');
-              e.preventDefault();
-              setPendingEggType('scout');
-              return;
-            }
-            return;
+            // In lay-egg mode S stays a camera key (the hatch menu above still uses it)
+            break; // not choosing an egg: S pans the camera
           case 't':
             // Tank (bullet ant) - changed from 'b' to avoid conflict with build
             if (showAntTypeSelector && selectedEggHex) {
@@ -853,13 +853,8 @@ function App() {
               handleLayEgg('healer');
               return;
             }
-            if (selectedAction === 'layEgg') {
-              console.log('Healer egg type selected');
-              e.preventDefault();
-              setPendingEggType('healer');
-              return;
-            }
-            return;
+            // In lay-egg mode W stays a camera key (the hatch menu above still uses it)
+            break; // not choosing an egg: W pans the camera
           case 'c':
             // Cordyphage
             if (showAntTypeSelector && selectedEggHex) {
@@ -950,19 +945,14 @@ function App() {
           break;
         case 'a':
         case 'A':
-          // Only pan with 'a' if no ant is selected
-          if (!selectedAnt) {
-            setCameraOffset(prev => ({ x: prev.x + panSpeed, y: prev.y }));
-            e.preventDefault();
-          }
+          // Reaches here only when A wasn't used as Attack (see the hotkeys above)
+          setCameraOffset(prev => ({ x: prev.x + panSpeed, y: prev.y }));
+          e.preventDefault();
           break;
         case 'd':
         case 'D':
-          // Only pan with 'd' if no ant is selected
-          if (!selectedAnt) {
-            setCameraOffset(prev => ({ x: prev.x - panSpeed, y: prev.y }));
-            e.preventDefault();
-          }
+          setCameraOffset(prev => ({ x: prev.x - panSpeed, y: prev.y }));
+          e.preventDefault();
           break;
         case '+':
         case '=':
@@ -7104,7 +7094,8 @@ function App() {
         </button>
         {/* Center on Queen */}
         <button
-          onClick={centerOnQueen}
+          onClick={selectQueen}
+          onDoubleClick={centerOnQueen}
           style={{
             padding: '0',
             borderRadius: '6px',
@@ -7121,7 +7112,7 @@ function App() {
             alignItems: 'center',
             justifyContent: 'center'
           }}
-          title="Center on Queen (C)"
+          title="Select Queen (Q) - double-click to center on her (C)"
         >
           👑
         </button>
@@ -8143,7 +8134,7 @@ function App() {
                 <li><strong>Middle Click / Ctrl+Drag:</strong> Pan camera</li>
                 <li><strong>WASD / Arrow Keys:</strong> Pan camera</li>
                 <li><strong>+/- Keys:</strong> Zoom in/out</li>
-                <li><strong>C Key / 👑 Button:</strong> Center camera on your Queen</li>
+                <li><strong>Q Key / 👑 Button:</strong> Select your Queen (the camera stays put). <strong>C Key / double-click 👑:</strong> center the camera on her</li>
                 <li><strong>Build Ants (Left Panel):</strong> Click an ant type to queue egg laying</li>
                 <li><strong>Upgrades (Right Panel):</strong> Purchase upgrades to boost your army</li>
                 <li><strong>End Turn:</strong> Complete your turn and switch to opponent</li>
