@@ -17,6 +17,7 @@ import { HexCoord } from '../hexUtils';
 //        enter it, stand on it, or be placed on it
 //   'T'  tree              'F' food node       'M' mineral node
 //   'G'  goal hex: open ground an escort objective must reach
+//   'W'  enemy watch-nest: a finished enemy anthill on a mineral node
 //   '1'  player leader     '2' enemy leader
 //   a-z  player unit marker, A-Z enemy unit marker - resolved via the level's
 //        `legend: { a: 'scout', A: 'soldier' }`
@@ -64,6 +65,7 @@ export function parseLayout(rows, legend = {}) {
   const leaders = {};
   const units = [];
   const goals = [];
+  const watchNests = [];
   let gridRadius = 0;
 
   cells.forEach(({ ch, x, y }) => {
@@ -86,6 +88,7 @@ export function parseLayout(rows, legend = {}) {
     if (ch === 'T') { trees.push(pos); return; }
     if (ch === 'F') { resources.push({ type: 'food', position: pos }); return; }
     if (ch === 'M') { resources.push({ type: 'minerals', position: pos }); return; }
+    if (ch === 'W') { resources.push({ type: 'minerals', position: pos }); watchNests.push(pos); return; }
     if (ch === '1' || ch === '2') {
       const side = ch === '1' ? 'player1' : 'player2';
       if (leaders[side]) throw new Error(`layout: more than one '${ch}' leader marker`);
@@ -112,7 +115,8 @@ export function parseLayout(rows, legend = {}) {
     trees,
     leaders,
     units,
-    goals
+    goals,
+    watchNests
   };
 }
 

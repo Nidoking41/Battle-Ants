@@ -36,6 +36,12 @@
 //   enemy.huntWithScouts  true = scouts join that hunt too (normally scouts
 //                      keep scouting). For levels where scouts are the only
 //                      fighters the enemy has.
+//   enemy.burrowedMarkers  layout markers whose units start burrowed; they
+//                      stay hidden until one of your units comes within 2
+//                      hexes, then burst out and attack (holdPosition levels)
+//   enemy.huntersWakeTurn  with hunterMarkers and no midEvent: the hunters
+//                      wake on this round and march on your queen
+//   map layout 'W'     an enemy watch-nest: a finished enemy anthill
 //   enemy.waves        scripted reinforcements: [{ turn, units: [{ type, count }] }],
 //                      spawned beside the enemy leader at the start of that round
 //   map.trees          extra tree hexes as {dq, dr} offsets from the player's
@@ -743,6 +749,101 @@ export const LEVELS = [
     objectives: [
       { type: 'reachHex', unitId: 'camp_player1_e1', at: 'goal', text: 'Bring the Emissary to the Golden Throne' },
       { type: 'protect', unitId: 'camp_player1_e1', text: 'Keep the Emissary alive' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
+    ]
+  },
+  // ---------------------------------------------------------------------
+  // Level 8 - Sorlorg's Eyes (vs Sorlorg)
+  // Vexxara is queen and the economy is back. Sorlorg watches the forest
+  // through three hidden watch-nests (W in the layout): burn all three. Her
+  // Marauders wait burrowed beside the paths (U) and burst out when you pass,
+  // and on round 12 a raiding party (X, Y) leaves the far corner for your queen.
+  // The Burrow upgrade lets you ambush them back.
+  {
+    id: 8,
+    name: "Sorlorg's Eyes",
+    fogOfWar: true,
+    speedBase: 650, // a big map: the speed score starts higher
+    cutscene: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The colony has knelt. Vexxara is queen, and the nest is hers to feed and grow again.',
+        'But the fog has not lifted, and Sorlorg still sees everything. Deep in her forest hunting grounds she keeps three watch-nests: hidden hills whose sentries smell every step you take.',
+        { hero: 'sorlorg', text: 'Queen now, are we? Then you will know how it feels to be watched. Every trail in my forest leads past something hungry.' },
+        'Burn all three watch-nests and Sorlorg goes blind. Her Marauders like to wait under the dirt beside the paths: Scouts can smell them out, and the Burrow upgrade lets yours do the same to her.'
+      ]
+    },
+    briefing: ["Destroy Sorlorg's 3 watch-nests hidden in the forest. Watch the paths: her Marauders wait burrowed underground."],
+    map: {
+      layout: [
+        '    T . T T T . . T . . . . T T T',
+        '   . T . T T . T . . . . . . . . .',
+        '  . . T . . . . . . . . . . . . . .',
+        ' . T . . . . . . . . . . . . . . . .',
+        'T . T . T T . . . . T . T . . . . . .',
+        ' . . . . U . . . . . . . . T . . W .',
+        '. . . . . . . . . . T . . . . . R . T',
+        ' . . . . . . . . T . S . . . . B T .',
+        '. T . . . S . . . . B . . . . . . T .',
+        ' . . . . F . T . . . . . . T . . A Y',
+        '. . . . T T T T . . T . . . T . . X .',
+        ' T . . . . . . . . . T T . M . T X X',
+        'T . . . T T T . U . . . T . . . T T T',
+        ' T . . T T . T B . . T . . . T . . .',
+        'T T . . . . T . . T M T T . . S T . T',
+        ' T . . . T . . . . T T A ~ T . T T T',
+        'T . . M T . A W . . . T ~ ~ T T . . T',
+        ' . . . . . . . R . . . ~ ~ B T . T .',
+        'T F . . U . . . . U . . ~ ~ . . . . T',
+        ' . . . . . . . T . . . ~ ~ . . . T T',
+        '. . . . T . . T T S . . ~ ~ . . T . T',
+        ' . . m . F T . . . . . U ~ . W T T T',
+        '. . . . T . . . . T T . T . R A T T T',
+        ' . 1 a . T . T T F T . . . . . . . T',
+        '  . . . T . . . T . . T . . . . T T',
+        '   . . . . M . T . T T T . T . . .',
+        '    . . F . T . . . . T T . T . .'
+      ],
+      legend: { m: 'soldier', a: 'spitter', B: 'bombardier', A: 'spitter', R: 'soldier', S: 'scout', U: 'soldier', X: 'soldier', Y: 'spitter' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'broodQueen',
+      queenUpgrades: false, // the Swarm Queen comes in level 9
+      resources: { food: 30, minerals: 20 },
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier'],
+      units: 'default'
+    },
+    enemy: {
+      hero: 'sorlorg',
+      queenTier: null, // Sorlorg herself is not here - only her watch-nests and their guards
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      holdPosition: true,
+      upgrades: { burrow: 1 },
+      // U: Marauders that start burrowed beside the paths and ambush
+      burrowedMarkers: ['U'],
+      // X and Y: the raiding party, asleep in the far corner until round 12,
+      // then they march on your queen
+      hunterMarkers: ['X', 'Y'],
+      huntersWakeTurn: 12,
+      unitMix: {},
+      resources: { food: 0, minerals: 0 },
+      units: []
+    },
+    uiTips: [
+      { target: 'upgrades', title: 'Burrow', text: 'Sorlorg\'s Marauders hide underground and burst out when you walk past. Buy the Burrow upgrade to do it back: a burrowed ant is hidden, heals each turn, and can pop up next to an enemy and strike. Scouts can smell burrowed ants within 2 hexes.' }
+    ],
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The last watch-nest burns. For the first time in the forest, nothing is watching Vexxara.',
+        'Among the dead sentries lies one of Sorlorg\'s soldiers. Pale threads are growing out of its back.',
+        { hero: 'sorlorg', text: 'You\'ve put out my eyes, little queen. Now you\'ll have to see for yourself what lives under your throne.' }
+      ]
+    },
+    objectives: [
+      { type: 'destroyAnthills', count: 3, text: 'Destroy the 3 watch-nests' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
   }

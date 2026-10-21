@@ -931,3 +931,58 @@ describe('level 7 - The Long Grass', () => {
     expect(evaluateAllObjectives(lostIt).lost).toBe(true);
   });
 });
+
+describe("level 8 - Sorlorg's Eyes", () => {
+  const { executeAITurn } = require('../aiController');
+  const { HexCoord, hexesInRange } = require('../hexUtils');
+
+  test('three enemy watch-nests, burrowed ambushers and a sleeping raid', () => {
+    const state = buildCampaignGameState(getLevel(8));
+    const nests = Object.values(state.anthills).filter(h => h.owner === 'player2');
+    expect(nests).toHaveLength(3);
+    expect(nests.every(h => h.isComplete)).toBe(true);
+    const enemy = Object.values(state.ants).filter(a => a.owner === 'player2');
+    expect(enemy.filter(a => a.isBurrowed).length).toBe(5);
+    expect(enemy.filter(a => a.hunter && a.dormant).length).toBe(4);
+    expect(state.campaign.huntersWakeTurn).toBe(12);
+    expect(state.ants[PLAYER_QUEEN_ID].queenTier).toBe('broodQueen');
+  });
+
+  test('a burrowed Marauder stays hidden, then bursts out at a unit 2 hexes away', async () => {
+    let state = buildCampaignGameState(getLevel(8));
+    const u = state.ants.camp_player2_U1;
+    const res1 = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    expect(res1.gameState.ants[u.id].isBurrowed).toBe(true);
+    expect(res1.gameState.ants[u.id].position).toEqual(u.position);
+    // Put a player Scout 2 hexes from it
+    const free = hexesInRange(u.position, 2).find(h => hexDistance(h, u.position) === 2 &&
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r) &&
+      !Object.values(state.trees).some(t => t.position.q === h.q && t.position.r === h.r));
+    const bait = createAnt('scout', 'player1', new HexCoord(free.q, free.r));
+    bait.id = 'bait';
+    state = { ...state, ants: { ...state.ants, bait } };
+    const res2 = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    const after = res2.gameState.ants[u.id];
+    expect(after.isBurrowed).toBe(false);
+    const baitAfter = res2.gameState.ants.bait;
+    expect(!baitAfter || baitAfter.health < bait.health || hexDistance(after.position, free) <= 1).toBe(true);
+  }, 60000);
+
+  test('the raid wakes on round 12 and marches on the queen', async () => {
+    let state = buildCampaignGameState(getLevel(8));
+    const queen = state.ants[PLAYER_QUEEN_ID].position;
+    const raid = Object.values(state.ants).filter(a => a.hunter);
+    const asleep = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    raid.forEach(h => expect(asleep.gameState.ants[h.id].position).toEqual(h.position));
+    state = { ...state, turn: 12 };
+    const awake = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    raid.forEach(h => expect(hexDistance(awake.gameState.ants[h.id].position, queen)).toBeLessThan(hexDistance(h.position, queen)));
+  }, 60000);
+
+  test('burning all 3 watch-nests wins', () => {
+    const state = buildCampaignGameState(getLevel(8));
+    const won = { ...state, stats: { ...state.stats, player1: { ...state.stats.player1, anthillsDestroyed: 3 } } };
+    expect(evaluateAllObjectives(won).won).toBe(true);
+  });
+});

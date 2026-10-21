@@ -55,10 +55,14 @@ export function buildCampaignGameState(level) {
   applySide(state, 'player2', level.enemy, ENEMY_QUEEN_ID);
 
   // Hunter units (enemy.hunterMarkers): asleep until the level's midEvent
+  // (or enemy.huntersWakeTurn). Burrowed units (enemy.burrowedMarkers) start
+  // underground, waiting to ambush.
   const hunterMarkers = level.enemy?.hunterMarkers || [];
+  const burrowedMarkers = level.enemy?.burrowedMarkers || [];
   Object.values(state.ants).forEach(a => {
     const m = /^camp_player2_([A-Z])\d+$/.exec(a.id);
     if (m && hunterMarkers.includes(m[1])) state.ants[a.id] = { ...a, hunter: true, dormant: true };
+    if (m && burrowedMarkers.includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], isBurrowed: true };
   });
   placeTrees(state, level.map?.trees);
 
@@ -91,6 +95,8 @@ export function buildCampaignGameState(level) {
     // midEvent: fires once when escortId crosses halfwayQ (App.js plays the
     // cutscene and wakes the hunters); escortId is also the hunters' target
     midEvent: level.midEvent ? { escortId: level.midEvent.escortId, done: false } : null,
+    // Hunters with no midEvent wake on this round and go for the player's queen
+    huntersWakeTurn: level.enemy?.huntersWakeTurn ?? null,
     halfwayQ: (() => {
       const qs = (state.mapHexes || []).map(h => h.q);
       return qs.length ? (Math.min(...qs) + Math.max(...qs)) / 2 : 0;
@@ -149,6 +155,15 @@ function applyLayout(state, level) {
   layout.trees.forEach((pos, i) => {
     const id = `tree_c${i + 1}`;
     state.trees[id] = { id, position: pos, side: pos.r < 0 ? 'north' : 'south' };
+  });
+
+  // 'W' watch-nests: finished enemy anthills on their mineral nodes
+  state.anthills = { ...(state.anthills || {}) };
+  layout.watchNests.forEach((pos, i) => {
+    const res = Object.values(state.resources).find(r => r.position.q === pos.q && r.position.r === pos.r);
+    const hill = completeAnthill(createAnthillInProgress(res.id, 'player2', pos, res.type, 2), false);
+    hill.id = `camp_player2_nest${i + 1}`;
+    state.anthills[hill.id] = hill;
   });
 
   // Move each side's leader to its marker and re-seat its opening units on
