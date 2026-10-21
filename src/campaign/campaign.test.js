@@ -844,7 +844,7 @@ describe('level 7 - The Long Grass', () => {
     expect(state.campaign.goalHexes.length).toBeGreaterThanOrEqual(7);
     const theirs = Object.values(state.ants).filter(a => a.owner === 'player2').map(a => a.type).sort();
     const count = t => theirs.filter(x => x === t).length;
-    expect([count('bombardier'), count('scout'), count('soldier')]).toEqual([5, 4, 4]);
+    expect([count('bombardier'), count('scout'), count('soldier'), count('bomber')]).toEqual([5, 6, 4, 2]);
     expect(Object.values(state.ants).some(a => a.owner === 'player2' && a.type === 'queen')).toBe(false);
     expect(state.campaign.roster).toEqual([]);
   });
@@ -856,7 +856,7 @@ describe('level 7 - The Long Grass', () => {
     state = endTurn(state).gameState;
     const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
     expect(where(res.gameState)).toEqual(before);
-    const scoutsMoved = Object.values(res.gameState.ants).filter(a => a.type === 'scout' && a.owner === 'player2' && (a.position.q !== a.post.q || a.position.r !== a.post.r));
+    const scoutsMoved = Object.values(res.gameState.ants).filter(a => a.type === 'scout' && a.owner === 'player2' && !a.hunter && (a.position.q !== a.post.q || a.position.r !== a.post.r));
     expect(scoutsMoved.length).toBeGreaterThan(0);
   }, 60000);
 
@@ -882,6 +882,35 @@ describe('level 7 - The Long Grass', () => {
   test('level 7 speed score starts at 600', () => {
     const state = buildCampaignGameState(getLevel(7));
     expect(scoreLevel({ ...state, gameOver: true, winner: 'player1', turn: 10 }).speedScore).toBe(400);
+  });
+
+  test('the hunter-killer team sleeps until the halfway event, then goes for the Emissary', async () => {
+    let state = buildCampaignGameState(getLevel(7));
+    const hunters = Object.values(state.ants).filter(a => a.hunter);
+    expect(hunters.map(h => h.type).sort()).toEqual(['bomber', 'bomber', 'scout', 'scout']);
+    expect(hunters.every(h => h.dormant)).toBe(true);
+    expect(state.campaign.midEvent).toEqual({ escortId: 'camp_player1_e1', done: false });
+    const where = s => Object.fromEntries(hunters.map(h => [h.id, s.ants[h.id] && s.ants[h.id].position]));
+    // Asleep: they do not move
+    state = endTurn(state).gameState;
+    const asleep = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    expect(where(asleep.gameState)).toEqual(where(state));
+    // Awake (what App.js does after the cutscene): every hunter closes on the Emissary
+    const awake = { ...state, ants: Object.fromEntries(Object.entries(state.ants).map(([id, a]) => [id, a.hunter ? { ...a, dormant: false } : a])),
+      campaign: { ...state.campaign, midEvent: { ...state.campaign.midEvent, done: true } } };
+    const res = await executeAITurn(awake, 'player2', 'medium', { fogOfWar: true });
+    const emissary = state.ants.camp_player1_e1.position;
+    hunters.forEach(h => {
+      const now = res.gameState.ants[h.id];
+      expect(hexDistance(now.position, emissary)).toBeLessThan(hexDistance(h.position, emissary));
+    });
+  }, 60000);
+
+  test('the halfway column sits in the middle of the map', () => {
+    const state = buildCampaignGameState(getLevel(7));
+    const qs = state.mapHexes.map(h => h.q);
+    expect(state.campaign.halfwayQ).toBe((Math.min(...qs) + Math.max(...qs)) / 2);
+    expect(state.ants.camp_player1_e1.position.q).toBeLessThan(state.campaign.halfwayQ);
   });
 
   test('the Emissary reaching a gold hex wins; losing it loses', () => {

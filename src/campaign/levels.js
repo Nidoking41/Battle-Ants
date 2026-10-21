@@ -48,6 +48,10 @@
 //                      explain it: [{ target, title, text }], target = the
 //                      button's data-tip name in App.js
 //   speedBase          optional: the speed score's starting value (default 500)
+//   midEvent           optional: { escortId, cutscene } - when that unit
+//                      crosses the middle of the map the cutscene plays and the
+//                      enemy's hunter units (enemy.hunterMarkers in the layout)
+//                      wake and go straight for it
 //   outro              optional cutscene after a win (same shape as cutscene),
 //                      played when leaving the score screen for the next
 //                      level or the menu
@@ -654,29 +658,29 @@ export const LEVELS = [
         '                          . . . . . . . .',
         '                         . . . . . . T . .',
         '                        . . . S ~ ~ . . . .',
-        '                       . . T T . . . S . . G',
-        '.                     . . . R . . . . . . . G',
-        ' .                   . . . . . . . . . . T G',
-        '. .                 . R . . . . . . . B T . G',
-        ' . .               . . . T . . . . . . . . G',
-        '. . .             . T . . . .         . . . G',
-        ' . . .           . . T S T T           . . G',
-        '. . . .         . . . T B .             . . G',
-        ' 1 . . . . T . . . . . . T               . G',
-        '. . . . . T . T B . . T .                 . G',
-        ' . w a . . . . . . . . .                   G',
-        '. . m . s . T . T T . .                     G',
-        ' . . . . . T . ~ ~ . .',
+        '                       . . T T . . . S . X G',
+        '.                     . . . R . . . . . . K G',
+        ' .                   . . . . . . . . . . . G',
+        '. .                 T R . . . . . . . B . . G',
+        ' . .               T . . . T . . . . . . X G',
+        '. . .             . . . T . .         . . . G',
+        ' . . .           . . . S . T           T T G',
+        '. . . .         . . . . B .             T . G',
+        ' 1 . . . . . . T . . . . .               . G',
+        '. . . . . T . T B . T . .                 K G',
+        ' . w a . . T . . . . . .                   G',
+        '. . m . s . . . T . T T                     G',
+        ' . . . . . . . T ~ . .',
         '  . . e . . . . . . .',
         '   . a . . . R S . .',
         '    m . . . . . . .',
-        '   . . . . . . . . .',
-        '    . . s . . T . .',
+        '   . . . . . . ~ . .',
+        '    . . s . . . . T',
         '     . . . . . . .',
         '        . . . .',
-        '         . . T'
+        '         . . .'
       ],
-      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout' }
+      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout', X: 'bomber', K: 'scout' }
     },
     player: {
       hero: 'vexxara',
@@ -693,9 +697,25 @@ export const LEVELS = [
       behavior: 'ai',
       aiDifficulty: 'medium',
       holdPosition: true,
+      // X and K: the hunter-killer team, asleep at the far end until midEvent
+      hunterMarkers: ['X', 'K'],
       unitMix: {},
       resources: { food: 0, minerals: 0 },
       units: []
+    },
+    // When the Emissary passes the middle of the map: Sorlorg loses patience
+    // and wakes her hunter-killer team (2 Acid Bombers, 2 Scouts), who go
+    // straight for the Emissary
+    midEvent: {
+      escortId: 'camp_player1_e1',
+      cutscene: {
+        portrait: 'hero_black.png',
+        lines: [
+          { hero: 'sorlorg', text: 'Halfway? My guns were meant to finish this in the grass.' },
+          { hero: 'sorlorg', text: 'Fine. I kept something back for exactly this. Hunters - the crowned one. Nothing else matters.' },
+          'At the far end of the trail, two Acid Bombers and two Scouts wake - and every one of them is coming for the Emissary.'
+        ]
+      }
     },
     // Pop-up at the start: the Brood Queen's Reveal
     uiTips: [

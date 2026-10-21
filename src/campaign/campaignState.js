@@ -53,6 +53,13 @@ export function buildCampaignGameState(level) {
 
   applySide(state, 'player1', level.player, PLAYER_QUEEN_ID);
   applySide(state, 'player2', level.enemy, ENEMY_QUEEN_ID);
+
+  // Hunter units (enemy.hunterMarkers): asleep until the level's midEvent
+  const hunterMarkers = level.enemy?.hunterMarkers || [];
+  Object.values(state.ants).forEach(a => {
+    const m = /^camp_player2_([A-Z])\d+$/.exec(a.id);
+    if (m && hunterMarkers.includes(m[1])) state.ants[a.id] = { ...a, hunter: true, dormant: true };
+  });
   placeTrees(state, level.map?.trees);
 
   state.campaign = {
@@ -79,6 +86,13 @@ export function buildCampaignGameState(level) {
     enemyHoldPosition: level.enemy?.holdPosition || false,
     // Speed score base for this level (score.js); longer levels set it higher
     speedBase: level.speedBase ?? 500,
+    // midEvent: fires once when escortId crosses halfwayQ (App.js plays the
+    // cutscene and wakes the hunters); escortId is also the hunters' target
+    midEvent: level.midEvent ? { escortId: level.midEvent.escortId, done: false } : null,
+    halfwayQ: (() => {
+      const qs = (state.mapHexes || []).map(h => h.q);
+      return qs.length ? (Math.min(...qs) + Math.max(...qs)) / 2 : 0;
+    })(),
     // The map's goal hexes ('G' in the layout), for reachHex objectives with at: 'goal'
     goalHexes: state.goalHexes || [],
     // The force you start with, for the end-of-level "kept alive" count.

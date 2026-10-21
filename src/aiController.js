@@ -700,7 +700,7 @@ function handleGuardUnit(state, unit, aiPlayer, enemies) {
 
   // Marauders: detected = your units this side can see
   const detected = enemies.filter(e => e.position && aiCanSee(state, aiPlayer, e));
-  const marauders = liveAnts(state).filter(a => a.owner === aiPlayer && a.type !== 'scout' && a.type !== 'bombardier' && a.type !== 'queen');
+  const marauders = liveAnts(state).filter(a => a.owner === aiPlayer && !a.hunter && a.type !== 'scout' && a.type !== 'bombardier' && a.type !== 'queen');
   const nearestMarauderTo = target => marauders.reduce((a, b) =>
     (hexDistance(a.position, target.position) <= hexDistance(b.position, target.position) ? a : b));
   const myTargets = detected.filter(t => unit.engaged || nearestMarauderTo(t).id === unit.id);
@@ -897,7 +897,11 @@ function applyAttack(state, unitId, target) {
  */
 function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   // With fog on, only what this side can see can be targeted
-  const enemies = enemiesOf(state, aiPlayer).filter(e => aiCanSee(state, aiPlayer, e));
+  // onlyTargetId: a hunter that ignores everything but its prey (and always
+  // knows where the prey is)
+  const enemies = opts.onlyTargetId
+    ? enemiesOf(state, aiPlayer).filter(e => e.id === opts.onlyTargetId)
+    : enemiesOf(state, aiPlayer).filter(e => aiCanSee(state, aiPlayer, e));
   const antType = getAntTypeById(unit.type);
   const caution = opts.caution ?? 1;      // how much danger matters
   const advance = opts.advance ?? 1;      // how much closing distance matters
@@ -912,7 +916,7 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   const enemyEggs = Object.values(state.eggs || {}).filter(e => e.owner !== aiPlayer && e.position &&
     (!aiFogOfWar || getVisibleHexes(state, aiPlayer).has(`${e.position.q},${e.position.r}`)));
   const eggValue = unit.type === 'scout' ? 55 : 30;
-  const canHitEggs = antType.attackRange > 0 && unit.type !== 'bomber' &&
+  const canHitEggs = !opts.onlyTargetId && antType.attackRange > 0 && unit.type !== 'bomber' &&
     (!unit.isBurrowed || unit.type === 'soldier');
   const minRange = antType.minAttackRange || 1;
 
@@ -1039,6 +1043,17 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
 
+  // Campaign hunter-killers: asleep until the level's midEvent, then they go
+  // straight for the escorted unit and nothing else
+  if (unit.hunter) {
+    if (unit.dormant) return { state };
+    const prey = state.ants[state.campaign?.midEvent?.escortId];
+    if (prey && prey.position) {
+      if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, null, prey);
+      return fightOrAdvance(state, unit, aiPlayer, prey.position, { caution: 0, advance: 2, onlyTargetId: prey.id });
+    }
+  }
+
   // Holding level (enemy.holdPosition): a guarded position.
   if (gameState.campaign?.enemyHoldPosition) return handleGuardUnit(state, unit, aiPlayer, enemies);
 
@@ -1077,12 +1092,13 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   return fightOrAdvance(state, unit, aiPlayer, objective, opts);
 }
 
-function handleBomber(state, bomber, aiPlayer, enemies, enemyQueen) {
+function handleBomber(state, bomber, aiPlayer, enemies, enemyQueen, prey = null) {
   const { detonateBomber } = require('./combatSystem');
   const adjacentEnemies = hex => enemies.filter(e => hexDistance(e.position, hex) <= 1);
+  // A hunter's prey next to the blast is always worth it
   const worth = hex => {
     const adj = adjacentEnemies(hex);
-    return adj.length + (adj.some(e => e.type === 'queen') ? 3 : 0);
+    return adj.length + (adj.some(e => e.type === 'queen') ? 3 : 0) + (prey && adj.some(e => e.id === prey.id) ? 3 : 0);
   };
   // Best hex to be on when we blow up
   const options = [{ hex: { q: bomber.position.q, r: bomber.position.r }, path: [], stay: true }, ...reachableHexes(state, bomber)];
@@ -1103,8 +1119,8 @@ function handleBomber(state, bomber, aiPlayer, enemies, enemyQueen) {
     };
     return { state: newState, movement, combatAction };
   }
-  const objective = enemyQueen ? enemyQueen.position : (enemies[0] ? enemies[0].position : bomber.position);
-  return fightOrAdvance(state, bomber, aiPlayer, objective, { caution: 0.3 });
+  const objective = prey ? prey.position : (enemyQueen ? enemyQueen.position : (enemies[0] ? enemies[0].position : bomber.position));
+  return fightOrAdvance(state, bomber, aiPlayer, objective, { caution: prey ? 0 : 0.3, advance: prey ? 2 : 1 });
 }
 
 /**

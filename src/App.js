@@ -219,6 +219,25 @@ function App() {
   const [buildTab, setBuildTab] = useState('basic'); // Which Build Ants tab is shown: 'basic' | 'advanced'
   const [pendingCutsceneLevel, setPendingCutsceneLevel] = useState(null); // Campaign level whose intro cutscene is playing
   const [pendingOutro, setPendingOutro] = useState(null); // { levelId, then } - victory cutscene before leaving a won level
+  const [midEventScene, setMidEventScene] = useState(null); // campaign midEvent cutscene playing mid-level
+  // Campaign mid-level event: when the escorted unit crosses the middle of the
+  // map, play the level's midEvent cutscene, then wake the enemy hunters
+  useEffect(() => {
+    const ev = gameState.campaign?.midEvent;
+    if (!ev || ev.done || midEventScene || gameState.gameOver) return;
+    const full = getGameStateForLogic();
+    const escort = full.ants?.[ev.escortId];
+    if (escort && escort.position.q >= (full.campaign?.halfwayQ ?? Infinity)) {
+      setMidEventScene(getLevel(full.campaign.levelId)?.midEvent?.cutscene || { lines: [] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
+  const finishMidEvent = () => {
+    const full = getGameStateForLogic();
+    const ants = Object.fromEntries(Object.entries(full.ants).map(([id, a]) => [id, a.hunter ? { ...a, dormant: false } : a]));
+    updateGame({ ...full, ants, campaign: { ...full.campaign, midEvent: { ...full.campaign.midEvent, done: true } } });
+    setMidEventScene(null);
+  };
   // Opening cutscene before the title screen: once per browser session, so
   // returning to the menu after a game doesn't replay it
   const [showIntro, setShowIntro] = useState(() => {
@@ -2389,6 +2408,17 @@ function App() {
       <AIGameSetup
         onStartGame={handleStartGame}
         onBack={handleBackToMenu}
+      />
+    );
+  }
+
+  if (midEventScene) {
+    return (
+      <Cutscene
+        cutscene={midEventScene}
+        title={gameState.campaign ? `Level ${gameState.campaign.levelId}: ${gameState.campaign.levelName}` : ''}
+        finishLabel="CONTINUE"
+        onDone={finishMidEvent}
       />
     );
   }
