@@ -74,6 +74,8 @@ function baseStatus(objective, gameState, playerId) {
       const movers = objective.unitId
         ? [gameState.ants?.[objective.unitId]].filter(Boolean)
         : ants.filter(a => a.owner === playerId);
+      // afterTurn: N - a second-stage goal that only counts from round N on
+      if (Number.isFinite(objective.afterTurn) && (gameState.turn || 1) < objective.afterTurn) return 'pending';
       return status(movers.some(a => targets.some(t => a.position.q === t.q && a.position.r === t.r)));
     }
 

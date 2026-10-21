@@ -693,7 +693,8 @@ export const LEVELS = [
         '        . . . .',
         '         . . .'
       ],
-      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout', X: 'bomber', K: 'scout' }
+      legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout', X: 'bomber', K: 'scout' },
+      goalSprite: 'throne' // the goal hex is the Golden Throne
     },
     player: {
       hero: 'vexxara',
@@ -844,6 +845,143 @@ export const LEVELS = [
     },
     objectives: [
       { type: 'destroyAnthills', count: 3, text: 'Destroy the 3 watch-nests' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
+    ]
+  },
+  // ---------------------------------------------------------------------
+  // Level 9 - The Rot Below (vs Skrazzit, paid by Sorlorg)
+  // Tunnels under the Throne Mound: narrow passages that open into small
+  // caves. Skrazzit's swarm pours in from side tunnels (P spawn points) on a
+  // fixed schedule. Hold the nest for 8 rounds, then push down and get any ant
+  // into the Deep Chamber (G). Vexxara can grow into a Swarm Queen here, which
+  // unlocks the Bullet Ant - made for holding a tunnel.
+  {
+    id: 9,
+    name: 'The Rot Below',
+    fogOfWar: true,
+    speedBase: 650,
+    cutscene: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The sweet rot from the empty tomb does not stop at the tomb. It seeps down, into the old tunnels under the Throne Mound.',
+        'Vexxara follows it into the dark. Somewhere below is the Deep Chamber, where the oldest queens were laid down.',
+        { hero: 'skrazzit', text: 'You again. You burned my hills on the ridge, Lifebinder. Sorlorg pays better than you ever cost me.' },
+        { hero: 'skrazzit', text: 'She wants these tunnels shut and the trail buried. My swarm is already digging in from every side.' },
+        'Hold the nest until the swarm breaks. Then push down to the Deep Chamber. Grow into a Swarm Queen if you can afford it: Bullet Ants were made for tunnels.'
+      ]
+    },
+    briefing: ['Hold out for 8 turns against Skrazzit\'s swarm, then get any ant to the Deep Chamber at the bottom.'],
+    map: {
+      layout: [
+        '                    .',
+        '                   . .',
+        '                  . M .',
+        '                 . . . .',
+        '                  . . .',
+        '                 F . . F',
+        '                  . 1 .',
+        '                 . . . .',
+        '                  m . m',
+        '                 . . . .',
+        '  P             . . M .',
+        '   .             . . .',
+        '    .           . . .',
+        '     .         . . .',
+        '      .     . . . .                   P',
+        '       .   . . . .                 . .',
+        '        . . . . .                 . .',
+        '         . . M .               . . .',
+        '          T . .               . .',
+        '           F . . .           . .',
+        '          . . . . .       . .',
+        '           . . . . .     . .',
+        '            . . . . .   . .',
+        '               . . . . . .',
+        '                . . . .',
+        '                 . . . .',
+        '                  . . . . .',
+        '                   . . . . .',
+        '                      . . . .',
+        '                       . T .',
+        '                        . . .',
+        '                       . . T',
+        '                      . . . .',
+        '                     . . . .',
+        '                    . . . .',
+        '                   . . . .',
+        '                  . . .',
+        '                 . . . .',
+        '              . . . . .',
+        '             . . . .',
+        '            . . . . .',
+        '             . . . .',
+        '            . . .',
+        '             . T .',
+        '          . . . .',
+        '         . . . . .',
+        '        . .   . . .                   P',
+        '       . .     . .                 . .',
+        '      .         . . .             . .',
+        '     .         . . . .         . . .',
+        '    .           . . . .       . .',
+        '   P             . . . .   . . .',
+        '                  . G T . . .',
+        '                 . G G . .',
+        '                  . G . .',
+        '                 . G G .',
+        '                  . G .',
+        '                 . . . .',
+        '                  T . .',
+        '                   . .',
+        '                    .'
+      ],
+      legend: { m: 'soldier' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'broodQueen',
+      resources: { food: 40, minerals: 30 },
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank'],
+      units: 'default'
+    },
+    enemy: {
+      hero: 'skrazzit',
+      queenTier: null, // Skrazzit is not down here - only her swarm
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      hunt: true,
+      huntWithScouts: true, // the swarm's Scouts fight too
+      unitMix: {},
+      resources: { food: 0, minerals: 0 },
+      units: [],
+      // at: which spawn point (P, in reading order): 0 upper left, 1 right,
+      // 2 lower right (into the Deep Chamber), 3 lower left
+      waves: [
+        { turn: 2, at: 0, units: [{ type: 'scout', count: 3 }, { type: 'soldier', count: 1 }] },
+        { turn: 3, at: 1, units: [{ type: 'scout', count: 2 }, { type: 'soldier', count: 1 }] },
+        { turn: 5, at: 0, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }, { type: 'scout', count: 1 }] },
+        { turn: 6, at: 1, units: [{ type: 'soldier', count: 2 }, { type: 'scout', count: 2 }] },
+        { turn: 8, at: 0, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 2 }] },
+        { turn: 8, at: 1, units: [{ type: 'scout', count: 3 }, { type: 'soldier', count: 1 }] },
+        { turn: 10, at: 3, units: [{ type: 'soldier', count: 3 }, { type: 'spitter', count: 1 }] },
+        { turn: 11, at: 2, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 2 }, { type: 'scout', count: 1 }] },
+        { turn: 13, at: 3, units: [{ type: 'soldier', count: 3 }, { type: 'scout', count: 2 }] }
+      ]
+    },
+    uiTips: [
+      { target: 'queenUpgrade', title: 'Swarm Queen', text: 'Vexxara can grow again. Press Upgrade to Swarm Queen (20 food, 15 minerals): more energy, faster recharge, more food, and the Bullet Ant - a heavy biter that can plug a tunnel on its own.' }
+    ],
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The Deep Chamber is thick with fungus. Pale threads hang from the ceiling and carpet the floor.',
+        'And leading out of it are tracks. Big ones, queen-sized. They walk away into the dark on their own.',
+        { hero: 'skrazzit', text: 'I was paid to bury it. Nobody said anything about it walking.' }
+      ]
+    },
+    objectives: [
+      { type: 'survive', untilTurn: 8, text: 'Hold out for 8 turns' },
+      { type: 'reachHex', at: 'goal', afterTurn: 8, text: 'Then get any ant to the Deep Chamber' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
   }

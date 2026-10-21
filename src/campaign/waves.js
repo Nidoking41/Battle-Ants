@@ -23,16 +23,21 @@ export function spawnDueWaves(state, createAnt) {
   const leader = Object.values(ants).find(
     a => a.owner === ENEMY && (a.type === 'queen' || a.type === 'queenLarva')
   );
-  // No leader left to rally to: reinforcements have nowhere to come from.
-  if (!leader) return { ...state, campaign: { ...state.campaign, waves: waves.map(w => due.includes(w) ? { ...w, spawned: true } : w) } };
+  // Where a wave lands: the map's spawn point `at` ('P' markers) when the map
+  // has them, otherwise beside the enemy leader
+  const spawns = state.campaign?.waveSpawns || [];
+  const anchorOf = wave => (spawns.length ? spawns[(wave.at ?? 0) % spawns.length] : leader?.position);
+  // No leader and no spawn points: reinforcements have nowhere to come from.
+  if (!leader && spawns.length === 0) return { ...state, campaign: { ...state.campaign, waves: waves.map(w => due.includes(w) ? { ...w, spawned: true } : w) } };
 
   const taken = h => Object.values(ants).some(a => a.position.q === h.q && a.position.r === h.r);
-  const candidates = hexesInRange(leader.position, 3)
+  const candidatesNear = anchor => hexesInRange(anchor, 3)
     .filter(h => isValidHex(h, state.gridRadius, state.mapShape) && !taken(h))
-    .sort((a, b) => hexDistance(a, leader.position) - hexDistance(b, leader.position));
+    .sort((a, b) => hexDistance(a, anchor) - hexDistance(b, anchor));
 
   let n = 0;
   due.forEach(wave => {
+    const candidates = candidatesNear(anchorOf(wave));
     wave.units.forEach(({ type, count = 1 }) => {
       for (let i = 0; i < count; i++) {
         const pos = candidates.shift();

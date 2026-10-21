@@ -986,3 +986,31 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(evaluateAllObjectives(won).won).toBe(true);
   });
 });
+
+describe('level 9 - The Rot Below', () => {
+  test('waves arrive at their spawn points, and the chamber only counts after round 8', () => {
+    const { spawnDueWaves } = require('./waves');
+    let state = buildCampaignGameState(getLevel(9));
+    expect(state.campaign.waveSpawns).toHaveLength(4);
+    expect(state.campaign.goalHexes.length).toBe(7);
+    expect(state.campaign.goalSprite).toBe(null);
+    state = spawnDueWaves({ ...state, turn: 3 }, createAnt);
+    const w2 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave2_'));
+    const w3 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave3_'));
+    expect(w2).toHaveLength(4);
+    expect(w3).toHaveLength(3);
+    w2.forEach(a => expect(hexDistance(a.position, state.campaign.waveSpawns[0])).toBeLessThanOrEqual(3));
+    w3.forEach(a => expect(hexDistance(a.position, state.campaign.waveSpawns[1])).toBeLessThanOrEqual(3));
+
+    // An ant standing in the chamber does not count before round 8
+    const goal = state.campaign.goalHexes[0];
+    const scout = { ...state.ants[Object.keys(state.ants).find(k => state.ants[k].owner === 'player1' && state.ants[k].type === 'scout')], position: goal };
+    const inChamber = t => ({ ...state, turn: t, ants: { ...state.ants, [scout.id]: scout } });
+    expect(evaluateAllObjectives(inChamber(5)).won).toBe(false);
+    expect(evaluateAllObjectives(inChamber(8)).won).toBe(true);
+  });
+
+  test('the Golden Throne is drawn only on level 7', () => {
+    expect(buildCampaignGameState(getLevel(7)).campaign.goalSprite).toBe('throne');
+  });
+});

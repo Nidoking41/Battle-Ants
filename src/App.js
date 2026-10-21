@@ -4872,7 +4872,7 @@ function App() {
               );
             })()}
             {/* Campaign goal hex: the Golden Throne on its mound (32x40 art at 48x60) */}
-            {isGoalHex && (
+            {isGoalHex && gameState.campaign?.goalSprite === 'throne' && (
               <image
                 x={-24}
                 y={-41}
@@ -6508,7 +6508,7 @@ function App() {
             return (
               <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
                 <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Queen Upgrade</h4>
-                <button
+                <button data-tip="queenUpgrade"
                   onClick={() => {
                     if (!affordable) {
                       showFeedback('Not enough resources!');

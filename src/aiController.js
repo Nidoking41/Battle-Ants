@@ -810,8 +810,24 @@ function findQueen(state, owner) {
  * function giving the real walking distance from any hex to `target`
  * (terrain only - other units are ignored), or null on maps without water.
  */
+// Walking distance (around water and walls) on maps that have them: the
+// water maps and every hand-drawn campaign map. Cached per map and target.
+const walkCache = new WeakMap();
 function walkingDistanceTo(state, target) {
-  if (!hasMapWater(state.mapShape) || !target) return null;
+  if (!target) return null;
+  const custom = state.mapShape && state.mapShape.type === 'custom';
+  if (!hasMapWater(state.mapShape) && !custom) return null;
+  if (custom) {
+    const perMap = walkCache.get(state.mapShape) || new Map();
+    walkCache.set(state.mapShape, perMap);
+    const k = target.q + ',' + target.r;
+    if (!perMap.has(k)) perMap.set(k, walkingDistanceBfs(state, target));
+    return perMap.get(k);
+  }
+  return walkingDistanceBfs(state, target);
+}
+
+function walkingDistanceBfs(state, target) {
   const gridRadius = state.gridRadius || 6;
   const key = h => `${h.q},${h.r}`;
   const start = new HexCoord(target.q, target.r);

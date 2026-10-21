@@ -103,6 +103,10 @@ export function buildCampaignGameState(level) {
     })(),
     // The map's goal hexes ('G' in the layout), for reachHex objectives with at: 'goal'
     goalHexes: state.goalHexes || [],
+    // What is drawn on the goal hexes: 'throne' = the Golden Throne
+    goalSprite: level.map?.goalSprite || null,
+    // 'P' markers: where enemy.waves arrive when the level has them
+    waveSpawns: state.waveSpawns || [],
     // The force you start with, for the end-of-level "kept alive" count.
     startingUnitIds: Object.values(state.ants)
       .filter(a => a.owner === 'player1' && a.type !== 'queen' && a.type !== 'queenLarva')
@@ -143,6 +147,7 @@ function applyLayout(state, level) {
   state.mapHexes = layout.mapHexes;
   state.mapWater = layout.water; // drawn as blue hexes; never part of the mask
   state.goalHexes = layout.goals; // 'G' markers: where an escort has to get to
+  state.waveSpawns = layout.spawns; // 'P' markers: where enemy waves arrive
   state.gridRadius = layout.gridRadius;
 
   // The generated nodes and trees are for a hexagon that no longer exists.

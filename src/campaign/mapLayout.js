@@ -18,6 +18,8 @@ import { HexCoord } from '../hexUtils';
 //   'T'  tree              'F' food node       'M' mineral node
 //   'G'  goal hex: open ground an escort objective must reach
 //   'W'  enemy watch-nest: a finished enemy anthill on a mineral node
+//   'P'  wave spawn point: open ground where enemy.waves can arrive (numbered
+//        0, 1, 2... in reading order, top row first; a wave picks one with `at`)
 //   '1'  player leader     '2' enemy leader
 //   a-z  player unit marker, A-Z enemy unit marker - resolved via the level's
 //        `legend: { a: 'scout', A: 'soldier' }`
@@ -66,6 +68,7 @@ export function parseLayout(rows, legend = {}) {
   const units = [];
   const goals = [];
   const watchNests = [];
+  const spawns = [];
   let gridRadius = 0;
 
   cells.forEach(({ ch, x, y }) => {
@@ -85,6 +88,7 @@ export function parseLayout(rows, legend = {}) {
 
     if (ch === OPEN) return;
     if (ch === 'G') { goals.push(pos); return; }
+    if (ch === 'P') { spawns.push({ pos, x, y }); return; }
     if (ch === 'T') { trees.push(pos); return; }
     if (ch === 'F') { resources.push({ type: 'food', position: pos }); return; }
     if (ch === 'M') { resources.push({ type: 'minerals', position: pos }); return; }
@@ -116,7 +120,9 @@ export function parseLayout(rows, legend = {}) {
     leaders,
     units,
     goals,
-    watchNests
+    watchNests,
+    // reading order: top row first, then left to right
+    spawns: spawns.sort((a, b) => (a.y - b.y) || (a.x - b.x)).map(s => s.pos)
   };
 }
 
