@@ -77,6 +77,8 @@ export function buildCampaignGameState(level) {
     // true: enemy units never move - they wait (hidden, with fog on) and
     // attack whatever comes into range. Read by aiController.
     enemyHoldPosition: level.enemy?.holdPosition || false,
+    // Speed score base for this level (score.js); longer levels set it higher
+    speedBase: level.speedBase ?? 500,
     // The map's goal hexes ('G' in the layout), for reachHex objectives with at: 'goal'
     goalHexes: state.goalHexes || [],
     // The force you start with, for the end-of-level "kept alive" count.

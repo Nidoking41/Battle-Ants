@@ -31,7 +31,9 @@ export function scoreLevel(state, playerId = 'player1') {
 
   const won = !!state.gameOver && state.winner === playerId;
   const turns = state.turn || 0;
-  const speedScore = won ? Math.max(0, SPEED_BASE - SPEED_PER_TURN * turns) : 0;
+  // A longer level can raise its base (level.speedBase), e.g. 600 for level 7
+  const base = state.campaign?.speedBase ?? SPEED_BASE;
+  const speedScore = won ? Math.max(0, base - SPEED_PER_TURN * turns) : 0;
 
   return {
     kept: kept.length,

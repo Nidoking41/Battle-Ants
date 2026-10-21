@@ -225,7 +225,7 @@ export const AntTypes = {
     // Energy system for abilities
     maxEnergy: 50,
     startingEnergy: 25, // Starts at half energy
-    energyRegen: 7,
+    energyRegen: 5,
     // Abilities
     healRange: 1, // Melee range healing
     healAmount: 20,

@@ -879,6 +879,11 @@ describe('level 7 - The Long Grass', () => {
     bombs.forEach(b => { const now = res.gameState.ants[b.id]; if (now) expect(now.position).toEqual(b.position); });
   }, 60000);
 
+  test('level 7 speed score starts at 600', () => {
+    const state = buildCampaignGameState(getLevel(7));
+    expect(scoreLevel({ ...state, gameOver: true, winner: 'player1', turn: 10 }).speedScore).toBe(400);
+  });
+
   test('the Emissary reaching a gold hex wins; losing it loses', () => {
     const state = buildCampaignGameState(getLevel(7));
     const goal = state.campaign.goalHexes[0];

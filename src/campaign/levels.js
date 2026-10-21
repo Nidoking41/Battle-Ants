@@ -47,6 +47,7 @@
 //   uiTips             optional pop-ups at level start that ring a button and
 //                      explain it: [{ target, title, text }], target = the
 //                      button's data-tip name in App.js
+//   speedBase          optional: the speed score's starting value (default 500)
 //   outro              optional cutscene after a win (same shape as cutscene),
 //                      played when leaving the score screen for the next
 //                      level or the menu
@@ -625,6 +626,7 @@ export const LEVELS = [
     id: 7,
     name: 'The Long Grass',
     fogOfWar: true,
+    speedBase: 600, // a long trek: the speed score starts 100 higher
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
