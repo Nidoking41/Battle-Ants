@@ -252,6 +252,13 @@ export async function executeAITurn(gameState, aiPlayer, difficulty = 'easy', op
       console.log(`AI activated hero ability: ${state.players[aiPlayer]?.heroId}`);
     }
 
+    // Campaign boss (level 12): her powers go off before her army acts
+    {
+      const { runBossPowers } = require('./campaign/boss');
+      const { createAnt } = require('./gameState');
+      state = runBossPowers(state, aiPlayer, createAnt);
+    }
+
     // Phase 1: Hatch eggs
     state = hatchEggsIfReady(state, aiPlayer);
 
@@ -1074,6 +1081,9 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   const myQueen = findQueen(state, aiPlayer);
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
+
+  // The old queen never moves: she only bites what stands next to her
+  if (unit.type === 'oldQueen') return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
 
   // Campaign hunter-killers: asleep until the level's midEvent, then they go
   // straight for the escorted unit and nothing else

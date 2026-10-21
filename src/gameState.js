@@ -2268,7 +2268,7 @@ export function cordycepsPurge(gameState, cordyphageId, targetId) {
   if (cordyphage.type !== 'cordyphage') return gameState;
   if (cordyphage.owner === target.owner) return gameState; // Can only mind control enemies
   if (target.type === 'queen') return gameState; // Cannot mind control queens
-  if (target.type === 'termite' || target.type === 'mantis') return gameState; // already the old queen's
+  if (target.type === 'termite' || target.type === 'mantis' || target.type === 'oldQueen') return gameState; // already the old queen's
 
   const cordyphageType = AntTypes.CORDYPHAGE;
   const player = gameState.players[cordyphage.owner];
@@ -2329,7 +2329,7 @@ export function getValidCordycepsTargets(gameState, cordyphageId) {
   return Object.values(gameState.ants).filter(enemy => {
     if (enemy.owner === cordyphage.owner) return false;
     if (enemy.type === 'queen') return false; // Cannot mind control queens
-    if (enemy.type === 'termite' || enemy.type === 'mantis') return false;
+    if (enemy.type === 'termite' || enemy.type === 'mantis' || enemy.type === 'oldQueen') return false;
 
     const distance = Math.max(
       Math.abs(cordyphage.position.q - enemy.position.q),

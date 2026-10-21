@@ -210,6 +210,26 @@ export const AntTypes = {
     icon: '🍄🦗'
   },
 
+  // The final boss (level 12): rooted to the Throne Mound, never moves. Her
+  // powers are in campaign/boss.js.
+  OLD_QUEEN: {
+    id: 'oldQueen',
+    name: 'The Old Queen (infected)',
+    cost: { food: 9999, minerals: 9999 }, // never buildable
+    campaignOnly: true,
+    large: true,
+    boss: true,
+    hatchTime: 0,
+    maxHealth: 200,
+    attack: 25,
+    defense: 5,
+    moveRange: 0,
+    attackRange: 1,
+    resourceGatherRate: 0,
+    description: 'Vexxara\'s mother, rooted to the mound by the fungus. Spore burst every 3 turns, mind control every 4.',
+    icon: '🍄👑'
+  },
+
   HEALER: {
     id: 'healer',
     name: 'Weaver Ant',

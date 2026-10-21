@@ -79,6 +79,14 @@ function ObjectivePanel({ gameState }) {
         );
       })}
       </div>
+      {campaign.boss && (() => {
+        const { nextBossRound, SPORE_EVERY, MIND_EVERY } = require('./boss');
+        return (
+          <div style={{ marginTop: '3px', textAlign: 'center', fontSize: '12px', color: '#fbbf24' }}>
+            {`\u26a0 Spore burst on turn ${nextBossRound(gameState.turn, SPORE_EVERY)} \u00b7 Mind control on turn ${nextBossRound(gameState.turn, MIND_EVERY)}`}
+          </div>
+        );
+      })()}
       {(() => {
         const waves = campaign.waves || [];
         if (!waves.length) return null;

@@ -18,6 +18,7 @@ import { HexCoord } from '../hexUtils';
 //   'T'  tree              'F' food node       'M' mineral node
 //   'G'  goal hex: open ground an escort objective must reach
 //   'W'  enemy watch-nest: a finished enemy anthill on a mineral node
+//   '%'  fungus-covered ground: open, just drawn pale and rotten
 //   'Z'  Sorlorg's fungus garden: a tough enemy anthill (id camp_player2_garden)
 //   'P'  wave spawn point: open ground where enemy.waves can arrive (numbered
 //        0, 1, 2... in reading order, top row first; a wave picks one with `at`)
@@ -71,6 +72,7 @@ export function parseLayout(rows, legend = {}) {
   const watchNests = [];
   const spawns = [];
   const gardens = [];
+  const fungus = [];
   let gridRadius = 0;
 
   cells.forEach(({ ch, x, y }) => {
@@ -89,6 +91,7 @@ export function parseLayout(rows, legend = {}) {
     mapHexes.push(pos);
 
     if (ch === OPEN) return;
+    if (ch === '%') { fungus.push(pos); return; }
     if (ch === 'G') { goals.push(pos); return; }
     if (ch === 'P') { spawns.push({ pos, x, y }); return; }
     if (ch === 'Z') { resources.push({ type: 'food', position: pos }); gardens.push(pos); return; }
@@ -125,6 +128,7 @@ export function parseLayout(rows, legend = {}) {
     goals,
     watchNests,
     gardens,
+    fungus,
     // reading order: top row first, then left to right
     spawns: spawns.sort((a, b) => (a.y - b.y) || (a.x - b.x)).map(s => s.pos)
   };

@@ -1211,6 +1211,115 @@ export const LEVELS = [
       { type: 'killUnit', unitId: ENEMY_QUEEN_ID, text: 'Then kill Sorlorg\'s queen' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
+  },
+  // ---------------------------------------------------------------------
+  // Level 12 - The Throne Mound (vs the infected old queen)
+  // The final battle. The old queen (Q) is rooted to the middle of the map on
+  // fungus-covered ground ('%'), guarded by cordyceped Termites (K) and
+  // Praying Mantises (N) and infected Spitters (A), while infected Marauders
+  // (R) roam the field. Her powers (campaign/boss.js): spore burst every 3
+  // turns, a second wind of 2 Termites at half health, and mind control every
+  // 4 turns. Kill her and the fog lifts.
+  {
+    id: 12,
+    name: 'The Throne Mound',
+    fogOfWar: true,
+    speedBase: 800,
+    boss: true,
+    liftFogOnWin: true,
+    cutscene: {
+      portrait: 'old_queen.png',
+      lines: [
+        'Sorlorg is dead, and nothing holds the fungus back any more.',
+        'The old queen has rooted herself to the Throne Mound. The ground around it has gone pale and soft, and things move in it: Termites with white eyes, Mantises that do not blink.',
+        'She was Vexxara\'s mother. She raised her. Whatever stands on the mound now only wears her shell.',
+        'Beware her: every few turns she bursts with spores that hurt everything beside her, and she can reach into the head of your strongest ant and take it.',
+        'Kill the old queen. Keep Vexxara alive.'
+      ]
+    },
+    briefing: ['Kill the infected old queen on the Throne Mound. Watch her spore bursts and mind control. Keep Vexxara alive.'],
+    map: {
+      layout: [
+        '      . . . . . . . T . . T . . T . T . . . . T . .',
+        '     . . . . . . . . T . . . . . . . . . T . . . T .',
+        '    . . . . . . T . T . . . . . . . . . . . . . . . .',
+        '   . . . . . . . . T . . . . . T . . . . . . . . . . .',
+        '  . . . T . . . . . . . . T . . . . . . . . . T . . . T',
+        ' T . T . . . . . . . . . . . . . . . . T . . . . . T . .',
+        '. . . . . . . . . T F T . . . . . . . . ~ . . . . . . . T',
+        ' T . T . . T . . . T . . . . . . . T . ~ ~ T . . . . . .',
+        '. . . . . T . ~ . . . T T . . R . . T . ~ . . . . . . T .',
+        ' . . . . . T ~ ~ . . . . . . . . . . . ~ ~ . . . . T . .',
+        '. . . . . . ~ ~ ~ . . T T . % . . . . . ~ . T . . . . . T',
+        ' T . . . . . ~ ~ . . . . . % % . . . . . . . . . . . . .',
+        '. . T T . . ~ ~ ~ . T . . % % % T . T . . . . R T T . T .',
+        ' . . . . . . ~ ~ . . . . % % % % . . T . . . T . . . . .',
+        '. . . . . . ~ ~ ~ T . . % % % % N . . . . . . . . . . . .',
+        ' . T . . T . ~ ~ . . . % % K % % % . . T . . T . . . . .',
+        '. . T . . . . ~ . . . N % % % % % . . . . T M . . T . . .',
+        ' T . . . . . T . . T T % % % % % A T . . T . . . . . . T',
+        '. T . . . . . . R . . . % K % % % . . . . . . . . . . . .',
+        ' . . T . . . . . . . T % % % % % % . . . T T . . . . T T',
+        '. . . . T . M . . . . . % % Q K % T . . R . . . . . . . .',
+        ' . . . . . . . . . . . A % % % % % . T T . . . . . . . .',
+        '. T . F . . . . . T . . % % % % % N . . . . . . . . T . .',
+        ' . . T . . . . . . . . % % % % % % . . . . . . T . . . .',
+        '. . . T . . . T . T . . % % K % % . . . . . ~ T . . . T .',
+        ' . . . . . . . . . . . % % % % % % T . . . ~ ~ T . . . T',
+        '. . . . . . T T ~ . . . N % % % % . . . . ~ ~ ~ . . . . .',
+        ' . . . . . . . ~ ~ . . . % % A % . . . T . ~ ~ . . . . .',
+        '. . . . . . . . ~ . . . T % % % . . . . . ~ ~ ~ . . . . .',
+        ' . . . . T T . ~ ~ . . . . % % . . . . . . ~ ~ . . . . .',
+        'T . . M . . . . ~ . R . . M % . . . T . . ~ ~ ~ . T . . T',
+        ' . . . . . . . . . T . . . . . . . . . . . ~ ~ . . T T .',
+        '. . . . . . . . T . . . . . . . . . . R . . ~ . . . . . .',
+        ' . . . m . . F . . . T . . . . . . . . . . . . . . . . .',
+        '. . F . . m T . . T . . . . . . . T . . . . . . . . . . .',
+        ' . . . . . . . . . T . . . . . . . . . T T . . . . . . .',
+        '. . . . 1 . . . . . . F . . . . . . . . . . . . . T . . .',
+        ' . . a . . b . . T . . T T . . . . . . T T . . . . . . .',
+        '  . . . . . F . . . . T . . . . . T F . . . . . T . . .',
+        '   T . . c . . . . . . . . . . . . . . . . . . . . . .',
+        '    . w . . T . T . . . . . . . . . . . . . . . T . .',
+        '     . . . M . . . . . . . . . . . . . . . . . . . .',
+        '      . . . . . . . . . T T . . . T . . . T . . . .'
+      ],
+      legend: { m: 'soldier', b: 'tank', a: 'spitter', c: 'cordyphage', w: 'healer', Q: 'oldQueen', K: 'termite', N: 'mantis', A: 'spitter', R: 'soldier' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'swarmQueen',
+      upgrades: { cordycepsPurge: 1 },
+      resources: { food: 60, minerals: 50 },
+      roster: null, // everything
+      units: 'default'
+    },
+    enemy: {
+      hero: null,
+      color: '#00FF00',
+      queenTier: null, // no ordinary queen: the old queen (Q) is a unit on the map
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      hunt: true,
+      // Termites, Mantises and Spitters hold the mound; the infected Marauders roam
+      guardMarkers: ['K', 'N', 'A'],
+      unitMix: {},
+      resources: { food: 0, minerals: 0 },
+      units: []
+    },
+    outro: {
+      portrait: 'hero_black.png',
+      lines: [
+        'The old queen falls. The fungus lets go of her all at once, and the mound goes quiet.',
+        'Then, faint at first, the trails come back. Every ant can smell every other ant again. Across the whole land, the fog lifts.',
+        'The colony kneels to Vexxara. But Vexxara is kneeling too, beside her mother.',
+        { hero: 'vexxara', text: 'The colony was told the old queen was dead. It wasn\'t true until today.' }
+      ]
+    },
+    objectives: [
+      { type: 'killUnit', unitId: 'camp_player2_Q1', text: 'Kill the old queen' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep Vexxara alive' }
+    ]
   }
 ];
 

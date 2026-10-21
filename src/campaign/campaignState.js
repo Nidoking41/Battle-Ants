@@ -32,7 +32,9 @@ export function buildCampaignGameState(level) {
     player1Hero: p1Hero,
     player2Hero: p2Hero,
     ...(p1Hero && HERO_COLORS[p1Hero] ? { player1Color: HERO_COLORS[p1Hero] } : {}),
-    ...(p2Hero && HERO_COLORS[p2Hero] ? { player2Color: HERO_COLORS[p2Hero] } : {})
+    ...(p2Hero && HERO_COLORS[p2Hero] ? { player2Color: HERO_COLORS[p2Hero] } : {}),
+    // an enemy with no hero (the old queen) can still pick a colour
+    ...(level.enemy?.color ? { player2Color: level.enemy.color } : {})
   });
 
   // A hand-drawn map replaces the generated hexagon entirely: its shape,
@@ -103,6 +105,10 @@ export function buildCampaignGameState(level) {
     midEvent: level.midEvent ? { escortId: level.midEvent.escortId, done: false } : null,
     // Hunters with no midEvent wake on this round and go for the player's queen
     huntersWakeTurn: level.enemy?.huntersWakeTurn ?? null,
+    // true on the boss level: shows when her powers go off (campaign/boss.js)
+    boss: !!level.boss,
+    // the fog lifts across the map when the level is won
+    liftFogOnWin: !!level.liftFogOnWin,
     halfwayQ: (() => {
       const qs = (state.mapHexes || []).map(h => h.q);
       return qs.length ? (Math.min(...qs) + Math.max(...qs)) / 2 : 0;
@@ -154,6 +160,7 @@ function applyLayout(state, level) {
   state.mapWater = layout.water; // drawn as blue hexes; never part of the mask
   state.goalHexes = layout.goals; // 'G' markers: where an escort has to get to
   state.waveSpawns = layout.spawns; // 'P' markers: where enemy waves arrive
+  state.fungusHexes = layout.fungus; // '%' markers: drawn as fungus-covered ground
   state.gridRadius = layout.gridRadius;
 
   // The generated nodes and trees are for a hexagon that no longer exists.

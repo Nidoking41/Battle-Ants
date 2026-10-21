@@ -1084,3 +1084,76 @@ describe('level 11 - The Coalition', () => {
     expect(evaluateAllObjectives({ ...dead, turn: 10 }).won).toBe(true);
   });
 });
+
+describe('level 12 - The Throne Mound', () => {
+  const { runBossPowers, SPORE_DAMAGE } = require('./boss');
+  const { executeAITurn } = require('../aiController');
+  const { HexCoord } = require('../hexUtils');
+  const BOSS = 'camp_player2_Q1';
+  // Put a player unit of `type` on a free hex at distance d from the boss
+  const place = (state, id, type, d, i = 0) => {
+    const boss = state.ants[BOSS];
+    const taken = h => Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r);
+    const free = require('../hexUtils').hexesInRange(boss.position, d)
+      .filter(h => hexDistance(h, boss.position) === d && isValidHex(h, state.gridRadius, state.mapShape) && !taken(h))[i];
+    const ant = createAnt(type, 'player1', new HexCoord(free.q, free.r));
+    ant.id = id;
+    return { ...state, ants: { ...state.ants, [id]: ant } };
+  };
+
+  test('the old queen, her guard and the fungus ground', () => {
+    const state = buildCampaignGameState(getLevel(12));
+    const boss = state.ants[BOSS];
+    expect(boss.type).toBe('oldQueen');
+    expect(boss.owner).toBe('player2');
+    expect(boss.health).toBe(200);
+    expect(state.campaign.boss).toBe(true);
+    expect(state.fungusHexes.length).toBeGreaterThan(30);
+    expect(Object.values(state.ants).filter(a => a.type === 'termite')).toHaveLength(4);
+    expect(Object.values(state.ants).filter(a => a.type === 'mantis')).toHaveLength(4);
+  });
+
+  test('spore burst hits every ant next to her on turns 3, 6, 9', () => {
+    let state = place(buildCampaignGameState(getLevel(12)), 'near', 'tank', 1);
+    state = place(state, 'far', 'tank', 2);
+    const before = state.ants.near.health;
+    expect(runBossPowers({ ...state, turn: 2 }, 'player2', createAnt).ants.near.health).toBe(before);
+    const burst = runBossPowers({ ...state, turn: 3 }, 'player2', createAnt);
+    expect(burst.ants.near.health).toBe(before - SPORE_DAMAGE);
+    expect(burst.ants.far.health).toBe(state.ants.far.health);
+  });
+
+  test('second wind: two more Termites, once, at half health', () => {
+    let state = buildCampaignGameState(getLevel(12));
+    state = { ...state, turn: 1, ants: { ...state.ants, [BOSS]: { ...state.ants[BOSS], health: 100 } } };
+    const once = runBossPowers(state, 'player2', createAnt);
+    expect(Object.values(once.ants).filter(a => a.type === 'termite')).toHaveLength(6);
+    const twice = runBossPowers(once, 'player2', createAnt);
+    expect(Object.values(twice.ants).filter(a => a.type === 'termite')).toHaveLength(6);
+  });
+
+  test('mind control on turn 4 takes the healthiest ant within 3 hexes, never Vexxara', () => {
+    let state = place(buildCampaignGameState(getLevel(12)), 'small', 'scout', 2);
+    state = place(state, 'big', 'tank', 3);
+    state = place(state, 'outside', 'tank', 4);
+    // Vexxara herself right next to her
+    const q = state.ants[PLAYER_QUEEN_ID];
+    state = place(state, 'spot', 'scout', 1);
+    state = { ...state, ants: { ...state.ants, [PLAYER_QUEEN_ID]: { ...q, position: state.ants.spot.position, health: 999 } } };
+    delete state.ants.spot;
+    const res = runBossPowers({ ...state, turn: 4 }, 'player2', createAnt);
+    expect(res.ants.big.owner).toBe('player2');
+    expect(res.ants.small.owner).toBe('player1');
+    expect(res.ants.outside.owner).toBe('player1');
+    expect(res.ants[PLAYER_QUEEN_ID].owner).toBe('player1');
+  });
+
+  test('she never moves, and killing her wins', async () => {
+    const state = buildCampaignGameState(getLevel(12));
+    const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    expect(res.gameState.ants[BOSS].position).toEqual(state.ants[BOSS].position);
+    const dead = { ...state, ants: { ...state.ants } };
+    delete dead.ants[BOSS];
+    expect(evaluateAllObjectives(dead).won).toBe(true);
+  }, 60000);
+});

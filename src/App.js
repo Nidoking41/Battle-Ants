@@ -373,6 +373,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.players?.player1?.color, gameState.players?.player2?.color]); // Re-run when player colors change
 
+  // Level 12: when the old queen falls the pheromone link comes back and the
+  // fog lifts across the whole map
+  useEffect(() => {
+    const won = gameState.gameOver && gameState.winner === 'player1';
+    if (!won || !gameMode?.fogOfWar || !(fullGameState || gameState).campaign?.liftFogOnWin) return;
+    setGameMode(m => ({ ...m, fogOfWar: false }));
+    if (fullGameState) setGameState(fullGameState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.gameOver, gameState.winner]);
+
   // Make sure every ant on the board has its idle animation running. The
   // effect above only runs when a player's colour changes, so a unit that
   // appeared later was never started and sat frozen on its first frame until
@@ -1703,6 +1713,9 @@ function App() {
         const { gameState: aiState, movements, combatActions } = passiveEnemy
           ? { gameState: currentState, movements: [], combatActions: [] }
           : await executeAITurn(currentState, 'player2', gameMode.aiDifficulty, { fogOfWar: gameMode.fogOfWar !== false });
+
+        // The old queen's powers (level 12) went off at the start of her turn
+        if (aiState.campaign?.bossLog?.length) showFeedback(aiState.campaign.bossLog.join(' '));
 
         // Replay the AI's actions in the order it took them. The AI resolves
         // each unit fully before the next acts, so a unit can walk into a hex
@@ -4758,6 +4771,10 @@ function App() {
       if (isGoalHex) {
         fillColor = '#E9D27A';
       }
+      // Fungus-covered ground round the Throne Mound (level 12)
+      if ((gameState.fungusHexes || []).some(g => g.q === q && g.r === r)) {
+        fillColor = '#B9AF8E';
+      }
       // Don't color the entire hex for resources anymore - we'll add a colored circle instead
       if (isValidMove) {
         // Different color for fog of war moves vs visible moves
@@ -5557,7 +5574,7 @@ function App() {
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (() => {
             // Large units (campaign bugs) are drawn 1.5x on the same hex
-            const size = getAntTypeById(ant.type)?.large ? 120 : 80;
+            const size = getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80;
             const half = size / 2;
             return (
             <g opacity={hasActions ? 1 : 0.5}>

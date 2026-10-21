@@ -77,6 +77,12 @@ export const SpriteConfig = {
       walk: { path: 'termite_idle.png', frames: 8 },
       attack: { path: 'termite_idle.png', frames: 8 }
     },
+    // The infected old queen (48px frames, drawn even larger - see App.js)
+    oldQueen: {
+      idle: { path: 'oldqueen_idle.png', frames: 8 },
+      walk: { path: 'oldqueen_idle.png', frames: 8 },
+      attack: { path: 'oldqueen_idle.png', frames: 8 }
+    },
     mantis: {
       idle: { path: 'mantis_idle.png', frames: 8 },
       walk: { path: 'mantis_idle.png', frames: 8 },
@@ -149,6 +155,7 @@ const ANT_TYPE_TO_FOLDER = {
   'emissary': 'Emissary',
   'termite': 'Termite',
   'mantis': 'Mantis',
+  'oldQueen': 'OldQueen',
   'soldier': 'Marauder',
   'tank': 'Bullet',
   'spitter': 'Acid',
