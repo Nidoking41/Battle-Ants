@@ -849,16 +849,18 @@ describe('level 7 - The Long Grass', () => {
     expect(state.campaign.roster).toEqual([]);
   });
 
-  test('with nobody near, the enemy holds position: its units never move on its turn', async () => {
+  test('with nobody spotted, only the Scouts move: they patrol, everything else holds', async () => {
     let state = buildCampaignGameState(getLevel(7));
-    const where = s => Object.values(s.ants).filter(a => a.owner === 'player2').map(a => `${a.id}@${a.position.q},${a.position.r}`).sort();
+    const where = s => Object.values(s.ants).filter(a => a.owner === 'player2' && a.type !== 'scout').map(a => `${a.id}@${a.position.q},${a.position.r}`).sort();
     const before = where(state);
     state = endTurn(state).gameState;
-    const res = await executeAITurn(state, 'player2', 'medium');
+    const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
     expect(where(res.gameState)).toEqual(before);
+    const scoutsMoved = Object.values(res.gameState.ants).filter(a => a.type === 'scout' && a.owner === 'player2' && (a.position.q !== a.post.q || a.position.r !== a.post.r));
+    expect(scoutsMoved.length).toBeGreaterThan(0);
   }, 60000);
 
-  test('a guard moves in when one of your units comes within 4 hexes; Bombardiers stay put', async () => {
+  test('when one of your units is spotted, the nearest Marauder goes after it; Bombardiers stay put', async () => {
     let state = buildCampaignGameState(getLevel(7));
     const guard = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'soldier');
     const bombs = Object.values(state.ants).filter(a => a.owner === 'player2' && a.type === 'bombardier');

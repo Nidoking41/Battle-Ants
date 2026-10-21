@@ -664,6 +664,52 @@ function performUnitActions(gameState, aiPlayer, config, strategy) {
 }
 
 /**
+ * Guarded positions (enemy.holdPosition):
+ * - Bombardiers never move; they shell whatever comes into range.
+ * - Scouts patrol back and forth near their post, and are this side's eyes.
+ * - Marauders (and anything else) wait at their post. When one of your units
+ *   is detected - seen by any unit on this side - the Marauder nearest to it
+ *   goes after it, and keeps hunting until nothing is in sight.
+ */
+function handleGuardUnit(state, unit, aiPlayer, enemies) {
+  const post = unit.post || { q: unit.position.q, r: unit.position.r };
+  const remember = (r, extra = {}) => {
+    const me = r.state.ants[unit.id];
+    if (isLive(me)) r.state = { ...r.state, ants: { ...r.state.ants, [unit.id]: { ...me, post, ...extra } } };
+    return r;
+  };
+
+  if (unit.type === 'bombardier') return remember(fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true }));
+
+  if (unit.type === 'scout') {
+    // Something to hit right where it stands? Take the shot, stay put.
+    const shot = fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
+    if (shot.combatAction) return remember(shot);
+    // Otherwise walk the patrol: out to a far point within 3 hexes of the
+    // post, then back, then out again
+    const options = reachableHexes(state, unit).filter(o => hexDistance(o.hex, post) <= 3);
+    if (options.length === 0) return remember(shot);
+    const goingOut = !unit.patrolOut;
+    const pick = options.reduce((best, o) => {
+      const score = goingOut ? hexDistance(o.hex, post) : -hexDistance(o.hex, post);
+      return !best || score > best.score ? { o, score } : best;
+    }, null).o;
+    const moved = applyMove(state, unit, pick);
+    return remember({ state: moved.state, movement: moved.movement }, { patrolOut: goingOut });
+  }
+
+  // Marauders: detected = your units this side can see
+  const detected = enemies.filter(e => e.position && aiCanSee(state, aiPlayer, e));
+  const marauders = liveAnts(state).filter(a => a.owner === aiPlayer && a.type !== 'scout' && a.type !== 'bombardier' && a.type !== 'queen');
+  const nearestMarauderTo = target => marauders.reduce((a, b) =>
+    (hexDistance(a.position, target.position) <= hexDistance(b.position, target.position) ? a : b));
+  const myTargets = detected.filter(t => unit.engaged || nearestMarauderTo(t).id === unit.id);
+  if (myTargets.length === 0) return remember(fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true }), { engaged: false });
+  const target = myTargets.reduce((a, b) => (hexDistance(a.position, unit.position) <= hexDistance(b.position, unit.position) ? a : b));
+  return remember(fightOrAdvance(state, unit, aiPlayer, target.position, { caution: 0.3, advance: 1.5 }), { engaged: true });
+}
+
+/**
  * The queen's own turn: heal or attack, whichever is worth more. Heals keep
  * enough energy back for one egg so the queen still lays afterwards.
  */
@@ -993,19 +1039,8 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
 
-  // Holding level: Bombardiers never move - they shell whatever comes into
-  // range. Everything else guards its post until one of your units comes
-  // within GUARD_RANGE hexes where this side can see it, then moves in on
-  // the nearest one.
-  if (gameState.campaign?.enemyHoldPosition) {
-    const GUARD_RANGE = 4;
-    if (unit.type === 'bombardier') return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
-    const threats = enemies.filter(e => e.position && hexDistance(e.position, unit.position) <= GUARD_RANGE &&
-      aiCanSee(state, aiPlayer, e));
-    if (threats.length === 0) return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
-    const nearest = threats.reduce((a, b) => (hexDistance(a.position, unit.position) <= hexDistance(b.position, unit.position) ? a : b));
-    return fightOrAdvance(state, unit, aiPlayer, nearest.position, { caution: 0.3, advance: 1.5 });
-  }
+  // Holding level (enemy.holdPosition): a guarded position.
+  if (gameState.campaign?.enemyHoldPosition) return handleGuardUnit(state, unit, aiPlayer, enemies);
 
   // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).
   if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, enemyQueen);

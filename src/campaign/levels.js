@@ -28,9 +28,9 @@
 //                      'passive' ends the enemy turn without acting
 //   enemy.hunt         true = enemy combat units march straight for the
 //                      player's Queen Larva instead of guarding home first
-//   enemy.holdPosition true = Bombardiers never move; other enemy units guard
-//                      their posts until one of your units comes within 4 hexes
-//                      (and in sight), then move in on it
+//   enemy.holdPosition true = guarded positions: Bombardiers never move,
+//                      Scouts patrol near their post, and when any of your units
+//                      is spotted the nearest Marauder goes after it
 //   enemy.aggressive   true = hunting units ignore danger and always press
 //                      forward (they never hold back or retreat)
 //   enemy.huntWithScouts  true = scouts join that hunt too (normally scouts
