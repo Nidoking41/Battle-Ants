@@ -1026,11 +1026,22 @@ function App() {
     if (queen && queen.position && typeof queen.position.q === 'number' && typeof queen.position.r === 'number') {
       console.log('Centering camera on queen for', currentPlayerId, 'at position', queen.position.q, queen.position.r);
       const queenPixel = hexToPixel(queen.position, hexSize);
-      // Position queen in bottom third of viewport
-      setCameraOffset({
-        x: -queenPixel.x,
-        y: -queenPixel.y + 150
-      });
+      // A campaign level can start the camera on your whole starting army
+      // (level.cameraOnArmy) instead of the queen
+      const level = gameState.campaign ? getLevel(gameState.campaign.levelId) : null;
+      if (level?.cameraOnArmy) {
+        const mine = Object.values(gameState.ants).filter(a => a.owner === currentPlayerId && a.position);
+        const pts = mine.map(a => hexToPixel(a.position, hexSize));
+        const cx = pts.reduce((sum, p) => sum + p.x, 0) / pts.length;
+        const cy = pts.reduce((sum, p) => sum + p.y, 0) / pts.length;
+        setCameraOffset({ x: -cx, y: -cy });
+      } else {
+        // Position queen in bottom third of viewport
+        setCameraOffset({
+          x: -queenPixel.x,
+          y: -queenPixel.y + 150
+        });
+      }
       setHasCenteredOnQueen(true);
     }
   }, [gameMode, gameState.ants, hasCenteredOnQueen]); // Run when game mode, ants, or centered flag changes

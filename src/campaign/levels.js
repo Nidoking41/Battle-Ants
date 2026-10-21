@@ -48,6 +48,8 @@
 //                      explain it: [{ target, title, text }], target = the
 //                      button's data-tip name in App.js
 //   speedBase          optional: the speed score's starting value (default 500)
+//   cameraOnArmy       optional: start the camera centred on your starting units
+//                      instead of with the queen near the bottom of the screen
 //   midEvent           optional: { escortId, cutscene } - when that unit
 //                      crosses the middle of the map the cutscene plays and the
 //                      enemy's hunter units (enemy.hunterMarkers in the layout)
@@ -631,6 +633,7 @@ export const LEVELS = [
     name: 'The Long Grass',
     fogOfWar: true,
     speedBase: 600, // a long trek: the speed score starts 100 higher
+    cameraOnArmy: true, // open framed on the whole starting force, not just the queen
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
