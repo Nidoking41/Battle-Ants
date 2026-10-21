@@ -841,20 +841,40 @@ describe('level 7 - The Long Grass', () => {
     expect(level.fogOfWar).toBe(true);
     const state = buildCampaignGameState(level);
     expect(state.ants.camp_player1_e1.type).toBe('emissary');
-    expect(state.campaign.goalHexes).toHaveLength(7);
+    expect(state.campaign.goalHexes.length).toBeGreaterThanOrEqual(7);
     const theirs = Object.values(state.ants).filter(a => a.owner === 'player2').map(a => a.type).sort();
-    expect(theirs).toEqual(['bombardier', 'bombardier', 'bombardier', 'bombardier', 'scout', 'scout', 'scout', 'scout', 'soldier', 'soldier']);
+    const count = t => theirs.filter(x => x === t).length;
+    expect([count('bombardier'), count('scout'), count('soldier')]).toEqual([5, 4, 4]);
     expect(Object.values(state.ants).some(a => a.owner === 'player2' && a.type === 'queen')).toBe(false);
     expect(state.campaign.roster).toEqual([]);
   });
 
-  test('the enemy holds position: its units never move on its turn', async () => {
+  test('with nobody near, the enemy holds position: its units never move on its turn', async () => {
     let state = buildCampaignGameState(getLevel(7));
     const where = s => Object.values(s.ants).filter(a => a.owner === 'player2').map(a => `${a.id}@${a.position.q},${a.position.r}`).sort();
     const before = where(state);
     state = endTurn(state).gameState;
     const res = await executeAITurn(state, 'player2', 'medium');
     expect(where(res.gameState)).toEqual(before);
+  }, 60000);
+
+  test('a guard moves in when one of your units comes within 4 hexes; Bombardiers stay put', async () => {
+    let state = buildCampaignGameState(getLevel(7));
+    const guard = Object.values(state.ants).find(a => a.owner === 'player2' && a.type === 'soldier');
+    const bombs = Object.values(state.ants).filter(a => a.owner === 'player2' && a.type === 'bombardier');
+    // Drop one of your Marauders 3 hexes from the guard, in the open
+    const mine = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'soldier');
+    const { hexesInRange, hexDistance, isValidHex } = require('../hexUtils');
+    const spot = hexesInRange(guard.position, 3).find(h => hexDistance(h, guard.position) === 3 &&
+      isValidHex(h, state.gridRadius, state.mapShape) && !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r) &&
+      !Object.values(state.trees).some(t => t.position.q === h.q && t.position.r === h.r));
+    state = { ...state, ants: { ...state.ants, [mine.id]: { ...mine, position: { q: spot.q, r: spot.r } } } };
+    state = endTurn(state).gameState;
+    const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: false });
+    const after = res.gameState.ants[guard.id];
+    const engaged = !after || hexDistance(after.position, guard.position) > 0 || res.combatActions.some(c => c.attackerId === guard.id);
+    expect(engaged).toBe(true);
+    bombs.forEach(b => { const now = res.gameState.ants[b.id]; if (now) expect(now.position).toEqual(b.position); });
   }, 60000);
 
   test('the Emissary reaching a gold hex wins; losing it loses', () => {

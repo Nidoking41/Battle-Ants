@@ -993,9 +993,18 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
 
-  // Holding level: never move, just hit whatever is in range from where it stands
+  // Holding level: Bombardiers never move - they shell whatever comes into
+  // range. Everything else guards its post until one of your units comes
+  // within GUARD_RANGE hexes where this side can see it, then moves in on
+  // the nearest one.
   if (gameState.campaign?.enemyHoldPosition) {
-    return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
+    const GUARD_RANGE = 4;
+    if (unit.type === 'bombardier') return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
+    const threats = enemies.filter(e => e.position && hexDistance(e.position, unit.position) <= GUARD_RANGE &&
+      aiCanSee(state, aiPlayer, e));
+    if (threats.length === 0) return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
+    const nearest = threats.reduce((a, b) => (hexDistance(a.position, unit.position) <= hexDistance(b.position, unit.position) ? a : b));
+    return fightOrAdvance(state, unit, aiPlayer, nearest.position, { caution: 0.3, advance: 1.5 });
   }
 
   // Bombers: walk into the enemy and detonate when adjacent to two or more (or the queen).

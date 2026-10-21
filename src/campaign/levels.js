@@ -28,6 +28,9 @@
 //                      'passive' ends the enemy turn without acting
 //   enemy.hunt         true = enemy combat units march straight for the
 //                      player's Queen Larva instead of guarding home first
+//   enemy.holdPosition true = Bombardiers never move; other enemy units guard
+//                      their posts until one of your units comes within 4 hexes
+//                      (and in sight), then move in on it
 //   enemy.aggressive   true = hunting units ignore danger and always press
 //                      forward (they never hold back or retreat)
 //   enemy.huntWithScouts  true = scouts join that hunt too (normally scouts
@@ -634,38 +637,42 @@ export const LEVELS = [
       ]
     },
     briefing: ['Get the Queen\'s Emissary to the gold hexes at the far side. Bombardiers hide in the fog: scout ahead and use Reveal.'],
-    // The Long Grass: a long field with a pond in the middle, Sorlorg's
+    // The Long Grass: a long, wide S-shaped trail running left to right, with a pond in each bend. Sorlorg's
     // Bombardiers (B) spread through it, two Marauders (R) on guard, and
     // Scouts (S) as spotters: with fog on, the enemy only fires at what its
     // own units can see, and a Bombardier sees just 1 hex.
-    // Your nest is at the bottom, the goal row (G) at the top.
+    // Your nest is at the left end, the goal column (G) at the right.
     map: {
       layout: [
-        'G G G G G G G',
-        ' . . . . . . ',
-        '. T . . . T .',
-        ' . . B . S . ',
-        '. . . . T . .',
-        ' . T . . R . ',
-        '. . . ~ ~ . .',
-        ' . . ~ ~ ~ . ',
-        '. B . ~ ~ . B',
-        ' S . . . . S ',
-        '. . T . . T .',
-        ' . . R . . . ',
-        'T . . . . . T',
-        ' . B S . . . ',
-        '. . . . T . .',
-        ' T . . . . . ',
-        '. . . . . . .',
-        ' . . . . . . ',
-        '. . T . . . .',
-        ' . . . . . . ',
-        '. . s e s . .',
-        ' . m a a m . ',
-        '. . . w . . .',
-        ' . . . . . . ',
-        '. . . 1 . . .'
+        '                               . . .',
+        '                              . . . T',
+        '                           . . . . . . T',
+        '                          . . . . . R . .',
+        '                         T B . B . . . . .',
+        '                          . . . . . . . .',
+        '                         . . . . . . T . .',
+        '                        . . . S ~ ~ . . . .',
+        '                       . . T T . . . S . . G',
+        '.                     . . . R . . . . . . . G',
+        ' .                   . . . . . . . . . . T G',
+        '. .                 . R . . . . . . . B T . G',
+        ' . .               . . . T . . . . . . . . G',
+        '. . .             . T . . . .         . . . G',
+        ' . . .           . . T S T T           . . G',
+        '. . . .         . . . T B .             . . G',
+        ' 1 . . . . T . . . . . . T               . G',
+        '. . . . . T . T B . . T .                 . G',
+        ' . w a . . . . . . . . .                   G',
+        '. . m . s . T . T T . .                     G',
+        ' . . . . . T . ~ ~ . .',
+        '  . . e . . . . . . .',
+        '   . a . . . R S . .',
+        '    m . . . . . . .',
+        '   . . . . . . . . .',
+        '    . . s . . T . .',
+        '     . . . . . . .',
+        '        . . . .',
+        '         . . T'
       ],
       legend: { e: 'emissary', s: 'scout', m: 'soldier', a: 'spitter', w: 'healer', B: 'bombardier', R: 'soldier', S: 'scout' }
     },
