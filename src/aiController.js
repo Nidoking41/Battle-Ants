@@ -1,7 +1,7 @@
 import { AntTypes, GameConstants, getAntTypeById, meetsQueenTier } from './antTypes';
 import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
-import { getVisibleHexes, isAntObscuredByTree } from './fogOfWar';
+import { getVisibleHexes, isAntObscuredByTree, getDetectedBurrowedAnts } from './fogOfWar';
 import {
   canAfford,
   deductCost,
@@ -202,6 +202,8 @@ let aiFogOfWar = false;
 /** Can the AI side actually see this enemy unit right now? */
 function aiCanSee(state, aiPlayer, target) {
   if (!aiFogOfWar || !target?.position) return true;
+  // Burrowed units are only seen when detected (Scouts nearby or a Reveal)
+  if (target.isBurrowed) return getDetectedBurrowedAnts(state, aiPlayer).has(target.id);
   const visible = getVisibleHexes(state, aiPlayer);
   if (!visible.has(`${target.position.q},${target.position.r}`)) return false;
   return !isAntObscuredByTree(state, target, aiPlayer);

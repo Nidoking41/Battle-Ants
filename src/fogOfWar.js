@@ -135,6 +135,14 @@ export function isAntObscuredByTree(gameState, ant, playerId) {
     return false; // No tree, not obscured
   }
 
+  // A queen's Reveal uncovers trees too, for the turn it is active
+  const hexKey = `${ant.position.q},${ant.position.r}`;
+  const revealedHere = Object.keys(gameState.players || {}).some(pid =>
+    areTeammates(pid, playerId) && (gameState.players[pid]?.revealedHexes || []).includes(hexKey));
+  if (revealedHere) {
+    return false;
+  }
+
   // Ant is on a tree - check if player or teammates have an adjacent ant
   const friendlyAnts = gameState.ants ? Object.values(gameState.ants).filter(
     a => areTeammates(a.owner, playerId) && !a.isDead
@@ -245,8 +253,13 @@ export function applyFogOfWar(gameState, playerId) {
       if (ant.owner === playerId) {
         filteredAnts[id] = ant;
       }
-      // Show enemy ants if visible OR if detected while burrowed
-      else if (visibleHexes.has(hexKey) || detectedBurrowed.has(id)) {
+      // A burrowed enemy shows only when detected (a Scout nearby or a
+      // queen's Reveal), even inside your vision
+      else if (ant.isBurrowed && !(gameState.players?.[ant.owner]?.team && gameState.players[ant.owner].team === gameState.players?.[playerId]?.team)) {
+        if (detectedBurrowed.has(id)) filteredAnts[id] = ant;
+      }
+      // Other enemy ants show when they are in sight
+      else if (visibleHexes.has(hexKey)) {
         // Additional check: is the enemy ant obscured by a tree?
         if (!isAntObscuredByTree(gameState, ant, playerId)) {
           filteredAnts[id] = ant;
