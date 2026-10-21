@@ -2304,6 +2304,7 @@ export function cordycepsPurge(gameState, cordyphageId, targetId) {
       [targetId]: {
         ...target,
         owner: cordyphage.owner, // Change ownership
+        colorOverride: undefined, // drawn in its new side's colour
         hasMoved: true, // Mark as moved so it can't act this turn
         hasAttacked: true
       }

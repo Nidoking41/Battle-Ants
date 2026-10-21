@@ -367,7 +367,7 @@ function App() {
   // Initialize all ants with idle animation when game state or player colors change
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
-      const playerColor = gameState.players[ant.owner]?.color;
+      const playerColor = (ant.colorOverride || gameState.players[ant.owner]?.color);
       setAntAnimation(ant.id, ant.type, 'idle', playerColor);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,7 +382,7 @@ function App() {
   const antIdsKey = Object.values(gameState.ants).map(a => `${a.id}:${a.type}`).sort().join('|');
   useEffect(() => {
     Object.values(gameState.ants).forEach(ant => {
-      ensureAntAnimation(ant.id, ant.type, gameState.players[ant.owner]?.color);
+      ensureAntAnimation(ant.id, ant.type, (ant.colorOverride || gameState.players[ant.owner]?.color));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [antIdsKey]);
@@ -1334,7 +1334,7 @@ function App() {
     // Use passed attackerInfo for multiplayer, or look up from current state
     const attacker = attackerInfo || gameState.ants[attackerId] || fullGameState?.ants?.[attackerId];
     if (attacker) {
-      const playerColor = gameState.players?.[attacker.owner]?.color || fullGameState?.players?.[attacker.owner]?.color;
+      const playerColor = attacker.colorOverride || gameState.players?.[attacker.owner]?.color || fullGameState?.players?.[attacker.owner]?.color;
       setAntAnimation(attackerId, attacker.type, 'attack', playerColor);
       // Return to idle after attack animation
       setTimeout(() => {
@@ -3453,7 +3453,7 @@ function App() {
             });
 
             // Trigger walk sprite animation
-            const playerColor = gameState.players[ant.owner]?.color;
+            const playerColor = (ant.colorOverride || gameState.players[ant.owner]?.color);
             setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
             // After animation completes, trigger ambush
@@ -3563,7 +3563,7 @@ function App() {
         });
 
         // Trigger walk sprite animation
-        const playerColor = gameState.players[ant.owner]?.color;
+        const playerColor = (ant.colorOverride || gameState.players[ant.owner]?.color);
         setAntAnimation(selectedAnt, ant.type, 'walk', playerColor);
 
         // After animation completes, mark ant as moved and update final state
@@ -5509,7 +5509,7 @@ function App() {
       }
 
       // Get sprite frame info
-      const playerColor = gameState.players[ant.owner]?.color;
+      const playerColor = (ant.colorOverride || gameState.players[ant.owner]?.color);
       const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
 
       // Check if ant is on a resource or anthill

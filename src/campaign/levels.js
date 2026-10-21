@@ -1086,6 +1086,131 @@ export const LEVELS = [
       { type: 'destroyAnthill', anthillId: 'camp_player2_garden', text: 'Destroy the fungus garden' },
       { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
     ]
+  },
+  // ---------------------------------------------------------------------
+  // Level 11 - The Coalition (Gorlak and Thorgrim, allied, then Sorlorg)
+  // Sorlorg buys time by promising the throne to two rivals Vexxara already
+  // beat. Gorlak's troops (red) pour in from the left and Thorgrim's (yellow)
+  // from the right, on a fixed schedule - all one enemy side, so they never
+  // fight each other. Hold the nest for 10 rounds, then kill Sorlorg's queen at
+  // the top of the map. Connected Tunnels and Cannibalism are the tools.
+  {
+    id: 11,
+    name: 'The Coalition',
+    fogOfWar: true,
+    speedBase: 750,
+    cutscene: {
+      portrait: 'hero_black.png',
+      lines: [
+        'With her garden burned, Sorlorg needs time. So she buys it, with the one thing she does not own: the throne.',
+        'She has promised it to both of them. Gorlak, who Vexxara broke in the iron fields. Thorgrim, who has never forgiven the loss.',
+        { hero: 'gorlak', text: 'Sorlorg says the throne is mine when you fall. I don\'t care whose it is. I care that you beat me.' },
+        { hero: 'thorgrim', text: 'Gorlak hits hard and thinks little. I will think for both of us. Two armies, two sides. Let us see you cover both.' },
+        { hero: 'sorlorg', text: 'Hold them off if you can, little queen. I will be waiting at the top of the hill.' },
+        'Hold the nest for 10 turns while they come from both sides. Then push through and kill Sorlorg\'s queen.'
+      ]
+    },
+    briefing: ['Hold your nest for 10 turns against Gorlak (left) and Thorgrim (right), then kill Sorlorg\'s queen at the top.'],
+    map: {
+      layout: [
+        '      . . . . . . . . T . . . . . . T . . T . . .',
+        '     . . . . . . . . . . . . . . . T . . . . T T .',
+        '    . . . T . . T . . . M . . M . . . . . T . T T T',
+        '   . T . . . . . T T . T . . . . T . . . . . . . . .',
+        '  . . . . . . . . . . . . . . . . . . . . . T . . . .',
+        ' . . . . . . T . . . . . . 2 . T . . . T . . T . . . .',
+        '. . . . . . . . . . . F . . . . F . T . . . . . . . T .',
+        ' . T . . . . . . . . . . . . . . T . . . . . . . . . .',
+        '. T . . . . . . T . . . B . . B . . . . . . T . . . . T',
+        ' . . . . . . . . . . . . . F . T . . . . T . . . . . T',
+        '. . . T . . . ~ . . T A . . . . A . T . ~ . . T . . . .',
+        ' T . . . . . ~ ~ . . . . T A . . . . . ~ ~ . . T T . T',
+        '. . . . . . . ~ . T . . T . . . . . . . ~ . T . . . . .',
+        ' . . . . . . ~ ~ . . . T . . T . . . . ~ ~ . . . . . .',
+        '. . . . . T . ~ . . . . . . . T T . . . ~ . . . . . . .',
+        ' . . . . . . . . . T . . . ~ T . . . T . . . . . . . .',
+        '. T . . . . . . . . . . T ~ ~ . . . . . T . . T . . . .',
+        ' T . . . T T . T . . . . ~ ~ ~ . . T . T . . . . . . T',
+        '. . T . . . . T . . T . . ~ ~ T . . . . . . . T . . . .',
+        ' . . . . T . . . ~ . . . ~ ~ ~ . . . ~ . T . . . . T .',
+        '. . . T . . . . ~ ~ . . . ~ ~ . . . ~ ~ T . . T . T . .',
+        ' . . . . T . T ~ ~ ~ T T ~ ~ ~ . . ~ ~ ~ . . . . . . .',
+        '. . T . . . . . ~ ~ M . . ~ ~ T . M ~ ~ . . . . . . . .',
+        ' . . . . . . . ~ ~ ~ . . . ~ T . . ~ ~ ~ . . . . . . .',
+        'T . . T . . . . ~ ~ T T . . . . . . ~ ~ . . . . T . . .',
+        ' . . . . . . . ~ ~ ~ T T T F . . . ~ ~ ~ . . . . . . .',
+        'T . . T . L . . ~ ~ . . . T . . . . ~ ~ . . H . T . T T',
+        ' . . . . . . . . ~ T T . . T . . . . ~ . . . . . . . .',
+        '. . . . . . . . . . . . . . . . . . . . . . . . . . T .',
+        ' . T T . . . . . . . . . . . . . . . . . . . . . . T .',
+        '. . . . . . P . T . . . T . . . . . . . . P . . . T . .',
+        ' T . . . N . . . . . . . . b . T . . . . . . J T . T .',
+        '. . . . . . . . . F T . . . . . T . F . . . . . T . . .',
+        ' . T . . . . . . T . . T m . m . . . . . . . . . . . .',
+        'T T . . . . L . . T . . . . . . . . . . . H . . . . . .',
+        ' . . . T . . . . T . . F . 1 . F . . . . . . . . . T .',
+        '  . . . . . . . . T . T a . . a . . T . T . . . T T .',
+        '   . . . . . . . . . . . . . . . . . . . . . . . . .',
+        '    . . . . . . . . T . . . . . . T . T T . . . . T',
+        '     . . . . T . . . . T . . . . . . . . . T T . .',
+        '      T . . T . . . T . M . . M . . T . . T . . .'
+      ],
+      legend: { m: 'soldier', b: 'tank', a: 'spitter', L: 'soldier', N: 'tank', H: 'tank', J: 'healer', B: 'bombardier', A: 'spitter' }
+    },
+    player: {
+      hero: 'vexxara',
+      queenTier: 'swarmQueen',
+      resources: { food: 50, minerals: 40 },
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage'],
+      units: 'default',
+      // two anthills on your flanks, so Connected Tunnels has somewhere to go
+      anthills: [{ type: 'food', count: 2 }]
+    },
+    enemy: {
+      hero: 'sorlorg',
+      queenTier: 'broodQueen',
+      behavior: 'ai',
+      aiDifficulty: 'medium',
+      hunt: true,
+      // Camp and nest guards hold their post: Gorlak's (L, N), Thorgrim's (H, J), Sorlorg's (B, A)
+      guardMarkers: ['L', 'N', 'H', 'J', 'B', 'A'],
+      // Gorlak's troops in red, Thorgrim's in yellow
+      markerColors: { L: '#FF0000', N: '#FF0000', H: '#FFFF00', J: '#FFFF00' },
+      unitMix: { spitter: 0.35, bombardier: 0.2, bomber: 0.2, soldier: 0.15, drone: 0.1 },
+      resources: { food: 40, minerals: 30 },
+      units: 'default',
+      // at 0 = Gorlak's side (left), at 1 = Thorgrim's side (right)
+      waves: [
+        { turn: 1, at: 0, color: '#FF0000', units: [{ type: 'soldier', count: 3 }] },
+        { turn: 2, at: 1, color: '#FFFF00', units: [{ type: 'tank', count: 1 }, { type: 'soldier', count: 1 }, { type: 'healer', count: 1 }] },
+        { turn: 3, at: 0, color: '#FF0000', units: [{ type: 'soldier', count: 2 }, { type: 'tank', count: 1 }] },
+        { turn: 4, at: 1, color: '#FFFF00', units: [{ type: 'tank', count: 2 }, { type: 'healer', count: 1 }] },
+        { turn: 5, at: 0, color: '#FF0000', units: [{ type: 'soldier', count: 3 }, { type: 'tank', count: 1 }] },
+        { turn: 6, at: 1, color: '#FFFF00', units: [{ type: 'tank', count: 2 }, { type: 'soldier', count: 2 }] },
+        { turn: 7, at: 0, color: '#FF0000', units: [{ type: 'soldier', count: 3 }, { type: 'tank', count: 1 }] },
+        { turn: 8, at: 1, color: '#FFFF00', units: [{ type: 'tank', count: 2 }, { type: 'healer', count: 1 }, { type: 'soldier', count: 1 }] },
+        { turn: 9, at: 0, color: '#FF0000', units: [{ type: 'soldier', count: 2 }, { type: 'tank', count: 1 }] },
+        { turn: 9, at: 1, color: '#FFFF00', units: [{ type: 'tank', count: 1 }, { type: 'soldier', count: 2 }] }
+      ]
+    },
+    uiTips: [
+      { target: 'upgrades', title: 'Connected Tunnels', text: 'Your nest has two anthills on its flanks. With Connected Tunnels, an ant standing on one of your anthills can jump straight to another - rush defenders to whichever side is under attack.' },
+      { target: 'upgrades', title: 'Cannibalism', text: 'A long fight eats food. Cannibalism gives you food and minerals every time one of your melee ants makes a kill.' }
+    ],
+    outro: {
+      portrait: 'old_queen.png',
+      lines: [
+        'Sorlorg\'s queen falls at the top of the hill. Her armies scatter.',
+        { hero: 'sorlorg', text: 'You think you\'ve won? You haven\'t. She doesn\'t need me any more.' },
+        'Far away, the Throne Mound shakes. The dirt splits open beneath the Golden Throne.',
+        'And the old queen climbs out. Pale. Mushrooms growing from her back. Blank white eyes that see nothing and want everything.'
+      ]
+    },
+    objectives: [
+      { type: 'survive', untilTurn: 10, text: 'Hold your nest for 10 turns' },
+      { type: 'killUnit', unitId: ENEMY_QUEEN_ID, text: 'Then kill Sorlorg\'s queen' },
+      { type: 'protect', unitId: PLAYER_QUEEN_ID, text: 'Keep the Queen alive' }
+    ]
   }
 ];
 

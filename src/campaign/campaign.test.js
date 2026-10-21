@@ -1057,3 +1057,30 @@ describe('level 10 - Cordyceps', () => {
     Object.values(state.ants).filter(a => a.guard).forEach(g => expect(res.gameState.ants[g.id].position).toEqual(g.position));
   }, 60000);
 });
+
+describe('level 11 - The Coalition', () => {
+  const { spawnDueWaves } = require('./waves');
+  test('Gorlak and Thorgrim come from opposite sides in their own colours', () => {
+    let state = buildCampaignGameState(getLevel(11));
+    expect(Object.values(state.anthills).filter(h => h.owner === 'player1')).toHaveLength(2);
+    expect(state.ants.camp_player2_L1.colorOverride).toBe('#FF0000');
+    expect(state.ants.camp_player2_H1.colorOverride).toBe('#FFFF00');
+    state = spawnDueWaves({ ...state, turn: 2 }, createAnt);
+    const red = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave1_'));
+    const yellow = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave2_'));
+    expect(red.every(a => a.colorOverride === '#FF0000')).toBe(true);
+    expect(yellow.every(a => a.colorOverride === '#FFFF00')).toBe(true);
+    const [left, right] = state.campaign.waveSpawns;
+    expect(left.q).toBeLessThan(right.q);
+    red.forEach(a => expect(hexDistance(a.position, left)).toBeLessThanOrEqual(3));
+    yellow.forEach(a => expect(hexDistance(a.position, right)).toBeLessThanOrEqual(3));
+  });
+
+  test('killing Sorlorg early does not win until the 10 turns are held', () => {
+    const state = buildCampaignGameState(getLevel(11));
+    const dead = { ...state, ants: { ...state.ants } };
+    delete dead.ants.camp_p2_queen;
+    expect(evaluateAllObjectives({ ...dead, turn: 6 }).won).toBe(false);
+    expect(evaluateAllObjectives({ ...dead, turn: 10 }).won).toBe(true);
+  });
+});

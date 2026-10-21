@@ -44,6 +44,8 @@ export function spawnDueWaves(state, createAnt) {
         if (!pos) return; // nest is packed; the rest of this wave is lost
         const ant = createAnt(type, ENEMY, pos, state.players?.[ENEMY]?.heroId || null);
         ant.id = `camp_wave${wave.turn}_${type}${++n}`;
+        // An allied hero's troops keep their own colour (wave.color)
+        if (wave.color) ant.colorOverride = wave.color;
         ants[ant.id] = ant;
       }
     });
