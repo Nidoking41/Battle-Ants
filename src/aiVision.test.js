@@ -2,7 +2,7 @@ import { createInitialGameState, createAnt, endTurn } from './gameState';
 import { executeAITurn } from './aiController';
 
 // With fog of war on, the computer may only attack what its own units can
-// see: a Bombardier (1-hex sight, 2-3 hex range) needs a spotter, and a unit
+// see: a Bombardier (2-hex sight, 2-3 hex range) needs a spotter for targets 3 away, and a unit
 // in a tree is hidden unless an enemy unit stands right next to it.
 const setup = () => {
   let s = createInitialGameState({ mapSize: 'large' });
@@ -45,4 +45,13 @@ test('a unit in a tree is hidden from a spotter that is not next to it', async (
   s.trees = { t1: { id: 't1', position: { q: 3, r: 0 } } };
   const res = await quiet(() => executeAITurn(s, 'player2', 'easy', { fogOfWar: true }));
   expect(res.combatActions.some(c => c.attackerId === bomb.id)).toBe(false);
+}, 60000);
+
+test('a lone Bombardier sees 2 hexes, so it can fire at a target 2 away', async () => {
+  const s = setup();
+  s.campaign = { enemyHoldPosition: true };
+  const bomb = add(s, 'bombardier', 'player2', 0, 0);
+  add(s, 'soldier', 'player1', 2, 0);
+  const res = await quiet(() => executeAITurn(s, 'player2', 'easy', { fogOfWar: true }));
+  expect(res.combatActions.some(c => c.attackerId === bomb.id)).toBe(true);
 }, 60000);

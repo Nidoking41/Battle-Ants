@@ -646,7 +646,7 @@ export const LEVELS = [
     // The Long Grass: a long, wide S-shaped trail running left to right, with a pond in each bend. Sorlorg's
     // Bombardiers (B) spread through it, two Marauders (R) on guard, and
     // Scouts (S) as spotters: with fog on, the enemy only fires at what its
-    // own units can see, and a Bombardier sees just 1 hex.
+    // own units can see, and a Bombardier sees only 2 of its 3 hexes of range.
     // Your nest is at the left end, the goal column (G) at the right.
     map: {
       layout: [
