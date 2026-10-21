@@ -5,6 +5,7 @@ import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attac
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
+import IntroVideo from './IntroVideo';
 import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import GameSummary from './GameSummary';
@@ -218,6 +219,15 @@ function App() {
   const [buildTab, setBuildTab] = useState('basic'); // Which Build Ants tab is shown: 'basic' | 'advanced'
   const [pendingCutsceneLevel, setPendingCutsceneLevel] = useState(null); // Campaign level whose intro cutscene is playing
   const [pendingOutro, setPendingOutro] = useState(null); // { levelId, then } - victory cutscene before leaving a won level
+  // Opening cutscene before the title screen: once per browser session, so
+  // returning to the menu after a game doesn't replay it
+  const [showIntro, setShowIntro] = useState(() => {
+    try { return sessionStorage.getItem('introSeen') !== '1'; } catch (e) { return true; }
+  });
+  const finishIntro = () => {
+    try { sessionStorage.setItem('introSeen', '1'); } catch (e) { /* storage blocked: just don't remember */ }
+    setShowIntro(false);
+  };
   const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
@@ -2338,6 +2348,9 @@ function App() {
   };
 
   // Show menu if game hasn't started
+  if (!gameMode && showIntro) {
+    return <IntroVideo onDone={finishIntro} />;
+  }
   if (!gameMode) {
     return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} onEnterCampaign={handleEnterCampaign} />;
   }
