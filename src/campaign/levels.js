@@ -48,6 +48,7 @@
 //                      explain it: [{ target, title, text }], target = the
 //                      button's data-tip name in App.js
 //   speedBase          optional: the speed score's starting value (default 500)
+//   economy            optional: false = no income of any kind and no Upgrades
 //   cameraOnArmy       optional: start the camera centred on your starting units
 //                      instead of with the queen near the bottom of the screen
 //   midEvent           optional: { escortId, cutscene } - when that unit
@@ -634,6 +635,7 @@ export const LEVELS = [
     fogOfWar: true,
     speedBase: 600, // a long trek: the speed score starts 100 higher
     cameraOnArmy: true, // open framed on the whole starting force, not just the queen
+    economy: false, // no income and no Upgrades: the escort is all you have
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
@@ -689,8 +691,8 @@ export const LEVELS = [
       hero: 'vexxara',
       queenTier: 'broodQueen',
       queenUpgrades: false,
-      // A fixed force: no hatching. The stockpile is for Upgrades.
-      resources: { food: 40, minerals: 30 },
+      // A fixed force: no hatching, no resources, no upgrades (economy: false)
+      resources: { food: 0, minerals: 0 },
       roster: [],
       units: []
     },

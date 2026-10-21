@@ -906,6 +906,14 @@ describe('level 7 - The Long Grass', () => {
     });
   }, 60000);
 
+  test('level 7 has no economy: no resources and no income', () => {
+    let state = buildCampaignGameState(getLevel(7));
+    expect(state.campaign.noEconomy).toBe(true);
+    expect(state.players.player1.resources).toMatchObject({ food: 0, minerals: 0 });
+    for (let i = 0; i < 4; i++) state = endTurn(state).gameState;
+    expect(state.players.player1.resources).toMatchObject({ food: 0, minerals: 0 });
+  });
+
   test('the halfway column sits in the middle of the map', () => {
     const state = buildCampaignGameState(getLevel(7));
     const qs = state.mapHexes.map(h => h.q);

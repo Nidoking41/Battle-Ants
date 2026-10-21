@@ -1290,8 +1290,10 @@ export function endTurn(rawGameState) {
 
     // Grant passive food income from queen larvae (campaign). Same shape as the
     // queen block below so the resource-gain animation fires at her hex.
+    // A campaign level with economy: false pays no income at all.
+    const noIncome = !!gameState.campaign?.noEconomy;
     Object.values(gameState.ants).forEach(ant => {
-      if (ant.type === 'queenLarva') {
+      if (ant.type === 'queenLarva' && !noIncome) {
         const foodIncome = AntTypes.QUEEN_LARVA.foodIncome;
         updatedPlayers[ant.owner].resources.food += foodIncome;
         resourceGains.push({ amount: foodIncome, type: 'food', position: ant.position, queenId: ant.id, owner: ant.owner });
@@ -1300,7 +1302,7 @@ export function endTurn(rawGameState) {
 
     // Grant passive food income from queens
     Object.values(gameState.ants).forEach(ant => {
-      if (ant.type === 'queen') {
+      if (ant.type === 'queen' && !noIncome) {
         const queenTier = QueenTiers[ant.queenTier || 'queen'];
         const foodIncome = queenTier.foodIncome;
         updatedPlayers[ant.owner].resources.food += foodIncome;

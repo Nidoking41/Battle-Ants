@@ -5807,24 +5807,26 @@ function App() {
         {isMyTurn() ? (
           <>
               {/* Upgrades Button */}
-              <button data-tip="upgrades"
-                onClick={() => setShowUpgradesModal(true)}
-                style={{
-                  width: '100%',
-                  padding: '15px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(145deg, #6a4c93, #4a3663)',
-                  color: '#e0e0e0',
-                  border: '2px solid #8a6cb3',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginBottom: '20px',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
-                }}
-              >
-                ⚡ Upgrades
-              </button>
+              {!gameState.campaign?.noEconomy && (
+                <button data-tip="upgrades"
+                  onClick={() => setShowUpgradesModal(true)}
+                  style={{
+                    width: '100%',
+                    padding: '15px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(145deg, #6a4c93, #4a3663)',
+                    color: '#e0e0e0',
+                    border: '2px solid #8a6cb3',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    marginBottom: '20px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+                  }}
+                >
+                  ⚡ Upgrades
+                </button>
+              )}
 
               {/* A campaign level with an empty roster hatches nothing - say so
                   instead of showing a header over an empty panel. */}
@@ -6957,21 +6959,23 @@ function App() {
                           👁️ Reveal ({AntTypes.QUEEN.revealEnergyCost}⚡)
                         </button>
                       )}
-                      <button
-                        onClick={() => setShowUpgradesModal(true)}
-                        style={{
-                          padding: '8px 12px',
-                          background: 'linear-gradient(145deg, #9C27B0, #7B1FA2)',
-                          color: '#e0e0e0',
-                          border: '2px solid #AB47BC',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'normal',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                        }}
-                      >
-                        ⚡ Upgrades
-                      </button>
+                      {!gameState.campaign?.noEconomy && (
+                        <button
+                          onClick={() => setShowUpgradesModal(true)}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'linear-gradient(145deg, #9C27B0, #7B1FA2)',
+                            color: '#e0e0e0',
+                            border: '2px solid #AB47BC',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: 'normal',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}
+                        >
+                          ⚡ Upgrades
+                        </button>
+                      )}
                     </>
                   )}
                   {gameState.ants[selectedAnt].type === 'drone' && !gameState.ants[selectedAnt].hasBuilt && (

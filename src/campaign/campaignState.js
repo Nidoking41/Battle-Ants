@@ -84,6 +84,8 @@ export function buildCampaignGameState(level) {
     // true: enemy units never move - they wait (hidden, with fog on) and
     // attack whatever comes into range. Read by aiController.
     enemyHoldPosition: level.enemy?.holdPosition || false,
+    // economy: false - no income and no Upgrades on this level
+    noEconomy: level.economy === false,
     // Speed score base for this level (score.js); longer levels set it higher
     speedBase: level.speedBase ?? 500,
     // midEvent: fires once when escortId crosses halfwayQ (App.js plays the
