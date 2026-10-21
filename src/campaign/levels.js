@@ -49,6 +49,7 @@
 //                      button's data-tip name in App.js
 //   speedBase          optional: the speed score's starting value (default 500)
 //   economy            optional: false = no income of any kind and no Upgrades
+//   outroVideo         optional: a video in public/ played after a win, before the outro
 //   cameraOnArmy       optional: start the camera centred on your starting units
 //                      instead of with the queen near the bottom of the screen
 //   midEvent           optional: { escortId, cutscene } - when that unit
@@ -727,6 +728,8 @@ export const LEVELS = [
     uiTips: [
       { target: 'queenReveal', title: 'Reveal', text: 'Your Brood Queen can push a pheromone pulse into the fog. Select her, press Reveal, then click any hex: it and the six around it are uncovered for this turn. It costs 20 energy.' }
     ],
+    // Pixel-art video of the Emissary at the Golden Throne, before the outro text
+    outroVideo: '/cutscenes/throne.mp4',
     // Plays after a win, between the score screen and leaving the level
     outro: {
       portrait: 'hero_black.png',

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 
-// Opening cutscene: a full-screen pixel-art video played before the title
-// screen. Ends on its own; a click or any key skips it. Muted and inline so
-// browsers allow it to autoplay.
-function IntroVideo({ onDone }) {
+// Full-screen pixel-art video: the opening before the title screen, or a
+// level's outroVideo after a win. Ends on its own; a click or any key skips
+// it. Muted and inline so browsers allow it to autoplay.
+function IntroVideo({ onDone, src = '/intro/intro.mp4' }) {
   const doneRef = useRef(false);
   const finish = () => {
     if (doneRef.current) return;
@@ -33,7 +33,7 @@ function IntroVideo({ onDone }) {
       }}
     >
       <video
-        src={`${process.env.PUBLIC_URL}/intro/intro.mp4`}
+        src={`${process.env.PUBLIC_URL}${src}`}
         autoPlay
         muted
         playsInline

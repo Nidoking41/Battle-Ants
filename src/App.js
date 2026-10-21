@@ -2226,7 +2226,7 @@ function App() {
   const afterLevelWin = (then) => {
     const level = gameState.campaign && getLevel(gameState.campaign.levelId);
     if (gameState.winner === 'player1' && level?.outro) {
-      setPendingOutro({ levelId: level.id, then });
+      setPendingOutro({ levelId: level.id, then, videoDone: !level.outroVideo });
     } else {
       then();
     }
@@ -2436,6 +2436,10 @@ function App() {
 
   if (pendingOutro) {
     const level = getLevel(pendingOutro.levelId);
+    // A level's outroVideo plays first, then its victory text
+    if (!pendingOutro.videoDone) {
+      return <IntroVideo src={level.outroVideo} onDone={() => setPendingOutro({ ...pendingOutro, videoDone: true })} />;
+    }
     return (
       <Cutscene
         cutscene={level.outro}
