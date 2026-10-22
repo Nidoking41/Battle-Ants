@@ -4071,6 +4071,8 @@ function App() {
         // - Others: move (if hasn't moved or attacked)
         if (clickedAnt.type === 'gyne') {
           setSelectedAction('layEgg');
+        } else if (clickedAnt.type === 'gyneCocoon') {
+          setSelectedAction(null);
         } else if (clickedAnt.type === 'queen') {
           const energyCost = getEggLayCost(clickedAnt);
           if (hasEnoughEnergy(clickedAnt, energyCost)) {
@@ -4303,6 +4305,9 @@ function App() {
     if (ant.owner !== currentState.currentPlayer) return false;
 
     const antType = getAntTypeById(ant.type);
+
+    // A cocoon can do nothing until it opens
+    if (ant.type === 'gyneCocoon') return false;
 
     // A Gyne has something to do while one of her egg spots is free
     if (ant.type === 'gyne') {
@@ -6813,7 +6818,7 @@ function App() {
               {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
               <div className="ant-actions">
                 {/* Hide Move button for queens since they can't move */}
-                {gameState.ants[selectedAnt].type !== 'queen' && gameState.ants[selectedAnt].type !== 'gyne' && (
+                {!['queen', 'gyne', 'gyneCocoon'].includes(gameState.ants[selectedAnt].type) && (
                   <button
                     onClick={() => setSelectedAction('move')}
                     style={{
@@ -7003,7 +7008,7 @@ function App() {
                       💥 Splash (8, 3-hex)
                     </button>
                   </>
-                ) : gameState.ants[selectedAnt].type === 'gyne' ? null : (
+                ) : ['gyne', 'gyneCocoon'].includes(gameState.ants[selectedAnt].type) ? null : (
                   <button data-tip="queenAttack"
                     onClick={() => setSelectedAction('attack')}
                     style={{
@@ -7094,6 +7099,11 @@ function App() {
                       )}
                     </>
                   )}
+                  {gameState.ants[selectedAnt].type === 'gyneCocoon' && (
+                    <div style={{ color: '#e8c45a', fontSize: '14px', padding: '6px 0' }}>
+                      Pupating: opens into a Gyne on turn {gameState.ants[selectedAnt].maturesTurn + 1}
+                    </div>
+                  )}
                   {gameState.ants[selectedAnt].type === 'gyne' && (
                     <button data-tip="gyneLay"
                       onClick={() => setSelectedAction('layEgg')}
@@ -7119,7 +7129,7 @@ function App() {
                         updateGame(newState);
                         setSelectedAnt(null);
                         setSelectedAction(null);
-                        showFeedback('The Emissary settles in and becomes a Gyne!');
+                        showFeedback('The Emissary wraps itself in a cocoon. In two turns it opens as a Gyne!');
                       }}
                       disabled={!isMyTurn()}
                       style={{

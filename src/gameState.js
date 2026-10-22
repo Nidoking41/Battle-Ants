@@ -1145,11 +1145,13 @@ export function deductCost(player, antType) {
 export function endTurn(rawGameState) {
   // Defensive: drop any malformed ant entries (no id/position) so a bad write
   // elsewhere can never soft-lock the game on the next turn.
+  // A round ends when the last player passes the turn back to player 1
+  const roundEnds = (parseInt(String(rawGameState.currentPlayer).replace('player', ''), 10) % (rawGameState.playerCount || 2)) + 1 === 1;
   const gameState = {
     ...rawGameState,
-    ants: Object.fromEntries(
+    ants: matureGyneCocoons(Object.fromEntries(
       Object.entries(rawGameState.ants || {}).filter(([, a]) => a && a.id && a.position && typeof a.position.q === 'number')
-    )
+    ), rawGameState.turn || 1, roundEnds)
   };
   // Determine next player based on player count
   const playerCount = gameState.playerCount || 2;
@@ -2018,14 +2020,36 @@ export function canDeployEmissary(gameState, ant) {
   return true;
 }
 
+// Deploying wraps the Emissary in a cocoon; it opens into a Gyne two turns
+// later (at the end of the next round - see matureGyneCocoons).
 export function deployEmissary(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!canDeployEmissary(gameState, ant)) return gameState;
-  const gyne = { ...createAnt('gyne', ant.owner, ant.position), id: `gyne_${antId}`, hasMoved: true, hasAttacked: true };
+  const cocoon = {
+    ...createAnt('gyneCocoon', ant.owner, ant.position),
+    id: `cocoon_${antId}`,
+    hasMoved: true,
+    hasAttacked: true,
+    maturesTurn: (gameState.turn || 1) + 1
+  };
   const ants = { ...gameState.ants };
   delete ants[antId];
-  ants[gyne.id] = gyne;
+  ants[cocoon.id] = cocoon;
   return { ...gameState, ants };
+}
+
+// At the end of a round, cocoons that are ready open into Gynes
+export function matureGyneCocoons(ants, turn, roundEnds) {
+  if (!roundEnds) return ants;
+  const ready = Object.values(ants).filter(a => a.type === 'gyneCocoon' && a.maturesTurn <= turn);
+  if (ready.length === 0) return ants;
+  const out = { ...ants };
+  ready.forEach(c => {
+    delete out[c.id];
+    const gyne = { ...createAnt('gyne', c.owner, c.position), id: c.id.replace(/^cocoon_/, 'gyne_') };
+    out[gyne.id] = gyne;
+  });
+  return out;
 }
 
 // Burrow an ant

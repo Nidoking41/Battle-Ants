@@ -173,6 +173,25 @@ export const AntTypes = {
     icon: '👑🐜'
   },
 
+  // A deployed Emissary spends two turns wrapped in a cocoon before it opens
+  // into a Gyne. It cannot do anything while it pupates.
+  GYNE_COCOON: {
+    id: 'gyneCocoon',
+    name: 'Gyne Cocoon',
+    cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
+    campaignOnly: true,
+    drawSize: 64,
+    hatchTime: 0,
+    maxHealth: 20,
+    attack: 0,
+    defense: 2,
+    moveRange: 0,
+    attackRange: 0,
+    resourceGatherRate: 0,
+    description: 'A deployed Emissary, pupating. Opens into a Gyne after two turns.',
+    icon: '🐛👑'
+  },
+
   // A deployed Emissary: a young queen ("gyne" is the real word for an ant
   // queen-to-be). Never moves, cannot attack or heal - she only lays eggs on
   // her two egg spots, with no energy cost.
