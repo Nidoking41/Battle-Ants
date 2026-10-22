@@ -812,7 +812,7 @@ export const LEVELS = [
       queenTier: 'broodQueen',
       queenUpgrades: false, // the Swarm Queen comes in level 9
       resources: { food: 30, minerals: 20 },
-      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier'],
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'emissary'],
       units: 'default'
     },
     enemy: {
@@ -833,7 +833,8 @@ export const LEVELS = [
       units: []
     },
     uiTips: [
-      { target: 'upgrades', title: 'Burrow', text: 'Sorlorg\'s Marauders hide underground and burst out when you walk past. Buy the Burrow upgrade to do it back: a burrowed ant is hidden, heals each turn, and can pop up next to an enemy and strike. Scouts can smell burrowed ants within 2 hexes.' }
+      { target: 'upgrades', title: 'Burrow', text: 'Sorlorg\'s Marauders hide underground and burst out when you walk past. Buy the Burrow upgrade to do it back: a burrowed ant is hidden, heals each turn, and can pop up next to an enemy and strike. Scouts can smell burrowed ants within 2 hexes.' },
+      { target: 'upgrades', title: 'Emissary', text: 'New: the Queen\'s Emissary (Advanced tab). Walk it out across the map and press Deploy as Gyne: it becomes a young queen with 2 egg spots, so you can hatch ants right at the front. A Gyne cannot move, attack or heal, and has only 30 health - guard her.' }
     ],
     outro: {
       portrait: 'hero_black.png',
@@ -941,7 +942,7 @@ export const LEVELS = [
       hero: 'vexxara',
       queenTier: 'broodQueen',
       resources: { food: 40, minerals: 30 },
-      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank'],
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'emissary'],
       units: 'default'
     },
     enemy: {
@@ -1053,7 +1054,7 @@ export const LEVELS = [
       queenTier: 'swarmQueen',
       upgrades: { cordycepsPurge: 1 },
       resources: { food: 40, minerals: 30 },
-      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage'],
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage', 'emissary'],
       units: 'default'
     },
     enemy: {
@@ -1161,7 +1162,7 @@ export const LEVELS = [
       hero: 'vexxara',
       queenTier: 'swarmQueen',
       resources: { food: 50, minerals: 40 },
-      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage'],
+      roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'cordyphage', 'emissary'],
       units: 'default',
       // two anthills on your flanks, so Connected Tunnels has somewhere to go
       anthills: [{ type: 'food', count: 2 }]

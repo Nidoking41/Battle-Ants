@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
-import { createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
+import { canDeployEmissary, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
@@ -29,7 +29,7 @@ import { scoreLevel } from './campaign/score';
 // Build panel is split into two tabs so all nine units stay reachable without
 // scrolling. Basic = the cheap early units; Advanced = specialists and tier-locked ants.
 const BASIC_ANT_IDS = ['drone', 'scout', 'soldier', 'spitter'];
-const ADVANCED_ANT_IDS = ['bomber', 'bombardier', 'tank', 'healer', 'cordyphage'];
+const ADVANCED_ANT_IDS = ['bomber', 'bombardier', 'tank', 'healer', 'cordyphage', 'emissary'];
 
 // Campaign levels restrict what can be built. Off-roster units are hidden
 // outright. With no roster (every non-campaign game) this is the identity.
@@ -3066,8 +3066,8 @@ function App() {
       const ant = currentState.ants[selectedAnt];
       console.log('Queen ant:', ant ? { id: ant.id, type: ant.type, position: ant.position } : 'NOT FOUND');
 
-      // Only queens can lay eggs
-      if (ant.type !== 'queen') {
+      // Only queens (and Gynes) can lay eggs
+      if (ant.type !== 'queen' && ant.type !== 'gyne') {
         showFeedback('Only queens can lay eggs!');
         setSelectedAction(null);
         return;
@@ -4069,7 +4069,9 @@ function App() {
         // Auto-select action based on unit type and available actions:
         // - Queens: lay egg (if has energy, can lay even after attacking/healing)
         // - Others: move (if hasn't moved or attacked)
-        if (clickedAnt.type === 'queen') {
+        if (clickedAnt.type === 'gyne') {
+          setSelectedAction('layEgg');
+        } else if (clickedAnt.type === 'queen') {
           const energyCost = getEggLayCost(clickedAnt);
           if (hasEnoughEnergy(clickedAnt, energyCost)) {
             setSelectedAction('layEgg');
@@ -4154,9 +4156,15 @@ function App() {
       return;
     }
 
+    // An egg on one of a Gyne's spots is hers: no energy needed
+    const spotPos = hexPosition || (selectedEggHex && !selectedEggHex.antType ? selectedEggHex : null);
+    const gyneLayer = spotPos && Object.values(currentState.ants).find(a =>
+      a.type === 'gyne' && a.owner === currentState.currentPlayer &&
+      getSpawningPoolHexes(a, getNeighbors, currentState).some(h => hexEquals(h, spotPos)));
+
     // Check energy cost
     const energyCost = getEggLayCost(queen);
-    if (!hasEnoughEnergy(queen, energyCost)) {
+    if (!gyneLayer && !hasEnoughEnergy(queen, energyCost)) {
       showFeedback(`Not enough energy! Need ${energyCost} energy to lay an egg.`);
       return;
     }
@@ -4177,7 +4185,7 @@ function App() {
     // Lay egg
     const newEgg = createEgg(type, currentState.currentPlayer, eggPosition, currentState.turn);
     const updatedPlayer = deductCost(currentPlayer, type);
-    const updatedQueen = deductEnergy(queen, energyCost);
+    const updatedQueen = gyneLayer ? queen : deductEnergy(queen, energyCost);
 
     updateGame({
       ...currentState,
@@ -4296,6 +4304,13 @@ function App() {
 
     const antType = getAntTypeById(ant.type);
 
+    // A Gyne has something to do while one of her egg spots is free
+    if (ant.type === 'gyne') {
+      const taken = h => Object.values(currentState.ants).some(a => hexEquals(a.position, h)) ||
+        Object.values(currentState.eggs || {}).some(e => hexEquals(e.position, h));
+      return getSpawningPoolHexes(ant, getNeighbors, currentState).some(h => !taken(h));
+    }
+
     // Queens can lay eggs even if they've attacked, as long as they have energy
     if (ant.type === 'queen') {
       const energyCost = getEggLayCost(ant);
@@ -4412,7 +4427,7 @@ function App() {
 
       console.log('getValidMovesForSelectedAnt: Returning', validMoveHexes.length, 'move hexes +', treeHexesInRange.length, 'tree hexes');
       return [...validMoveHexes, ...treeHexesInRange];
-    } else if (selectedAction === 'layEgg' && ant.type === 'queen') {
+    } else if (selectedAction === 'layEgg' && (ant.type === 'queen' || ant.type === 'gyne')) {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors, gameState);
       console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
@@ -4720,7 +4735,7 @@ function App() {
     // Creep: every queen's own hex plus her egg-laying spots
     const creepKeys = new Set();
     Object.values(gameState.ants).forEach(a => {
-      if (a.type !== 'queen') return;
+      if (a.type !== 'queen' && a.type !== 'gyne') return;
       creepKeys.add(`${a.position.q},${a.position.r}`);
       getSpawningPoolHexes(a, getNeighbors, gameState).forEach(n => creepKeys.add(`${n.q},${n.r}`));
     });
@@ -5400,7 +5415,8 @@ function App() {
       'healer': 'Weaver',
       'bomber': 'Exploding',
       'bombardier': 'Bombardier',
-      'cordyphage': 'Cordyceps'
+      'cordyphage': 'Cordyceps',
+      'emissary': 'Emissary'
     };
 
     const antTypeToPrefix = {
@@ -5414,7 +5430,8 @@ function App() {
       'healer': 'weaver',
       'bomber': 'exploding',
       'bombardier': 'bombardier',
-      'cordyphage': 'cordyphage'
+      'cordyphage': 'cordyphage',
+      'emissary': 'emissary'
     };
 
     const colorToSuffix = {
@@ -5583,7 +5600,7 @@ function App() {
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (() => {
             // Large units (campaign bugs) are drawn 1.5x on the same hex
-            const size = getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80;
+            const size = getAntTypeById(ant.type)?.drawSize || (getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80);
             const half = size / 2;
             return (
             <g opacity={hasActions ? 1 : 0.5}>
@@ -6046,8 +6063,11 @@ function App() {
                           showFeedback('Not enough resources!');
                           return;
                         }
-                        // Set selected action to lay egg with this ant type
-                        setSelectedAnt(queen.id);
+                        // Set selected action to lay egg with this ant type. A
+                        // selected Gyne keeps the egg on her own spots.
+                        const picked = gameState.ants[selectedAnt];
+                        const layer = picked && picked.type === 'gyne' && picked.owner === gameState.currentPlayer ? picked.id : queen.id;
+                        setSelectedAnt(layer);
                         setSelectedAction('layEgg');
                         setShowAntTypeSelector(false);
                         // Store the ant type to lay
@@ -6793,7 +6813,7 @@ function App() {
               {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
               <div className="ant-actions">
                 {/* Hide Move button for queens since they can't move */}
-                {gameState.ants[selectedAnt].type !== 'queen' && (
+                {gameState.ants[selectedAnt].type !== 'queen' && gameState.ants[selectedAnt].type !== 'gyne' && (
                   <button
                     onClick={() => setSelectedAction('move')}
                     style={{
@@ -6983,7 +7003,7 @@ function App() {
                       💥 Splash (8, 3-hex)
                     </button>
                   </>
-                ) : (
+                ) : gameState.ants[selectedAnt].type === 'gyne' ? null : (
                   <button data-tip="queenAttack"
                     onClick={() => setSelectedAction('attack')}
                     style={{
@@ -7073,6 +7093,47 @@ function App() {
                         </button>
                       )}
                     </>
+                  )}
+                  {gameState.ants[selectedAnt].type === 'gyne' && (
+                    <button data-tip="gyneLay"
+                      onClick={() => setSelectedAction('layEgg')}
+                      style={{
+                        marginRight: '5px',
+                        padding: '8px 12px',
+                        background: selectedAction === 'layEgg' ? 'linear-gradient(145deg, #2ecc71, #27ae60)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                        color: '#e0e0e0',
+                        border: selectedAction === 'layEgg' ? '2px solid #2ecc71' : '2px solid #666',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      Lay Egg
+                    </button>
+                  )}
+                  {canDeployEmissary(getGameStateForLogic(), gameState.ants[selectedAnt]) && (
+                    <button data-tip="deploy"
+                      onClick={() => {
+                        const newState = deployEmissary(getGameStateForLogic(), selectedAnt);
+                        updateGame(newState);
+                        setSelectedAnt(null);
+                        setSelectedAction(null);
+                        showFeedback('The Emissary settles in and becomes a Gyne!');
+                      }}
+                      disabled={!isMyTurn()}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'linear-gradient(145deg, #c9a23a, #8e6f1c)',
+                        color: '#e0e0e0',
+                        border: '2px solid #e8c45a',
+                        borderRadius: '4px',
+                        cursor: isMyTurn() ? 'pointer' : 'not-allowed',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      👑 Deploy as Gyne
+                    </button>
                   )}
                   {gameState.ants[selectedAnt].type === 'drone' && !gameState.ants[selectedAnt].hasBuilt && (
                     <button

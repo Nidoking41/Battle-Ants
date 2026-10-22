@@ -155,20 +155,42 @@ export const AntTypes = {
 
   // Campaign-only: a Drone wearing a crown, carrying the old queen's
   // scent-mark. Never hatched; placed by levels that need an escort.
+  // Buildable from campaign level 8 on: Deploy turns it into a Gyne, a
+  // forward egg layer. Level 7's escort Emissary cannot deploy (its roster
+  // has no Emissary).
   EMISSARY: {
     id: 'emissary',
     name: "Queen's Emissary",
-    cost: { food: 9999, minerals: 9999 }, // never buildable
-    campaignOnly: true,
-    hatchTime: 0,
+    cost: { food: 25, minerals: 15 },
+    hatchTime: 1,
     maxHealth: 15,
     attack: 4,
     defense: 0,
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 0,
-    description: "Carries the old queen's scent-mark. Keep it alive.",
+    description: "Carries the queen's scent-mark. Deploy it anywhere to become a Gyne: a young queen with 2 egg spots.",
     icon: '👑🐜'
+  },
+
+  // A deployed Emissary: a young queen ("gyne" is the real word for an ant
+  // queen-to-be). Never moves, cannot attack or heal - she only lays eggs on
+  // her two egg spots, with no energy cost.
+  GYNE: {
+    id: 'gyne',
+    name: 'Gyne',
+    cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
+    campaignOnly: true,
+    drawSize: 64, // a little smaller than a full queen
+    hatchTime: 0,
+    maxHealth: 30,
+    attack: 0,
+    defense: 1,
+    moveRange: 0,
+    attackRange: 0,
+    resourceGatherRate: 0,
+    description: 'A young queen grown from an Emissary. Cannot move, attack or heal; lays eggs on her 2 egg spots.',
+    icon: '🥚👑'
   },
 
   // Campaign-only cordyceped bugs that guard the infected old queen.

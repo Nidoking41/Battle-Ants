@@ -2008,6 +2008,26 @@ export function canAffordQueenUpgrade(gameState, queenId) {
          currentPlayer.resources.minerals >= nextTierData.cost.minerals;
 }
 
+// An Emissary can deploy into a Gyne (a forward egg layer) unless it has
+// already attacked, or the campaign level has no Emissary in its roster
+// (level 7's escort must stay an Emissary).
+export function canDeployEmissary(gameState, ant) {
+  if (!ant || ant.type !== 'emissary' || ant.hasAttacked) return false;
+  const roster = gameState.campaign?.roster;
+  if (gameState.campaign && Array.isArray(roster) && !roster.includes('emissary')) return false;
+  return true;
+}
+
+export function deployEmissary(gameState, antId) {
+  const ant = gameState.ants[antId];
+  if (!canDeployEmissary(gameState, ant)) return gameState;
+  const gyne = { ...createAnt('gyne', ant.owner, ant.position), id: `gyne_${antId}`, hasMoved: true, hasAttacked: true };
+  const ants = { ...gameState.ants };
+  delete ants[antId];
+  ants[gyne.id] = gyne;
+  return { ...gameState, ants };
+}
+
 // Burrow an ant
 export function burrowAnt(gameState, antId) {
   const ant = gameState.ants[antId];
@@ -2455,10 +2475,11 @@ export function getValidEnsnareTargets(gameState, healerId) {
 // takes the next spots in the order instead).
 export function getSpawningPoolHexes(queen, getNeighborsFunc, gameState = null) {
   const queenTier = QueenTiers[queen.queenTier || 'queen'];
-  let spawningSpots = queenTier.spawningSpots;
+  // A Gyne (deployed Emissary) always has exactly 2 egg spots
+  let spawningSpots = queen.type === 'gyne' ? 2 : queenTier.spawningSpots;
 
   // Apply hero bonus if applicable (Skrazzit gets +1 spawning spot)
-  if (queen.heroId) {
+  if (queen.heroId && queen.type !== 'gyne') {
     const { getHeroById } = require('./heroQueens');
     const hero = getHeroById(queen.heroId);
     if (hero && hero.bonuses && hero.bonuses.spawningSpotBonus) {
