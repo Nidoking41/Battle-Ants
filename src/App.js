@@ -5612,14 +5612,14 @@ function App() {
               <g opacity={hasActions ? 1 : 0.5}>
                 <defs>
                   <clipPath id={`clip-burrow-${ant.id}`}>
-                    <rect x={-40} y={-40} width={80} height={80} />
+                    <rect x={-32} y={-28} width={64} height={64} />
                   </clipPath>
                 </defs>
                 <image
-                  x={-40 - frame * 80}
-                  y={-40}
-                  width={640}
-                  height={80}
+                  x={-32 - frame * 64}
+                  y={-28}
+                  width={512}
+                  height={64}
                   href={`${process.env.PUBLIC_URL}/sprites/ants/Marauder/marauder_burrowed_${colorName}.png`}
                   clipPath={`url(#clip-burrow-${ant.id})`}
                   style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
