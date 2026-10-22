@@ -253,6 +253,7 @@ function App() {
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
+  const [spikeStrikes, setSpikeStrikes] = useState([]); // burrowed Marauder attacks: {id, from, to}
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
   const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
@@ -1350,6 +1351,14 @@ function App() {
       setTimeout(() => {
         setAntAnimation(attackerId, attacker.type, 'idle', playerColor);
       }, isRanged ? 200 : 300);
+    }
+
+    // A burrowed Marauder attacks from below: spikes burst out of the ground
+    // in a line toward the target
+    if (attacker && attacker.isBurrowed && attacker.type === 'soldier') {
+      const spikeId = `spikes_${Date.now()}_${Math.random()}`;
+      setSpikeStrikes(prev => [...prev, { id: spikeId, from: attacker.position, to: targetPosition }]);
+      setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), 900);
     }
 
     // If ranged, spawn projectile after shake animation (0.2s)
@@ -5595,8 +5604,31 @@ function App() {
             </g>
             );
           })() : null}
+          {/* A burrowed Marauder shows as spikes breaking the ground (a Lurker) */}
+          {ant.isBurrowed && ant.type === 'soldier' && (() => {
+            const colorName = { '#FF0000': 'red', '#0000FF': 'blue', '#00FF00': 'green', '#FFFF00': 'yellow', '#000000': 'black' }[String(playerColor || '').toUpperCase()] || 'red';
+            const frame = spriteFrame ? spriteFrame.currentFrame % 8 : 0;
+            return (
+              <g opacity={hasActions ? 1 : 0.5}>
+                <defs>
+                  <clipPath id={`clip-burrow-${ant.id}`}>
+                    <rect x={-40} y={-40} width={80} height={80} />
+                  </clipPath>
+                </defs>
+                <image
+                  x={-40 - frame * 80}
+                  y={-40}
+                  width={640}
+                  height={80}
+                  href={`${process.env.PUBLIC_URL}/sprites/ants/Marauder/marauder_burrowed_${colorName}.png`}
+                  clipPath={`url(#clip-burrow-${ant.id})`}
+                  style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                />
+              </g>
+            );
+          })()}
           {/* Emoji fallback (shown if burrowed or if sprite doesn't exist) */}
-          {(!spriteFrame || ant.isBurrowed) && (
+          {(!spriteFrame || (ant.isBurrowed && ant.type !== 'soldier')) && (
             <text
               textAnchor="middle"
               dy="0.3em"
@@ -6322,6 +6354,31 @@ function App() {
             })}
 
             {/* Bomber Explosion Animations */}
+            {/* Burrowed Marauder strike: a row of spikes erupting toward the target */}
+            {spikeStrikes.map(({ id, from, to }) => {
+              const a = hexToPixel(from, hexSize), b = hexToPixel(to, hexSize);
+              const n = 5;
+              return (
+                <g key={id} style={{ pointerEvents: 'none' }}>
+                  {Array.from({ length: n }, (_, i) => {
+                    const t = (i + 1) / n;
+                    const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + 10;
+                    const h = 14 + i * 5, w = 5 + i;
+                    return (
+                      <polygon
+                        key={i}
+                        className="spike-strike"
+                        points={`${x - w},${y} ${x + w},${y} ${x + (b.x > a.x ? 3 : -3)},${y - h}`}
+                        fill="#2a1408"
+                        stroke="#c49a64"
+                        strokeWidth="1.5"
+                        style={{ animationDelay: `${i * 70}ms` }}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
             {explosions.map(({ id, position, timestamp }) => {
               const { x, y } = hexToPixel(position, hexSize);
               const elapsed = Date.now() - timestamp;

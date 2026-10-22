@@ -355,10 +355,23 @@ export function calculateDamage(attacker, defender, gameState) {
   // Apply health scaling to attack
   const scaledAttack = baseAttack * damageMultiplier;
 
-  // Damage formula: attack - defense, minimum 1
-  const damage = Math.max(1, Math.floor(scaledAttack - defense));
+  // Damage formula: attack - defense, minimum 1. A burrowed Marauder that
+  // has been found takes 25% more: the price of hiding underground.
+  const exposed = defender.isBurrowed && defender.type === 'soldier' ? BURROWED_MARAUDER_DAMAGE_TAKEN : 1;
+  const damage = Math.max(1, Math.floor((scaledAttack - defense) * exposed));
 
   return damage;
+}
+
+// Burrowed Marauders take 25% more damage when found and hit
+export const BURROWED_MARAUDER_DAMAGE_TAKEN = 1.25;
+
+// A burrowed Marauder that `viewerId`'s side has not detected (no Scout
+// within 2 hexes, no Reveal on it). Nothing can strike back at it.
+export function isHiddenBurrowedMarauder(gameState, ant, viewerId) {
+  if (!ant || !ant.isBurrowed || ant.type !== 'soldier') return false;
+  const { getDetectedBurrowedAnts } = require('./fogOfWar');
+  return !getDetectedBurrowedAnts(gameState, viewerId).has(ant.id);
 }
 
 // Execute combat between two ants
@@ -528,7 +541,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   const isMeleeRange = distance <= Math.max(1, attackerType.meleeReach ? attackerType.attackRange : 1) &&
     isMeleeType(attackerType) && isMeleeType(defenderType);
 
-  if (defenderSurvived && isMeleeRange) {
+  // An undetected burrowed Marauder strikes from below and takes no hit back
+  const attackerHidden = isHiddenBurrowedMarauder(updatedGameState, attacker, defender.owner);
+
+  if (defenderSurvived && isMeleeRange && !attackerHidden) {
     // Defender counter-attacks with updated health
     const updatedDefender = updatedAnts[defenderId];
     const counterDamage = calculateDamage(updatedDefender, attacker, { ...updatedGameState, ants: updatedAnts });
@@ -1003,8 +1019,9 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     health: newMovingAntHealth
   };
 
-  // Counter-attack if moving ant is melee
-  if (movingAntType.attackRange <= 1) {
+  // Counter-attack if moving ant is melee - but not against an undetected
+  // burrowed Marauder
+  if (movingAntType.attackRange <= 1 && !isHiddenBurrowedMarauder(updatedGameState, ambusher, movingAnt.owner)) {
     const updatedMovingAnt = updatedAnts[movingAntId];
     const counterDamage = calculateDamage(updatedMovingAnt, ambusher, { ...updatedGameState, ants: updatedAnts });
     damageDealt.push({ damage: counterDamage, position: ambusher.position });

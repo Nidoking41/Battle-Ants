@@ -401,3 +401,17 @@ body, html {
   background: #ffd34d;
   color: #1a1a2e;
 }
+
+/* Burrowed Marauder strike: each spike shoots up out of the ground, then sinks */
+.spike-strike {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+  animation: spike-strike 0.55s ease-out forwards;
+}
+@keyframes spike-strike {
+  0% { transform: scaleY(0); opacity: 1; }
+  35% { transform: scaleY(1.25); opacity: 1; }
+  60% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.2); opacity: 0; }
+}
