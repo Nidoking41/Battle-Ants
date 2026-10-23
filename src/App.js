@@ -3,7 +3,8 @@ import './App.css';
 import { canDeployEmissary, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
 import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
-import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes } from './hexUtils';
+import { createScrimmageGameState } from './maps/scrimmageMaps';
+import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes, cliffAt } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
 import IntroVideo from './IntroVideo';
 import LocalGameSetup from './LocalGameSetup';
@@ -132,6 +133,9 @@ const HEX_NEIGHBOR_OFFSETS = [[1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1], [1, 0]
 // by a fixed formula, so a map looks the same every game and for every player.
 // Every term is unchanged when the map is turned half a turn, so both players
 // see the same ground from their end.
+// Cliff sprite per ramp direction (getNeighbors' order: SE, NE, N, NW, SW, S)
+const CLIFF_SPRITES = ['se', 'ne', 'n', 'nw', 'sw', 's'];
+
 function getTerrainType(q, r, waterKeys) {
   if (waterKeys && HEX_NEIGHBOR_OFFSETS.some(([dq, dr]) => waterKeys.has(`${q + dq},${r + dr}`))) return 'mud';
   const x = 1.5 * q;
@@ -2200,6 +2204,9 @@ function App() {
     if (mode.mapSize) {
       gameOptions.mapSize = mode.mapSize;
     }
+    if (mode.mapId) {
+      gameOptions.mapId = mode.mapId;
+    }
     if (mode.playerCount) {
       gameOptions.playerCount = mode.playerCount;
     }
@@ -2267,7 +2274,7 @@ function App() {
     if (mode.isMultiplayer) {
       if (mode.isHost) {
         // Host creates the initial game state and pushes to Firebase
-        const newGameState = createInitialGameState(gameOptions);
+        const newGameState = createScrimmageGameState(gameOptions);
         console.log('Host creating initial game state:', {
           playerCount: newGameState.playerCount,
           mapShape: newGameState.mapShape,
@@ -2299,7 +2306,7 @@ function App() {
       }
     } else if (mode.isAI) {
       // For AI games, always set fullGameState for AI logic
-      const newGameState = createInitialGameState(gameOptions);
+      const newGameState = createScrimmageGameState(gameOptions);
       console.log('Starting AI game - fogOfWar setting:', mode.fogOfWar, 'Will apply fog?', mode.isAI && mode.fogOfWar !== false);
       setFullGameState(newGameState);
 
@@ -2313,7 +2320,7 @@ function App() {
       }
     } else {
       // Local games
-      const newGameState = createInitialGameState(gameOptions);
+      const newGameState = createScrimmageGameState(gameOptions);
       setGameState(newGameState);
     }
 
@@ -5047,6 +5054,17 @@ function App() {
                 </g>
               );
             })()}
+            {/* Cliff: raised rock with a sheer face on three sides (50x44 art at 2x) */}
+            {cliffAt(hex, mapShape) !== undefined && (
+              <image
+                x={-50}
+                y={-43}
+                width={100}
+                height={88}
+                href={`${process.env.PUBLIC_URL}/sprites/terrain/cliff_${CLIFF_SPRITES[cliffAt(hex, mapShape)]}.png`}
+                style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+              />
+            )}
             {/* Campaign goal hex: the Golden Throne on its mound (32x40 art at 48x60) */}
             {isGoalHex && gameState.campaign?.goalSprite === 'throne' && (
               <image

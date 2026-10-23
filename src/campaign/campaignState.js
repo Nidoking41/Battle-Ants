@@ -155,7 +155,13 @@ function nearestFree(state, center, maxRange = 3) {
 
 // Apply a level's ASCII layout (see mapLayout.js) to a freshly generated state.
 function applyLayout(state, level) {
-  const layout = parseLayout(level.map.layout, level.map.legend || {});
+  applyMapLayout(state, level.map.layout, level.map.legend || {});
+}
+
+// Apply an ASCII layout (see mapLayout.js) to a freshly generated 2-player
+// state. Also used for the hand-drawn Scrimmage maps (maps/scrimmageMaps.js).
+export function applyMapLayout(state, rows, legend = {}) {
+  const layout = parseLayout(rows, legend);
 
   state.mapShape = layout.mapShape;
   state.mapHexes = layout.mapHexes;

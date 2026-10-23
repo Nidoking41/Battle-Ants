@@ -1,4 +1,4 @@
-import { HexCoord, hexDistance, hexesInRange } from './hexUtils';
+import { HexCoord, hexDistance, hexesInRange, cliffAt } from './hexUtils';
 
 // How far a watch-nest sees, and detects burrowed ants
 export const WATCH_NEST_RANGE = 3;
@@ -52,6 +52,11 @@ export function getVisibleHexes(gameState, playerId) {
           if (anthillAtPosition) {
             VISION_RADIUS += 1; // +1 vision bonus on friendly anthill
           }
+        }
+
+        // Standing on a cliff: +1 vision
+        if (cliffAt(ant.position, gameState.mapShape) !== undefined) {
+          VISION_RADIUS += 1;
         }
 
         // Add all hexes within vision radius of this ant

@@ -1,5 +1,5 @@
 import { AntTypes, GameConstants, getAntTypeById, meetsQueenTier } from './antTypes';
-import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater } from './hexUtils';
+import { getMovementRange, getMovementRangeWithPaths, hexDistance, HexCoord, getNeighbors, isValidHex, hasMapWater, isCliffEdge } from './hexUtils';
 import { moveAnt, canAttack } from './combatSystem';
 import { getVisibleHexes, isAntObscuredByTree, getDetectedBurrowedAnts } from './fogOfWar';
 import {
@@ -840,7 +840,7 @@ function walkingDistanceBfs(state, target) {
     const current = queue[i];
     const d = dist.get(key(current));
     for (const n of getNeighbors(current)) {
-      if (dist.has(key(n)) || !isValidHex(n, gridRadius, state.mapShape)) continue;
+      if (dist.has(key(n)) || !isValidHex(n, gridRadius, state.mapShape) || isCliffEdge(current, n, state.mapShape)) continue;
       dist.set(key(n), d + 1);
       queue.push(n);
     }

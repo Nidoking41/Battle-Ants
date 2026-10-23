@@ -19,6 +19,12 @@ import { HexCoord } from '../hexUtils';
 //   'G'  goal hex: open ground an escort objective must reach
 //   'W'  enemy watch-nest: a finished enemy anthill on a mineral node
 //   '%'  fungus-covered ground: open, just drawn pale and rotten
+//   cliff: raised ground with a rock face on three sides. An ant can only
+//        climb on or off through the other three sides (the ramp), and one
+//        standing on top sees 1 hex further. The character names the side
+//        the ramp faces:  '^' north   'v' south
+//                         '{' north-west   '}' north-east
+//                         '[' south-west   ']' south-east
 //   'Z'  Sorlorg's fungus garden: a tough enemy anthill (id camp_player2_garden)
 //   'P'  wave spawn point: open ground where enemy.waves can arrive (numbered
 //        0, 1, 2... in reading order, top row first; a wave picks one with `at`)
@@ -31,6 +37,9 @@ import { HexCoord } from '../hexUtils';
 const OPEN = '.';
 const VOID = ' ';
 const WATER = '~';
+// Cliff characters -> the ramp's direction, as an index into getNeighbors'
+// order (0 SE, 1 NE, 2 N, 3 NW, 4 SW, 5 S)
+export const CLIFF_CHARS = { ']': 0, '}': 1, '^': 2, '{': 3, '[': 4, 'v': 5 };
 
 export function parseLayout(rows, legend = {}) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('layout: rows must be a non-empty array');
@@ -73,6 +82,7 @@ export function parseLayout(rows, legend = {}) {
   const spawns = [];
   const gardens = [];
   const fungus = [];
+  const cliffs = {};
   let gridRadius = 0;
 
   cells.forEach(({ ch, x, y }) => {
@@ -92,6 +102,7 @@ export function parseLayout(rows, legend = {}) {
 
     if (ch === OPEN) return;
     if (ch === '%') { fungus.push(pos); return; }
+    if (ch in CLIFF_CHARS) { cliffs[key] = CLIFF_CHARS[ch]; return; }
     if (ch === 'G') { goals.push(pos); return; }
     if (ch === 'P') { spawns.push({ pos, x, y }); return; }
     if (ch === 'Z') { resources.push({ type: 'food', position: pos }); gardens.push(pos); return; }
@@ -117,7 +128,8 @@ export function parseLayout(rows, legend = {}) {
   if (!leaders.player1) throw new Error("layout: missing player leader marker '1'");
 
   return {
-    mapShape: { type: 'custom', hexes },
+    // cliffs ride on the map shape, which every movement check already gets
+    mapShape: Object.keys(cliffs).length ? { type: 'custom', hexes, cliffs } : { type: 'custom', hexes },
     mapHexes,
     water,
     gridRadius,

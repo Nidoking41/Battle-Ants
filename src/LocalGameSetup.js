@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import MapPicker from './maps/MapPicker';
 import { HeroQueens } from './heroQueens';
 
 function LocalGameSetup({ onStartGame, onBack }) {
   const [mapSize, setMapSize] = useState('large');
+  const [mapId, setMapId] = useState('classic');
   const [fogOfWar, setFogOfWar] = useState(true);
   const [player1Hero, setPlayer1Hero] = useState('gorlak');
   const [player2Hero, setPlayer2Hero] = useState('sorlorg');
@@ -36,9 +38,9 @@ function LocalGameSetup({ onStartGame, onBack }) {
 
   // Map size options
   const mapSizeOptions = [
-    { name: 'Small (7x7)', value: 'small' },
-    { name: 'Medium (9x9)', value: 'medium' },
-    { name: 'Large (11x11)', value: 'large' }
+    { name: 'Small', value: 'small' },
+    { name: 'Medium', value: 'medium' },
+    { name: 'Large', value: 'large' }
   ];
 
   const handleStartGame = () => {
@@ -49,6 +51,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
       isMultiplayer: false,
       fogOfWar: fogOfWar,
       mapSize,
+      mapId,
       player1Color: heroColors[player1Hero],
       player2Color: getPlayer2Color(),
       player1Hero: player1Hero,
@@ -151,12 +154,13 @@ function LocalGameSetup({ onStartGame, onBack }) {
               <h3 style={{ marginBottom: '6px', fontSize: '15px', color: '#e0e0e0' }}>
                 Map Size
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
                 {mapSizeOptions.map(size => (
                   <button
                     key={size.value}
-                    onClick={() => setMapSize(size.value)}
+                    onClick={() => { setMapSize(size.value); setMapId('classic'); }}
                     style={{
+                      flex: 1,
                       padding: '8px',
                       fontSize: '13px',
                       fontWeight: 'bold',
@@ -173,6 +177,10 @@ function LocalGameSetup({ onStartGame, onBack }) {
                   </button>
                 ))}
               </div>
+              <h3 style={{ margin: '10px 0 6px', fontSize: '15px', color: '#e0e0e0' }}>
+                Map
+              </h3>
+              <MapPicker mapSize={mapSize} mapId={mapId} onSelect={setMapId} />
             </div>
 
             {/* Fog of War Toggle */}

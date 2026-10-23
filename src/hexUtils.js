@@ -182,6 +182,34 @@ export function getMapWaterHexes(gridRadius, mapShape) {
   return [];
 }
 
+// ---- Cliffs (hand-drawn maps) ----
+// mapShape.cliffs maps 'q,r' to the direction its ramp faces (an index into
+// getNeighbors' order). The ramp side and the two sides next to it are open;
+// the other three are a sheer rock face nothing can cross, up or down.
+const NEIGHBOR_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+
+// The ramp direction of the cliff on this hex, or undefined if it isn't one.
+export function cliffAt(hex, mapShape) {
+  return mapShape?.cliffs?.[`${hex.q},${hex.r}`];
+}
+
+function cliffSideOpen(ramp, dir) {
+  const d = ((dir - ramp) % 6 + 6) % 6;
+  return d === 0 || d === 1 || d === 5;
+}
+
+// True if a cliff face stands between two neighbouring hexes.
+export function isCliffEdge(from, to, mapShape) {
+  if (!mapShape?.cliffs) return false;
+  const dir = NEIGHBOR_DIRS.findIndex(([dq, dr]) => to.q - from.q === dq && to.r - from.r === dr);
+  if (dir < 0) return false;
+  const a = cliffAt(from, mapShape);
+  const b = cliffAt(to, mapShape);
+  if (a !== undefined && !cliffSideOpen(a, dir)) return true;
+  if (b !== undefined && !cliffSideOpen(b, (dir + 3) % 6)) return true;
+  return false;
+}
+
 // Check if hex is valid on the board
 // For diamond grids (2-player rectangle maps)
 export function isValidHex(hex, gridSize, mapShape = 'rectangle') {
@@ -247,6 +275,7 @@ export function getMovementRangeWithPaths(startHex, range, gridSize, blockedHexe
         // Can path through cannotEndHexes, just can't pathfind through blockedHexes
         if (!visited.has(key) &&
             isValidHex(neighbor, gridSize, mapShape) &&
+            !isCliffEdge(current, neighbor, mapShape) &&
             !blockedHexes.some(blocked => blocked.equals(neighbor))) {
           visited.add(key);
           frontier.push([neighbor, distance + 1, [...path, current]]);
