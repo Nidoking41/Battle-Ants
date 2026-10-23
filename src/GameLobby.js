@@ -409,7 +409,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                         style={{ width: '100%', height: 'auto', aspectRatio: '1', marginBottom: '6px', imageRendering: 'pixelated' }}
                       />
                       <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '3px', color: '#e0e0e0' }}>{hero.name}</div>
-                      <div style={{ fontSize: '11px', color: '#b0b0b0', lineHeight: '1.3' }}>{hero.description}</div>
+                      <div style={{ fontSize: '11px', color: '#b0b0b0', lineHeight: '1.3' }}>{hero.blurb || hero.description}</div>
                     </div>
                   ))}
                 </div>

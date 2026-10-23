@@ -6,6 +6,8 @@ export const HeroQueens = {
     id: 'gorlak',
     name: 'Gorlak the Crusher',
     description: 'Melee units gain +20% attack, ranged units do 10% less',
+    // Shown on the hero picker instead of the numbers above
+    blurb: 'Melee Specialist, Weak with Ranged units',
     icon: '🗡️',
     portraitImage: 'hero_red.png',
     chargeRequired: 450,
@@ -25,6 +27,8 @@ export const HeroQueens = {
     id: 'sorlorg',
     name: 'Sorlorg the Precise',
     description: 'Ranged units gain +20% attack, melee units do 10% less',
+    // Shown on the hero picker instead of the numbers above
+    blurb: 'Ranged Specialist, Weak with Melee units',
     icon: '🎯',
     portraitImage: 'hero_green.png',
     chargeRequired: 450,
@@ -43,6 +47,8 @@ export const HeroQueens = {
     id: 'skrazzit',
     name: 'Skrazzit the Swarm',
     description: 'Units are 25% cheaper but 20% weaker attack, 10% weaker health. Start with 3 spawning spots',
+    // Shown on the hero picker instead of the numbers above
+    blurb: 'Swarm Specialist: cheap, weaker units',
     icon: '🐜',
     portraitImage: 'hero_blue.png',
     chargeRequired: 450,
@@ -63,6 +69,8 @@ export const HeroQueens = {
     id: 'thorgrim',
     name: 'Thorgrim the Mighty',
     description: 'Units are 25% more expensive but 20% stronger in attack and health',
+    // Shown on the hero picker instead of the numbers above
+    blurb: 'Elite Specialist: costly, stronger units',
     icon: '⚔️',
     portraitImage: 'hero_yellow.png',
     chargeRequired: 450,
@@ -83,6 +91,8 @@ export const HeroQueens = {
     id: 'vexxara',
     name: 'Vexxara the Lifebinder',
     description: 'Queen heals cost 7 energy instead of 10',
+    // Shown on the hero picker instead of the numbers above
+    blurb: 'Healing Specialist',
     icon: '💚',
     portraitImage: 'hero_black.png',
     chargeRequired: 600,
