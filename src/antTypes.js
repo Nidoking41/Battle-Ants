@@ -166,7 +166,7 @@ export const AntTypes = {
     maxHealth: 15,
     attack: 4,
     defense: 0,
-    moveRange: 2,
+    moveRange: 3,
     attackRange: 1,
     resourceGatherRate: 0,
     description: "Carries the queen's scent-mark. Deploy it anywhere to become a Broodwarden: a young queen with 2 egg spots.",
