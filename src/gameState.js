@@ -2077,6 +2077,8 @@ export function burrowAnt(gameState, antId) {
 
   // Cannot burrow if already burrowed
   if (ant.isBurrowed) return gameState;
+  // Burrowing takes the whole turn: not after moving or attacking...
+  if (ant.hasMoved || ant.hasAttacked) return gameState;
 
   return {
     ...gameState,
@@ -2085,7 +2087,9 @@ export function burrowAnt(gameState, antId) {
       [antId]: {
         ...ant,
         isBurrowed: true,
-        hasMoved: true // Burrowing counts as your move action
+        // ...and no move or attack after it
+        hasMoved: true,
+        hasAttacked: true
       }
     }
   };
@@ -2095,6 +2099,8 @@ export function burrowAnt(gameState, antId) {
 export function unburrowAnt(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!ant || !ant.isBurrowed) return gameState;
+  // Unburrowing takes the whole turn: not after moving or attacking
+  if (ant.hasMoved || ant.hasAttacked) return gameState;
 
   // Check if another ant is directly above (same position)
   const antAbove = Object.values(gameState.ants).some(
@@ -2133,7 +2139,8 @@ export function canBurrow(gameState, ant) {
   if (ant.type === 'queen' || ant.type === 'tank' || ant.type === 'bombardier') return false;
   if (getAntTypeById(ant.type)?.cannotMove) return false;
   if (ant.isBurrowed) return false;
-  if (ant.hasMoved) return false;
+  // Burrowing takes the whole turn
+  if (ant.hasMoved || ant.hasAttacked) return false;
   return true;
 }
 
@@ -2141,7 +2148,8 @@ export function canBurrow(gameState, ant) {
 export function canUnburrow(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!ant || !ant.isBurrowed) return false;
-  if (ant.hasMoved) return false;
+  // Unburrowing takes the whole turn
+  if (ant.hasMoved || ant.hasAttacked) return false;
 
   // Check if another ant is directly above
   const antAbove = Object.values(gameState.ants).some(

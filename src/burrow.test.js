@@ -32,3 +32,32 @@ describe('burrowed Marauders', () => {
     expect(burrowed).toBeGreaterThan(normal);
   });
 });
+
+describe('burrowing takes the whole turn', () => {
+  const { createAnt, burrowAnt, unburrowAnt, canBurrow, canUnburrow } = require('./gameState');
+  const make = (ant) => ({
+    players: { player1: { upgrades: { burrow: 1 } } },
+    ants: { m: { ...createAnt('soldier', 'player1', { q: 0, r: 0 }), id: 'm', ...ant } }
+  });
+
+  test('a Marauder that burrows can not move or attack after', () => {
+    const s = burrowAnt(make({}), 'm');
+    expect(s.ants.m.isBurrowed).toBe(true);
+    expect(s.ants.m.hasMoved).toBe(true);
+    expect(s.ants.m.hasAttacked).toBe(true);
+  });
+
+  test('a Marauder that moved or attacked can not burrow this turn', () => {
+    ['hasMoved', 'hasAttacked'].forEach(flag => {
+      const s = make({ [flag]: true });
+      expect(canBurrow(s, s.ants.m)).toBe(false);
+      expect(burrowAnt(s, 'm').ants.m.isBurrowed).toBeFalsy();
+    });
+  });
+
+  test('a Marauder that attacked from below can not unburrow this turn', () => {
+    const s = make({ isBurrowed: true, hasAttacked: true });
+    expect(canUnburrow(s, 'm')).toBe(false);
+    expect(unburrowAnt(s, 'm').ants.m.isBurrowed).toBe(true);
+  });
+});
