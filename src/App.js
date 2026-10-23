@@ -1403,7 +1403,8 @@ function App() {
         damage = getAntTypeById(attacker.type)?.attack || 0;
       }
       const biteId = `bite_${Date.now()}_${Math.random()}`;
-      setImpacts(prev => [...prev, { id: biteId, kind: 'bite', position: targetPosition, from: attacker.position, scale: biteScale(damage), timestamp: Date.now() }]);
+      const biteColor = PLAYER_COLOR_NAMES[String(attacker.colorOverride || state.players?.[attacker.owner]?.color || '').toUpperCase()] || 'red';
+      setImpacts(prev => [...prev, { id: biteId, kind: 'bite', position: targetPosition, from: attacker.position, scale: biteScale(damage), color: biteColor, timestamp: Date.now() }]);
       setTimeout(() => setImpacts(prev => prev.filter(i => i.id !== biteId)), EFFECT_DURATION.bite);
     }
 
@@ -6496,10 +6497,10 @@ function App() {
             })}
 
             {/* Where blows land: acid splashes, shell blasts and mandible bites */}
-            {impacts.map(({ id, kind, position, from, scale, timestamp }) => {
+            {impacts.map(({ id, kind, position, from, scale, color, timestamp }) => {
               const at = hexToPixel(position, hexSize);
               const p = Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION[kind]);
-              if (kind === 'bite') return <Bite key={id} at={at} from={hexToPixel(from, hexSize)} p={p} scale={scale} />;
+              if (kind === 'bite') return <Bite key={id} at={at} from={hexToPixel(from, hexSize)} p={p} scale={scale} color={color} />;
               return kind === 'acid'
                 ? <AcidSplash key={id} at={at} p={p} />
                 : <Blast key={id} at={at} p={p} />;

@@ -17,7 +17,12 @@ const SHEETS = {
   blast: { w: 48, h: 44, frames: 7 },
   mushroom: { w: 48, h: 64, frames: 10 },
   shockwave: { w: 128, h: 48, frames: 6 },
-  bite: { w: 36, h: 32, frames: 7 }
+  // one sheet per player colour: bite_red, bite_green, bite_blue, bite_yellow, bite_black
+  bite_red: { w: 36, h: 32, frames: 7 },
+  bite_green: { w: 36, h: 32, frames: 7 },
+  bite_blue: { w: 36, h: 32, frames: 7 },
+  bite_yellow: { w: 36, h: 32, frames: 7 },
+  bite_black: { w: 36, h: 32, frames: 7 }
 };
 
 // Attack timings (ms). Everything here plays at 1.5x its original length, and
@@ -108,15 +113,17 @@ export function MushroomCloud({ at, p }) {
 }
 
 /**
- * Two mandibles open wide, then snap shut on the target. The jaws reach back
- * toward the attacker (`from`) and meet on the target (`at`); `scale` comes
- * from biteScale.
+ * Two mandibles open wide, then snap shut on the target, in the attacker's
+ * colour ('red', 'green', 'blue', 'yellow' or 'black'). Always drawn side-on:
+ * the jaws reach back toward whichever side the attacker (`from`) is on and
+ * meet on the target (`at`). `scale` comes from biteScale.
  */
-export function Bite({ at, from, p, scale = 1 }) {
-  const angle = Math.atan2(at.y - from.y, at.x - from.x) * 180 / Math.PI;
+export function Bite({ at, from, p, scale = 1, color = 'red' }) {
+  const name = SHEETS[`bite_${color}`] ? `bite_${color}` : 'bite_red';
+  const flip = from.x > at.x;
   return (
-    <g transform={`translate(${at.x}, ${at.y}) rotate(${angle}) scale(${scale})`} style={{ pointerEvents: 'none' }}>
-      <Frame name="bite" frame={frameAt('bite', p)} x={0} y={0} ax={25} ay={16} />
+    <g transform={`translate(${at.x}, ${at.y}) scale(${flip ? -scale : scale}, ${scale})`} style={{ pointerEvents: 'none' }}>
+      <Frame name={name} frame={frameAt(name, p)} x={0} y={0} ax={25} ay={16} />
     </g>
   );
 }
