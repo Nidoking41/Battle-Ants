@@ -10,6 +10,7 @@ import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import GameSummary from './GameSummary';
 import { applyFogOfWar, getVisibleHexes } from './fogOfWar';
+import { AcidGlob, AcidSplash, Shell, Blast, MushroomCloud, EFFECT_DURATION, FLIGHT_TIME } from './attackEffects';
 // Firebase-backed multiplayer helpers are imported lazily (see loadMultiplayer
 // below) so that offline play never initializes Firebase or touches the network.
 import { executeAITurn } from './aiController';
@@ -257,6 +258,8 @@ function App() {
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
   const [spikeStrikes, setSpikeStrikes] = useState([]); // burrowed Marauder attacks: {id, from, to}
+  const [impacts, setImpacts] = useState([]); // acid splashes and shell blasts: {id, kind, position, timestamp}
+  const [screenShake, setScreenShake] = useState(null); // {id, strength: 'light' | 'strong'}
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); // Show upgrades modal
   const [attackTarget, setAttackTarget] = useState(null); // Store target enemy when selecting attack position
@@ -1319,7 +1322,22 @@ function App() {
     }]);
     setTimeout(() => {
       setExplosions(prev => prev.filter(e => e.id !== explosionId));
-    }, 1000);
+    }, EFFECT_DURATION.mushroom);
+    shakeScreen('strong');
+  };
+
+  // Shake the board briefly. A newer shake replaces an older one.
+  const shakeScreen = (strength) => {
+    const shakeId = `shake_${Date.now()}_${Math.random()}`;
+    setScreenShake({ id: shakeId, strength });
+    setTimeout(() => setScreenShake(prev => (prev?.id === shakeId ? null : prev)), strength === 'strong' ? 600 : 300);
+  };
+
+  // An effect where a shot lands (acid splash or shell blast)
+  const showImpact = (kind, position) => {
+    const impactId = `impact_${Date.now()}_${Math.random()}`;
+    setImpacts(prev => [...prev, { id: impactId, kind, position, timestamp: Date.now() }]);
+    setTimeout(() => setImpacts(prev => prev.filter(i => i.id !== impactId)), EFFECT_DURATION[kind]);
   };
 
   const showAttackAnimation = (attackerId, targetPosition, isRanged, attackerInfo = null) => {
@@ -1364,20 +1382,28 @@ function App() {
       setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), 900);
     }
 
-    // If ranged, spawn projectile after shake animation (0.2s)
+    // If ranged, spawn projectile after shake animation (0.2s). Spitters spit
+    // a glob of acid and Bombardiers lob a shell; each has its own impact.
+    const flightTime = FLIGHT_TIME[attacker?.type] || FLIGHT_TIME.default;
     if (isRanged && attacker) {
       const projectileId = `projectile_${Date.now()}_${Math.random()}`;
       setTimeout(() => {
         setProjectiles(prev => [...prev, {
           id: projectileId,
+          kind: attacker.type,
           startPos: attacker.position,
           endPos: targetPosition,
           timestamp: Date.now()
         }]);
-        // Remove projectile after it reaches target (0.3s)
+        // Remove projectile once it reaches the target
         setTimeout(() => {
           setProjectiles(prev => prev.filter(p => p.id !== projectileId));
-        }, 300);
+          if (attacker.type === 'spitter') showImpact('acid', targetPosition);
+          if (attacker.type === 'bombardier') {
+            showImpact('blast', targetPosition);
+            shakeScreen('light');
+          }
+        }, flightTime);
       }, 200);
     }
 
@@ -1386,7 +1412,7 @@ function App() {
     // animated until its shot connects.
     setTimeout(() => {
       setAttackAnimations(prev => prev.filter(a => a.id !== id));
-    }, isRanged ? 500 : 400);
+    }, isRanged ? 200 + flightTime : 400);
   };
 
   // Function to show resource gain number
@@ -1519,6 +1545,17 @@ function App() {
 
     return () => clearInterval(interval);
   }, [projectiles.length]);
+
+  // Animate impacts and explosions
+  useEffect(() => {
+    if (impacts.length === 0 && explosions.length === 0) return;
+
+    const interval = setInterval(() => {
+      setImpacts(prev => [...prev]);
+    }, 16); // ~60fps
+
+    return () => clearInterval(interval);
+  }, [impacts.length, explosions.length]);
 
   // Animate resource gain numbers
   useEffect(() => {
@@ -4986,6 +5023,22 @@ function App() {
                   href={`${process.env.PUBLIC_URL}/sprites/anthill/${getAnthillSprite(anthill, gameState.players).file}`}
                   style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
                 />
+                {/* The watch-nest's eye looks slowly around: its pupil (2x6 art
+                    pixels, 1.75px each) steps left and right inside the eye */}
+                {getAnthillSprite(anthill, gameState.players).big && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <rect x={-35 + 19 * 1.75} y={-72 + 14 * 1.75} width={2 * 1.75} height={6 * 1.75} fill="#181020">
+                      <animateTransform
+                        attributeName="transform"
+                        type="translate"
+                        values="0 0;0 0;-1.75 0;-3.5 0;-3.5 0;-1.75 0;0 0;0 0;1.75 0;3.5 0;3.5 0;3.5 0;1.75 0;0 0"
+                        dur="9s"
+                        calcMode="discrete"
+                        repeatCount="indefinite"
+                      />
+                    </rect>
+                  </g>
+                )}
                 {/* Resource type indicator - small icon at lower right */}
                 {anthill.isComplete && (
                   <image
@@ -6236,6 +6289,7 @@ function App() {
               width={svgSize.width}
               height={svgSize.height}
               viewBox={`0 0 ${svgSize.width} ${svgSize.height}`}
+              className={screenShake ? `screen-shake-${screenShake.strength}` : undefined}
               style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -6326,11 +6380,13 @@ function App() {
             })()}
 
             {/* Projectiles */}
-            {projectiles.map(({ id, startPos, endPos, timestamp }) => {
+            {projectiles.map(({ id, kind, startPos, endPos, timestamp }) => {
               const start = hexToPixel(startPos, hexSize);
               const end = hexToPixel(endPos, hexSize);
               const elapsed = Date.now() - timestamp;
-              const progress = Math.min(elapsed / 300, 1); // 0 to 1 over 0.3 seconds
+              const progress = Math.min(elapsed / (FLIGHT_TIME[kind] || FLIGHT_TIME.default), 1);
+              if (kind === 'spitter') return <AcidGlob key={id} start={start} end={end} t={progress} />;
+              if (kind === 'bombardier') return <Shell key={id} start={start} end={end} t={progress} />;
 
               // Interpolate position
               const x = start.x + (end.x - start.x) * progress;
@@ -6346,6 +6402,15 @@ function App() {
                   />
                 </g>
               );
+            })}
+
+            {/* Where shots land: acid splashes and shell blasts */}
+            {impacts.map(({ id, kind, position, timestamp }) => {
+              const at = hexToPixel(position, hexSize);
+              const p = Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION[kind]);
+              return kind === 'acid'
+                ? <AcidSplash key={id} id={id} at={at} p={p} />
+                : <Blast key={id} id={id} at={at} p={p} />;
             })}
 
             {/* Damage Numbers */}
@@ -6448,52 +6513,16 @@ function App() {
                 </g>
               );
             })}
-            {explosions.map(({ id, position, timestamp }) => {
-              const { x, y } = hexToPixel(position, hexSize);
-              const elapsed = Date.now() - timestamp;
-              const progress = elapsed / 1000; // 0 to 1 over 1 second
-
-              // Create multiple expanding waves in different shades of green
-              const waves = [
-                { delay: 0, color: '#00ff00', maxRadius: hexSize * 2.5 },
-                { delay: 0.1, color: '#32cd32', maxRadius: hexSize * 2.2 },
-                { delay: 0.2, color: '#7fff00', maxRadius: hexSize * 1.9 },
-                { delay: 0.3, color: '#adff2f', maxRadius: hexSize * 1.6 }
-              ];
-
-              return (
-                <g key={id} transform={`translate(${x}, ${y})`} style={{ pointerEvents: 'none' }}>
-                  {waves.map((wave, idx) => {
-                    const waveProgress = Math.max(0, Math.min(1, (progress - wave.delay) / (0.7 - wave.delay)));
-                    const radius = waveProgress * wave.maxRadius;
-                    const opacity = (1 - waveProgress) * 0.8;
-
-                    return (
-                      <circle
-                        key={idx}
-                        cx={0}
-                        cy={0}
-                        r={radius}
-                        fill="none"
-                        stroke={wave.color}
-                        strokeWidth={8 * (1 - waveProgress * 0.5)}
-                        opacity={opacity}
-                      />
-                    );
-                  })}
-                  {/* Central flash */}
-                  {progress < 0.3 && (
-                    <circle
-                      cx={0}
-                      cy={0}
-                      r={hexSize * 0.8 * (1 - progress / 0.3)}
-                      fill="#ffffff"
-                      opacity={(1 - progress / 0.3) * 0.9}
-                    />
-                  )}
-                </g>
-              );
-            })}
+            {/* Exploding ant: shockwaves and a mushroom cloud */}
+            {explosions.map(({ id, position, timestamp }) => (
+              <MushroomCloud
+                key={id}
+                id={id}
+                at={hexToPixel(position, hexSize)}
+                p={Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION.mushroom)}
+                hexSize={hexSize}
+              />
+            ))}
 
             {/* Resource Gain Numbers */}
             {resourceGainNumbers.map(({ id, amount, type, position, timestamp }) => {
