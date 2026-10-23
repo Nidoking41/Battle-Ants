@@ -22,6 +22,10 @@ export function recruitLostAnts(gameState, playerId = 'player1') {
   return {
     ...gameState,
     ants,
-    campaign: { ...gameState.campaign, recruited: (gameState.campaign.recruited || 0) + found.length }
+    campaign: {
+      ...gameState.campaign,
+      recruited: (gameState.campaign.recruited || 0) + found.length,
+      lastRecruitedIds: found.map(a => a.id) // App shows them grey, then fading into her colour
+    }
   };
 }

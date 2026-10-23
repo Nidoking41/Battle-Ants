@@ -435,3 +435,10 @@ body, html {
   50% { transform: translate(3px, -2px); }
   75% { transform: translate(-2px, 1px); }
 }
+
+/* A lost ant (campaign level 8) just found: grey at first, then its new colour */
+.lost-ant-joining { animation: lost-ant-joining 1.8s ease-in forwards; }
+@keyframes lost-ant-joining {
+  0%, 35% { filter: grayscale(1) brightness(0.85); }
+  100% { filter: grayscale(0) brightness(1); }
+}

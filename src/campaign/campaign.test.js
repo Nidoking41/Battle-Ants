@@ -1023,6 +1023,11 @@ describe("level 8 - Sorlorg's Eyes", () => {
       expect(state.ants[a.id].lost).toBeUndefined();
     });
     expect(state.campaign.recruited).toBe(3);
+    expect(state.campaign.lastRecruitedIds.sort()).toEqual(lost.map(a => a.id).sort());
+    // ...and you see what they see
+    const { getVisibleHexes } = require('../fogOfWar');
+    const seen = getVisibleHexes(state, 'player1');
+    lost.forEach(a => expect(seen.has(`${a.position.q},${a.position.r}`)).toBe(true));
   }, 60000);
 
   test('burning all 3 watch-nests wins', () => {

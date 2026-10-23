@@ -1549,13 +1549,17 @@ function App() {
   // Campaign: say so when lost ants are found and join the colony
   const recruitedCount = gameState?.campaign?.recruited || 0;
   const lastRecruitedRef = useRef(0);
+  const [joiningAnts, setJoiningAnts] = useState([]); // just-found lost ants, drawn grey then fading into colour
   useEffect(() => {
     if (recruitedCount > lastRecruitedRef.current) {
       setFeedbackMessage('Lost ants found! They join your colony.');
       setTimeout(() => setFeedbackMessage(''), 3000);
+      const ids = gameState?.campaign?.lastRecruitedIds || [];
+      setJoiningAnts(ids);
+      setTimeout(() => setJoiningAnts([]), 1800);
     }
     lastRecruitedRef.current = recruitedCount;
-  }, [recruitedCount]);
+  }, [recruitedCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Animate impacts and explosions
   useEffect(() => {
@@ -5684,7 +5688,7 @@ function App() {
       const showAura = player?.heroAbilityActive;
 
       ants.push(
-        <g key={`ant-overlay-${ant.id}`} style={{ transform: `translate(${x}px, ${y}px) ${finalTransform}`, transition: transitionStyle, willChange: 'transform' }}>
+        <g key={`ant-overlay-${ant.id}`} className={joiningAnts.includes(ant.id) ? 'lost-ant-joining' : undefined} style={{ transform: `translate(${x}px, ${y}px) ${finalTransform}`, transition: transitionStyle, willChange: 'transform' }}>
           {/* Hero ability aura (rendered behind ant, animated sprite sheet) */}
           {showAura && playerColor && (
             <g opacity={0.8}>
