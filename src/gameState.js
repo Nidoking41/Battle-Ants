@@ -2127,8 +2127,10 @@ export function canBurrow(gameState, ant) {
   const player = gameState.players[ant.owner];
   if (!player.upgrades.burrow) return false;
 
-  // Queens, tanks, and bombardiers cannot burrow
+  // Queens, tanks, and bombardiers cannot burrow, nor can rooted units
+  // (the Broodwarden and her cocoon)
   if (ant.type === 'queen' || ant.type === 'tank' || ant.type === 'bombardier') return false;
+  if (getAntTypeById(ant.type)?.cannotMove) return false;
   if (ant.isBurrowed) return false;
   if (ant.hasMoved) return false;
   return true;

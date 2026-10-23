@@ -2586,6 +2586,17 @@ function App() {
     );
   }
 
+  // Where an egg layer may lay: her own spawning pool, and for a queen also
+  // the egg spots of every Broodwarden on her side (those eggs cost no energy)
+  const getLayingSpots = (layer, state) => {
+    const own = getSpawningPoolHexes(layer, getNeighbors, state);
+    if (layer.type !== 'queen') return own;
+    const extra = Object.values(state.ants || {})
+      .filter(a => a.type === 'broodwarden' && a.owner === layer.owner)
+      .flatMap(a => getSpawningPoolHexes(a, getNeighbors, state));
+    return [...own, ...extra.filter(h => !own.some(o => hexEquals(o, h)))];
+  };
+
   // Why an attack can't reach: a burrowed unit that can't fight from below
   // says so, rather than blaming the range
   const outOfRangeMessage = (ant, what) => (ant?.isBurrowed && ant.type !== 'soldier'
@@ -3150,8 +3161,8 @@ function App() {
         return;
       }
 
-      // Check if hex is in the spawning pool
-      const spawningPool = getSpawningPoolHexes(ant, getNeighbors, currentState);
+      // Check if hex is in the spawning pool (a queen can also use her Broodwardens' spots)
+      const spawningPool = getLayingSpots(ant, currentState);
       const isInSpawningPool = spawningPool.some(n => hexEquals(n, hex));
       console.log('Spawning pool check:', {
         spawningPoolSize: spawningPool.length,
@@ -4511,8 +4522,8 @@ function App() {
       console.log('getValidMovesForSelectedAnt: Returning', validMoveHexes.length, 'move hexes +', treeHexesInRange.length, 'tree hexes');
       return [...validMoveHexes, ...treeHexesInRange];
     } else if (selectedAction === 'layEgg' && (ant.type === 'queen' || ant.type === 'broodwarden')) {
-      // Get spawning pool hexes based on queen tier
-      const spawningPool = getSpawningPoolHexes(ant, getNeighbors, gameState);
+      // Get spawning pool hexes based on queen tier, plus her Broodwardens' spots
+      const spawningPool = getLayingSpots(ant, gameState);
       console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
 
       // Filter out occupied hexes (ants, eggs, and trees) and, on custom maps,

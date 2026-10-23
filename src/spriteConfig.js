@@ -34,11 +34,12 @@ export const SpriteConfig = {
       walk: { path: 'larva_idle_red.png', frames: 8 },
       attack: { path: 'larva_idle_red.png', frames: 8 }
     },
-    // A Broodwarden (deployed Emissary) is drawn as a smaller queen
+    // A Broodwarden (deployed Emissary): a wingless, crownless queen with a
+    // swollen abdomen sunk into the dirt, laying eggs
     broodwarden: {
-      idle: { path: 'queen_idle_red.png', frames: 8 },
-      walk: { path: 'queen_idle_red.png', frames: 8 },
-      attack: { path: 'queen_idle_red.png', frames: 8 }
+      idle: { path: 'broodwarden_idle_red.png', frames: 8 },
+      walk: { path: 'broodwarden_idle_red.png', frames: 8 },
+      attack: { path: 'broodwarden_idle_red.png', frames: 8 }
     },
     // Campaign Queen Larva (Larva/larva_idle_<color>.png, 8 frames of 32px).
     queenLarva: {
@@ -142,7 +143,7 @@ const COLORED_ANT_TYPES = ['queen', 'broodwarden', 'broodwardenCocoon', 'queenLa
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
   'queen': 'queen',
-  'broodwarden': 'queen',
+  'broodwarden': 'broodwarden',
   'broodwardenCocoon': 'larva',
   'queenLarva': 'larva',
   'scout': 'scout',
@@ -163,7 +164,7 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
 // Map ant type IDs to their folder names
 const ANT_TYPE_TO_FOLDER = {
   'queen': 'Queen',
-  'broodwarden': 'Queen',
+  'broodwarden': 'Broodwarden',
   'broodwardenCocoon': 'Larva',
   'queenLarva': 'Larva',
   'scout': 'Scout',

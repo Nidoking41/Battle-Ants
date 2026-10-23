@@ -181,6 +181,7 @@ export const AntTypes = {
     cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
     campaignOnly: true,
     drawSize: 64,
+    cannotMove: true,
     hatchTime: 0,
     maxHealth: 20,
     attack: 0,
@@ -192,15 +193,16 @@ export const AntTypes = {
     icon: '🐛👑'
   },
 
-  // A deployed Emissary: a young queen that guards a forward brood.
-  // queen-to-be). Never moves, cannot attack or heal - she only lays eggs on
-  // her two egg spots, with no energy cost.
+  // A deployed Emissary: a young queen that guards a forward brood. A fat,
+  // rooted egg layer: never moves or burrows, cannot attack or heal - she only
+  // lays eggs on her two egg spots, with no energy cost.
   BROODWARDEN: {
     id: 'broodwarden',
     name: 'Broodwarden',
     cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
     campaignOnly: true,
     drawSize: 64, // a little smaller than a full queen
+    cannotMove: true,
     hatchTime: 0,
     maxHealth: 30,
     attack: 0,
