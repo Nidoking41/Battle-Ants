@@ -636,6 +636,71 @@ function App() {
     setZoomLevel(newZoom);
   };
 
+  // Touch screens (iPad, phones): drag one finger to move around the map,
+  // pinch with two to zoom. A tap still selects as normal - the drag only
+  // takes over once the finger has moved a little. Listens directly on the
+  // board so it can stop the page itself from scrolling or zooming.
+  const [boardSvg, setBoardSvg] = useState(null); // the board's <svg>, once it is on screen
+  const touchViewRef = useRef({ zoom: zoomLevel, offset: cameraOffset });
+  touchViewRef.current = { zoom: zoomLevel, offset: cameraOffset };
+  useEffect(() => {
+    const svg = boardSvg;
+    if (!svg) return undefined;
+    const DRAG_THRESHOLD = 8; // px a finger can wobble and still count as a tap
+    let gesture = null;
+    const midpoint = t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+    const spread = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const start = (e) => {
+      const { zoom, offset } = touchViewRef.current;
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        gesture = { kind: 'drag', x: t.clientX, y: t.clientY, offset, zoom, moved: false };
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        gesture = { kind: 'pinch', mid: midpoint(e.touches), dist: spread(e.touches) || 1, offset, zoom };
+      }
+    };
+    const move = (e) => {
+      if (!gesture) return;
+      if (gesture.kind === 'drag' && e.touches.length === 1) {
+        const t = e.touches[0];
+        const dx = t.clientX - gesture.x, dy = t.clientY - gesture.y;
+        if (!gesture.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        gesture.moved = true;
+        e.preventDefault(); // a drag, not a tap: no click afterwards and no page scroll
+        setCameraOffset({ x: gesture.offset.x + dx / gesture.zoom, y: gesture.offset.y + dy / gesture.zoom });
+      } else if (gesture.kind === 'pinch' && e.touches.length === 2) {
+        e.preventDefault();
+        const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, gesture.zoom * spread(e.touches) / gesture.dist));
+        const mid = midpoint(e.touches);
+        setZoomLevel(zoom);
+        setCameraOffset({
+          x: gesture.offset.x + (mid.x - gesture.mid.x) / zoom,
+          y: gesture.offset.y + (mid.y - gesture.mid.y) / zoom
+        });
+      }
+    };
+    const end = (e) => {
+      if (e.touches.length === 0) gesture = null;
+      else if (e.touches.length === 1 && gesture?.kind === 'pinch') {
+        // one finger lifted mid-pinch: carry on as a drag from here
+        const t = e.touches[0];
+        const { zoom, offset } = touchViewRef.current;
+        gesture = { kind: 'drag', x: t.clientX, y: t.clientY, offset, zoom, moved: true };
+      }
+    };
+    svg.addEventListener('touchstart', start, { passive: false });
+    svg.addEventListener('touchmove', move, { passive: false });
+    svg.addEventListener('touchend', end);
+    svg.addEventListener('touchcancel', end);
+    return () => {
+      svg.removeEventListener('touchstart', start);
+      svg.removeEventListener('touchmove', move);
+      svg.removeEventListener('touchend', end);
+      svg.removeEventListener('touchcancel', end);
+    };
+  }, [boardSvg]);
+
   // Page-zoom lock. The browser's own zoom (Ctrl + mouse wheel, a trackpad
   // pinch, Ctrl + plus / minus) enlarges the whole page and pushes the side
   // panels off screen. While the game is open those gestures are blocked, and
@@ -6382,7 +6447,8 @@ function App() {
               height={svgSize.height}
               viewBox={`0 0 ${svgSize.width} ${svgSize.height}`}
               className={screenShake ? `screen-shake-${screenShake.strength}` : undefined}
-              style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent' }}
+              ref={setBoardSvg}
+              style={{ cursor: isDragging ? 'grabbing' : 'default', display: 'block', background: 'transparent', touchAction: 'none' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
