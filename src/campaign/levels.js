@@ -848,11 +848,11 @@ export const LEVELS = [
   },
   // ---------------------------------------------------------------------
   // Level 9 - The Rot Below (vs Skrazzit, paid by Sorlorg)
-  // Tunnels under the Throne Mound. Vexxara starts in a small 3x3 cave with a
-  // long tunnel running off each side; Skrazzit's swarm waits at the far ends
-  // of both and charges the queen from round 1, arriving by round 4, with more
+  // Tunnels under the Throne Mound. Vexxara's nest cave has a long 2-hex-wide
+  // tunnel running off each side; Skrazzit's swarm waits at the far ends of
+  // both and charges the queen from round 1, arriving by round 4, with more
   // pouring in behind (P spawn points). Hold for 8 rounds, then push down the
-  // short tunnel and get any ant into the Deep Chamber (G). Vexxara can grow into a Swarm Queen here, which
+  // 3-wide tunnel (one sharp bend) and get any ant into the Deep Chamber (G). Vexxara can grow into a Swarm Queen here, which
   // unlocks the Bullet Ant - made for holding a tunnel.
   {
     id: 9,
@@ -872,40 +872,37 @@ export const LEVELS = [
     briefing: ['Skrazzit\'s swarm is coming down both side tunnels, straight for your queen. Hold out for 8 turns, then get any ant to the Deep Chamber at the bottom.'],
     map: {
       layout: [
-        '           .',
-        '          . .',
-        ' . R T . . 1 . . . R .',
-        'P S . . . . . . . . S P',
-        ' A R . . . . . . T R A',
-        '. . . . F m m M . . . .',
-        '           .',
-        '            .',
-        '           .',
-        '            .',
-        '           F',
-        '            .',
-        '           .',
         '            .',
         '           . .',
-        '            .',
-        '             M',
-        '            .',
-        '             T',
-        '            .',
-        '           . .',
-        '            .',
-        '           .',
+        '          . M .',
+        '         . . . .',
+        '          . . .',
+        '         F . . F',
+        'P . R T . . 1 . . . R . P',
+        ' . S . . . . . . . . S .',
+        '. A R . . m . m . T R A .',
+        ' . . . . . . . . . . . .',
         '          . .',
-        '           . .',
-        '          . .',
-        '       . . . .',
-        '      P . . . .',
-        '       . . . . .',
-        '        . T G . .',
-        '           G G . P',
-        '          . G   .',
-        '           G',
-        '            G'
+        '         . . .',
+        '        . . .',
+        '       . F .',
+        '      . . .',
+        '       . .',
+        '      . .',
+        '     . . .',
+        '      T . .',
+        '       . . .',
+        '        . M .',
+        '         . . .',
+        '          . . .',
+        '           . . .',
+        '            . .',
+        '           . . .',
+        '        . . . . .',
+        '       P . . G . .',
+        '            G G   .',
+        '           . G .   P',
+        '            G G'
       ],
       legend: { m: 'soldier', R: 'soldier', S: 'scout', A: 'spitter' }
     },
