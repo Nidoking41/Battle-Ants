@@ -774,7 +774,7 @@ export const LEVELS = [
         'Burn all three watch-nests and Sorlorg goes blind. Her Marauders like to wait under the dirt beside the paths: Scouts can smell them out, and the Burrow upgrade lets yours do the same to her.'
       ]
     },
-    briefing: ["Destroy Sorlorg's 3 watch-nests hidden in the forest. Watch the paths: her Marauders wait burrowed underground."],
+    briefing: ["Destroy Sorlorg's 3 watch-nests hidden in the forest. Each nest's eye sees 3 hexes out, even burrowed ants. Watch the paths: her Marauders wait burrowed underground."],
     map: {
       layout: [
         '    T . T T T . . T . . . . T T T',

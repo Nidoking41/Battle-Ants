@@ -980,6 +980,23 @@ describe("level 8 - Sorlorg's Eyes", () => {
     raid.forEach(h => expect(hexDistance(awake.gameState.ants[h.id].position, queen)).toBeLessThan(hexDistance(h.position, queen)));
   }, 60000);
 
+  test('a watch-nest sees 3 hexes out and detects burrowed ants there', () => {
+    const { getVisibleHexes, getDetectedBurrowedAnts } = require('../fogOfWar');
+    const state = buildCampaignGameState(getLevel(8));
+    const nest = Object.values(state.anthills).find(h => h.isWatchNest);
+    const ring = d => hexesInRange(nest.position, d).filter(h => hexDistance(h, nest.position) === d &&
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r));
+    const seen = getVisibleHexes(state, 'player2');
+    ring(3).forEach(h => expect(seen.has(`${h.q},${h.r}`)).toBe(true));
+    const near = ring(3)[0], far = ring(4)[0];
+    const mk = (id, h) => ({ ...createAnt('soldier', 'player1', new HexCoord(h.q, h.r)), id, isBurrowed: true });
+    const withSpies = { ...state, ants: { ...state.ants, near: mk('near', near), far: mk('far', far) } };
+    const detected = getDetectedBurrowedAnts(withSpies, 'player2');
+    expect(detected.has('near')).toBe(true);
+    expect(detected.has('far')).toBe(false);
+  });
+
   test('burning all 3 watch-nests wins', () => {
     const state = buildCampaignGameState(getLevel(8));
     const won = { ...state, stats: { ...state.stats, player1: { ...state.stats.player1, anthillsDestroyed: 3 } } };

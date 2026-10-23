@@ -4954,7 +4954,8 @@ function App() {
                 <g transform={`translate(${-x}, ${-y})`} style={{ pointerEvents: 'none' }}>
                   <polygon points={ringHex} fill="#2a1206" opacity="0.45" />
                   <polygon points={ringHex} fill="url(#watchGroundPattern)" />
-                  <polygon points={innerHex} fill="none" stroke="#f8a020" strokeWidth="2" strokeDasharray="6 5" opacity="0.7">
+                  {/* pathLength 120 = 20 per side: a dash wraps every corner, plus one mid-side */}
+                  <polygon points={innerHex} fill="none" stroke="#f8a020" strokeWidth="2" pathLength="120" strokeDasharray="5 5" strokeDashoffset="2.5" strokeLinejoin="round" opacity="0.7">
                     <animate attributeName="opacity" values="0.35;0.85;0.35" dur="3s" repeatCount="indefinite" />
                   </polygon>
                 </g>

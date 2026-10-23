@@ -1,4 +1,7 @@
-import { HexCoord, hexDistance } from './hexUtils';
+import { HexCoord, hexDistance, hexesInRange } from './hexUtils';
+
+// How far a watch-nest sees, and detects burrowed ants
+export const WATCH_NEST_RANGE = 3;
 
 
 // Fog of war and visibility rules. These are pure functions - they previously
@@ -72,6 +75,10 @@ export function getVisibleHexes(gameState, playerId) {
     Object.values(gameState.anthills).forEach(anthill => {
       if (sharedVisionPlayers.has(anthill.owner)) {
         visibleHexes.add(`${anthill.position.q},${anthill.position.r}`);
+        // A watch-nest (campaign level 8) sees WATCH_NEST_RANGE hexes out
+        if (anthill.isWatchNest) {
+          hexesInRange(anthill.position, WATCH_NEST_RANGE).forEach(h => visibleHexes.add(`${h.q},${h.r}`));
+        }
       }
     });
   }
@@ -215,6 +222,16 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
     enemyBurrowedAnts.forEach(burrowedAnt => {
       const distance = hexDistance(scout.position, burrowedAnt.position);
       if (distance <= DETECTION_RADIUS) {
+        detectedBurrowed.add(burrowedAnt.id);
+      }
+    });
+  });
+
+  // Watch-nests are detectors too, out to the edge of their vision
+  Object.values(gameState.anthills || {}).forEach(anthill => {
+    if (!anthill.isWatchNest || !sharedVisionPlayers.has(anthill.owner)) return;
+    enemyBurrowedAnts.forEach(burrowedAnt => {
+      if (hexDistance(anthill.position, burrowedAnt.position) <= WATCH_NEST_RANGE) {
         detectedBurrowed.add(burrowedAnt.id);
       }
     });
