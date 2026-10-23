@@ -6,7 +6,7 @@ import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQue
 import { createScrimmageGameState } from './maps/scrimmageMaps';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes, cliffAt } from './hexUtils';
 import MultiplayerMenu from './MultiplayerMenu';
-import IntroVideo from './IntroVideo';
+import IntroVideo, { FadeFromBlack } from './IntroVideo';
 import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import GameSummary from './GameSummary';
@@ -265,9 +265,12 @@ function App() {
   const [showIntro, setShowIntro] = useState(() => {
     try { return sessionStorage.getItem('introSeen') !== '1'; } catch (e) { return true; }
   });
+  const [fadeInTitle, setFadeInTitle] = useState(false); // title screen fades in from black after the opening video
   const finishIntro = () => {
     try { sessionStorage.setItem('introSeen', '1'); } catch (e) { /* storage blocked: just don't remember */ }
     setShowIntro(false);
+    setFadeInTitle(true);
+    setTimeout(() => setFadeInTitle(false), 1300); // only the first time the title shows
   };
   const [showConcedeConfirm, setShowConcedeConfirm] = useState(false); // Show "Are you sure?" modal for conceding
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
@@ -2544,7 +2547,7 @@ function App() {
     return <IntroVideo onDone={finishIntro} />;
   }
   if (!gameMode) {
-    return <MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} onEnterCampaign={handleEnterCampaign} />;
+    return <>{fadeInTitle && <FadeFromBlack />}<MultiplayerMenu onStartGame={handleStartGame} onEnterLobby={handleEnterLobby} onEnterLocalSetup={handleEnterLocalSetup} onEnterAISetup={handleEnterAISetup} onEnterOnlineMultiplayer={handleEnterOnlineMultiplayer} onEnterCampaign={handleEnterCampaign} /></>;
   }
 
   // Show online multiplayer lobby (host/join selection)
