@@ -6666,8 +6666,13 @@ function App() {
           borderRadius: '8px',
           overflow: 'hidden',
           fontSize: panelFontSize,
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          // Never scrolls: everything above End Turn shares the space left
+          // over, and End Turn always sits at the bottom, on screen
+          display: 'flex',
+          flexDirection: 'column'
         }}>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {gameMode.isMultiplayer && (
             <div style={{ marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '6px' }}>
               <p style={{ color: '#e0e0e0', margin: '0 0 3px 0', fontSize: panelSmallFontSize }}><strong>Mode:</strong> Online</p>
@@ -6764,6 +6769,8 @@ function App() {
             );
 
             if (!queen) return null;
+            // Only while the queen is selected, to keep the side panel short
+            if (selectedAnt !== queen.id) return null;
             // Campaign levels can switch queen upgrades off
             if (currentState.campaign && currentState.campaign.queenUpgrades === false) return null;
 
@@ -6776,9 +6783,9 @@ function App() {
             const affordable = canAffordQueenUpgrade(currentState, queen.id);
 
             return (
-              <div style={{ marginBottom: '20px', paddingBottom: '15px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
-                <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Queen Upgrade</h4>
+              <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
                 <button data-tip="queenUpgrade"
+                  title={`+${nextTierData.spawningSpots - QueenTiers[currentTier].spawningSpots} egg spots, +${nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} max energy, +${nextTierData.energyRegen - QueenTiers[currentTier].energyRegen} energy per turn, +${nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} food per turn`}
                   onClick={() => {
                     if (!affordable) {
                       showFeedback('Not enough resources!');
@@ -6794,8 +6801,8 @@ function App() {
                   }}
                   disabled={!affordable || !isMyTurn()}
                   style={{
-                    padding: '12px',
-                    fontSize: '17px',
+                    padding: '6px 8px',
+                    fontSize: '13px',
                     background: affordable ? 'linear-gradient(145deg, #c75000, #8a3800)' : 'linear-gradient(145deg, #3a3a3a, #2a2a2a)',
                     color: '#e0e0e0',
                     border: affordable ? '2px solid #ff8c00' : '2px solid #444',
@@ -6807,16 +6814,11 @@ function App() {
                     boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
-                  <div style={{ fontSize: '15px', marginTop: '5px', color: '#b0b0b0' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#e0e0e0' }}>{nextTierData.icon} Upgrade to {nextTierData.name}</div>
+                  <div style={{ fontSize: '12px', marginTop: '2px', color: '#b0b0b0' }}>
                     Cost: {nextTierData.cost.food}<FoodIcon /> {nextTierData.cost.minerals}<MineralIcon />
                   </div>
-                  <div style={{ fontSize: '14px', marginTop: '5px', opacity: 0.9, color: '#999' }}>
-                    • +2 Spawning Spots ({QueenTiers[currentTier].spawningSpots} → {nextTierData.spawningSpots})<br/>
-                    • +{nextTierData.maxEnergy - QueenTiers[currentTier].maxEnergy} Max Energy ({QueenTiers[currentTier].maxEnergy}⚡ → {nextTierData.maxEnergy}⚡)<br/>
-                    • +{nextTierData.energyRegen - QueenTiers[currentTier].energyRegen} Energy Regen/Turn ({QueenTiers[currentTier].energyRegen}⚡ → {nextTierData.energyRegen}⚡)<br/>
-                    • +{nextTierData.foodIncome - QueenTiers[currentTier].foodIncome} Food Income/Turn ({QueenTiers[currentTier].foodIncome}<FoodIcon /> → {nextTierData.foodIncome}<FoodIcon />)
-                  </div>
+
                 </button>
               </div>
             );
@@ -6891,7 +6893,7 @@ function App() {
 
           {/* Selected Ant Info */}
           {selectedAnt && gameState.ants[selectedAnt] && (
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(192, 192, 192, 0.3)' }}>
+            <div className="selected-ant-info" style={{ marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(192, 192, 192, 0.3)' }}>
               <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Selected Ant</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth} ({Math.max(1, Math.round((10 * gameState.ants[selectedAnt].health) / gameState.ants[selectedAnt].maxHealth))})</p>
@@ -7402,11 +7404,15 @@ function App() {
             </div>
           )}
 
+          </div>
+
           {/* End Turn Button - only show when it's your turn */}
           {isMyTurn() && (
             <button
               onClick={handleEndTurn}
               style={{
+                flexShrink: 0,
+                marginTop: '6px',
                 width: '100%',
                 padding: '10px',
                 fontSize: '16px',

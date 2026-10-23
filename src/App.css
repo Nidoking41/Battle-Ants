@@ -264,20 +264,33 @@ body, html {
 
 /* Selected Ant action buttons: one size for every button, whatever its label */
 .ant-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* two per row so the panel fits without scrolling */
+  gap: 4px;
 }
 
 .ant-actions > button {
   box-sizing: border-box;
   width: 100% !important;
-  height: 44px; /* room for two lines, so long labels wrap instead of growing the button */
+  height: 38px; /* room for two lines, so long labels wrap instead of growing the button */
   margin: 0 !important;
-  padding: 4px 6px !important;
-  font-size: 15px !important;
-  line-height: 1.15;
+  padding: 2px 4px !important;
+  font-size: 12px !important;
+  line-height: 1.1;
   overflow: hidden;
+}
+
+/* Anything that isn't a button (hints, confirm text) takes a whole row */
+.ant-actions > :not(button) {
+  grid-column: 1 / -1;
+}
+
+/* Selected ant details: tight lines so the side panel fits on screen */
+.selected-ant-info p {
+  margin: 2px 0 !important;
+}
+.selected-ant-info h4 {
+  margin: 0 0 4px 0 !important;
 }
 
 /* Hero picker on the setup screens: one compact row per hero (portrait on the
