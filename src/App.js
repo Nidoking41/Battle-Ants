@@ -211,6 +211,9 @@ const LobbyLoading = () => (
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // null = menu, 'lobby' = in lobby, object = game started
+  // Enemy anthills the player has seen, kept so they stay on the map in the
+  // fog as last seen (see applyFogOfWar). Emptied whenever a game starts.
+  const seenAnthillsRef = useRef({});
   const [lobbySettings, setLobbySettings] = useState(null); // Settings from lobby before game starts
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const [fullGameState, setFullGameState] = useState(null); // Store unfiltered state for multiplayer
@@ -1345,7 +1348,7 @@ function App() {
           fullGameStateRef.current = advanced;
           setFullGameState(advanced);
           // keep the damage already shown during a replay of the computer's turn
-          setGameState(applyReplayDamage(applyFogOfWar(advanced, 'player1')));
+          setGameState(applyReplayDamage(applyFogOfWar(advanced, 'player1', seenAnthillsRef.current)));
           foundInGameState = true;
           foundInFullState = true;
         }
@@ -1804,7 +1807,7 @@ function App() {
         
         // Apply fog of war for multiplayer games or AI games with fog of war enabled
         const shouldApplyFog = (gameMode.isMultiplayer && gameMode.fogOfWar !== false) || (gameMode.isAI && gameMode.fogOfWar !== false);
-        let filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1') : modifiedState;
+        let filteredState = shouldApplyFog ? applyFogOfWar(modifiedState, gameMode.playerRole || 'player1', seenAnthillsRef.current) : modifiedState;
 
         // Protect currently animating ants from being overwritten by Firebase updates
         // This prevents the animation from being interrupted by subsequent Firebase syncs
@@ -1995,7 +1998,7 @@ function App() {
             revealedForCombat = true;
             const preCombat = fullGameStateRef.current;
             if (preCombat) {
-              setGameState(applyReplayDamage(applyFogOfWar(preCombat, 'player1')));
+              setGameState(applyReplayDamage(applyFogOfWar(preCombat, 'player1', seenAnthillsRef.current)));
               await new Promise(resolve => setTimeout(resolve, 250));
             }
           }
@@ -2155,7 +2158,7 @@ function App() {
       // Apply fog of war filtering for current player (if fog of war is enabled)
       const currentPlayerId = gameMode.playerRole || 'player1';
       if (gameMode.fogOfWar !== false) {
-        const filteredState = applyFogOfWar(newState, currentPlayerId);
+        const filteredState = applyFogOfWar(newState, currentPlayerId, seenAnthillsRef.current);
         setGameState(filteredState);
       } else {
         setGameState(newState);
@@ -2188,7 +2191,7 @@ function App() {
 
         if (gameMode.fogOfWar !== false) {
           // Apply fog of war filtering for display
-          const filteredState = applyFogOfWar(newState, 'player1');
+          const filteredState = applyFogOfWar(newState, 'player1', seenAnthillsRef.current);
           setGameState(filteredState);
         } else {
           // No fog of war, display full state
@@ -2279,7 +2282,7 @@ function App() {
       });
       setFullGameState(state);
       shownHeroPopupsRef.current = new Set(); // a fresh start shows the level's hero pop-ups again
-      setGameState(campaignFog ? applyFogOfWar(state, 'player1') : state);
+      setGameState(campaignFog ? applyFogOfWar(state, 'player1', (seenAnthillsRef.current = {})) : state);
       return;
     }
 
@@ -2368,7 +2371,7 @@ function App() {
 
         // Apply fog of war for display
         const filteredState = mode.fogOfWar !== false
-          ? applyFogOfWar(newGameState, 'player1')
+          ? applyFogOfWar(newGameState, 'player1', (seenAnthillsRef.current = {}))
           : newGameState;
         setGameState(filteredState);
 
@@ -2396,7 +2399,7 @@ function App() {
 
       if (mode.fogOfWar !== false) {
         console.log('Applying fog of war - filtering state for player1');
-        const filteredState = applyFogOfWar(newGameState, 'player1');
+        const filteredState = applyFogOfWar(newGameState, 'player1', (seenAnthillsRef.current = {}));
         setGameState(filteredState);
       } else {
         console.log('NOT applying fog of war - using full state for display');
@@ -2423,6 +2426,7 @@ function App() {
   };
 
   const handleBackToMenu = () => {
+    seenAnthillsRef.current = {}; // the next game starts with nothing remembered
     // stopAmbientMusic(); // Disabled - audio quality too low
     setGameMode(null);
     setLobbySettings(null);
@@ -3725,7 +3729,7 @@ function App() {
 
               // Update local state with fog of war
               const currentPlayerId = gameMode.playerRole || 'player1';
-              const filteredState = applyFogOfWar(finalState, currentPlayerId);
+              const filteredState = applyFogOfWar(finalState, currentPlayerId, seenAnthillsRef.current);
               setGameState(filteredState);
               setFullGameState(finalState);
 
@@ -4946,7 +4950,7 @@ function App() {
 
     // Watched ground: the six hexes around each of Sorlorg's watch-nests
     const watchedKeys = new Set();
-    Object.values(gameState.anthills || {}).forEach(h => {
+    [...Object.values(gameState.anthills || {}), ...Object.values(gameState.rememberedAnthills || {})].forEach(h => {
       if (h.isWatchNest) getNeighbors(h.position).forEach(n => watchedKeys.add(`${n.q},${n.r}`));
     });
 
@@ -4961,7 +4965,10 @@ function App() {
       const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, hex));
       const tree = Object.values(gameState.trees || {}).find(t => hexEquals(t.position, hex));
 
-      const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, hex));
+      // An enemy hill seen earlier but now in the fog is still drawn, as last seen
+      const anthill = Object.values(gameState.anthills || {}).find(a => hexEquals(a.position, hex)) ||
+        Object.values(gameState.rememberedAnthills || {}).find(a => hexEquals(a.position, hex));
+      const glowingEye = (gameState.glowingEyes || []).some(p => hexEquals(p, hex));
       const isValidMove = validMoves.some(v => hexEquals(v, hex));
       const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
       const isAttackable = enemiesInRange.some(e => hexEquals(e.position, hex));
@@ -5408,6 +5415,38 @@ function App() {
                 fill="rgba(0, 0, 0, 0.7)"
                 style={{ pointerEvents: 'none' }}
               />
+            )}
+            {/* A hidden watch-nest's eye glows through the fog (chunky pixels, 3px each) */}
+            {glowingEye && !anthill && (
+              <g style={{ pointerEvents: 'none' }} shapeRendering="crispEdges">
+                <g fill="#ff8a1a">
+                  <rect x={-24} y={-35} width={48} height={9} />
+                  <rect x={-18} y={-41} width={36} height={21} />
+                  <rect x={-9} y={-44} width={18} height={27} />
+                  <animate attributeName="opacity" values="0.1;0.35;0.1" dur="2.6s" repeatCount="indefinite" />
+                </g>
+                <g>
+                  <rect x={-8} y={-38} width={15} height={3} fill="#c03000" />
+                  <rect x={-11} y={-35} width={3} height={3} fill="#c03000" />
+                  <rect x={-8} y={-35} width={6} height={3} fill="#ffb020" />
+                  <rect x={-2} y={-35} width={3} height={3} fill="#181020" />
+                  <rect x={1} y={-35} width={6} height={3} fill="#ffb020" />
+                  <rect x={7} y={-35} width={3} height={3} fill="#c03000" />
+                  <rect x={-14} y={-32} width={3} height={3} fill="#c03000" />
+                  <rect x={-11} y={-32} width={6} height={3} fill="#ffb020" />
+                  <rect x={-5} y={-32} width={3} height={3} fill="#fff0a0" />
+                  <rect x={-2} y={-32} width={3} height={3} fill="#181020" />
+                  <rect x={1} y={-32} width={9} height={3} fill="#ffb020" />
+                  <rect x={10} y={-32} width={3} height={3} fill="#c03000" />
+                  <rect x={-11} y={-29} width={3} height={3} fill="#c03000" />
+                  <rect x={-8} y={-29} width={6} height={3} fill="#ffb020" />
+                  <rect x={-2} y={-29} width={3} height={3} fill="#181020" />
+                  <rect x={1} y={-29} width={6} height={3} fill="#ffb020" />
+                  <rect x={7} y={-29} width={3} height={3} fill="#c03000" />
+                  <rect x={-8} y={-26} width={15} height={3} fill="#c03000" />
+                  <animate attributeName="opacity" values="0.6;1;0.6" dur="2.6s" repeatCount="indefinite" />
+                </g>
+              </g>
             )}
             {/* Dead ant rendering */}
             {(() => {

@@ -262,8 +262,15 @@ export function getDetectedBurrowedAnts(gameState, playerId) {
   return detectedBurrowed;
 }
 
-// Apply fog of war to game state for a specific player
-export function applyFogOfWar(gameState, playerId) {
+// How close (in hexes) your sight must come to a hidden watch-nest before
+// its eye can be seen glowing through the fog
+export const WATCH_NEST_GLOW_RANGE = 3;
+
+// Apply fog of war to game state for a specific player.
+// `memory` (optional, kept by the caller between calls) remembers enemy
+// anthills this player has seen: once spotted, a hill stays on the map as
+// it was last seen (rememberedAnthills) until the player looks again.
+export function applyFogOfWar(gameState, playerId, memory = null) {
   const visibleHexes = getVisibleHexes(gameState, playerId);
   const detectedBurrowed = getDetectedBurrowedAnts(gameState, playerId);
 
@@ -325,6 +332,28 @@ export function applyFogOfWar(gameState, playerId) {
     }
   });
 
+  // Enemy anthills seen before but out of sight now, as last seen
+  const rememberedAnthills = {};
+  if (memory) {
+    Object.values(filteredAnthills).forEach(hill => {
+      if (hill.owner !== playerId) memory[hill.id] = hill;
+    });
+    Object.entries(memory).forEach(([id, hill]) => {
+      if (filteredAnthills[id]) return;
+      // Looked at the spot again and it's gone: forget it
+      if (visibleHexes.has(`${hill.position.q},${hill.position.r}`)) { delete memory[id]; return; }
+      rememberedAnthills[id] = hill;
+    });
+  }
+
+  // Hidden watch-nests near the edge of your sight: their eye glows through the fog
+  const glowingEyes = [];
+  Object.values(gameState.anthills || {}).forEach(hill => {
+    if (!hill.isWatchNest || hill.owner === playerId || filteredAnthills[hill.id] || rememberedAnthills[hill.id]) return;
+    const near = hexesInRange(hill.position, WATCH_NEST_GLOW_RANGE).some(h => visibleHexes.has(`${h.q},${h.r}`));
+    if (near) glowingEyes.push(hill.position);
+  });
+
   // Filter dead ants - only show dead ants in visible range
   const filteredDeadAnts = {};
   if (gameState.deadAnts) {
@@ -369,6 +398,8 @@ export function applyFogOfWar(gameState, playerId) {
     eggs: filteredEggs,
     resources: filteredResources,
     anthills: filteredAnthills,
+    rememberedAnthills,
+    glowingEyes,
     deadAnts: filteredDeadAnts,
     players: filteredPlayers
   };

@@ -1005,6 +1005,38 @@ describe("level 8 - Sorlorg's Eyes", () => {
     ids.forEach(id => expect(state.anthills[id]).toBeDefined());
   });
 
+  test('a watch-nest stays on the map once seen, and its eye glows through the fog nearby', () => {
+    const { applyFogOfWar, WATCH_NEST_GLOW_RANGE } = require('../fogOfWar');
+    const state = buildCampaignGameState(getLevel(8));
+    const nest = Object.values(state.anthills).find(h => h.isWatchNest);
+    const open = d => hexesInRange(nest.position, d).find(h => hexDistance(h, nest.position) === d &&
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r) &&
+      !Object.values(state.trees).some(t => t.position.q === h.q && t.position.r === h.r));
+    const memory = {};
+    const withScout = h => ({ ...state, ants: { ...state.ants, eye: { ...createAnt('soldier', 'player1', new HexCoord(h.q, h.r)), id: 'eye' } } });
+    // Not seen yet, and nowhere near: nothing at all
+    let view = applyFogOfWar(state, 'player1', memory);
+    expect(view.anthills[nest.id]).toBeUndefined();
+    expect(view.rememberedAnthills[nest.id]).toBeUndefined();
+    // A little way off (sight 1, so 2 hexes off the edge of sight): only the glowing eye
+    view = applyFogOfWar(withScout(open(WATCH_NEST_GLOW_RANGE)), 'player1', memory);
+    expect(view.anthills[nest.id]).toBeUndefined();
+    expect(view.glowingEyes).toContainEqual(nest.position);
+    // Right next to it: seen
+    view = applyFogOfWar(withScout(open(1)), 'player1', memory);
+    expect(view.anthills[nest.id]).toBeDefined();
+    // Walk away again: still drawn, as last seen
+    view = applyFogOfWar(state, 'player1', memory);
+    expect(view.anthills[nest.id]).toBeUndefined();
+    expect(view.rememberedAnthills[nest.id]).toBeDefined();
+    // Burned while you looked away: you see it gone when you look again
+    const burned = { ...withScout(open(1)), anthills: Object.fromEntries(Object.entries(state.anthills).filter(([id]) => id !== nest.id)) };
+    view = applyFogOfWar(burned, 'player1', memory);
+    expect(view.rememberedAnthills[nest.id]).toBeUndefined();
+    expect(memory[nest.id]).toBeUndefined();
+  });
+
   test('a lost squad hides in the north-west and joins you when you see it', async () => {
     const { moveAnt } = require('../combatSystem');
     const { applyFogOfWar } = require('../fogOfWar');
