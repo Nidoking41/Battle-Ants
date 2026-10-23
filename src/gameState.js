@@ -1250,8 +1250,10 @@ export function endTurn(rawGameState) {
           owner: anthill.owner
         });
 
-        // Check if anthill is depleted
-        if (newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD[anthill.resourceType]) {
+        // Check if anthill is depleted. Campaign objective hills (Sorlorg's
+        // watch-nests, the fungus garden) never run dry: they only go when burned.
+        if (!anthill.isWatchNest && !anthill.isGarden &&
+            newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD[anthill.resourceType]) {
           depletedAnthills.push(anthill);
         }
       }

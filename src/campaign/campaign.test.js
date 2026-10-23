@@ -997,6 +997,14 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(detected.has('far')).toBe(false);
   });
 
+  test('watch-nests never run dry, however many rounds pass', () => {
+    let state = buildCampaignGameState(getLevel(8));
+    const ids = Object.values(state.anthills).filter(h => h.isWatchNest).map(h => h.id);
+    expect(ids).toHaveLength(3);
+    for (let i = 0; i < 60; i++) state = endTurn(state).gameState;
+    ids.forEach(id => expect(state.anthills[id]).toBeDefined());
+  });
+
   test('a lost squad hides in the north-west and joins you when you see it', async () => {
     const { moveAnt } = require('../combatSystem');
     const { applyFogOfWar } = require('../fogOfWar');
