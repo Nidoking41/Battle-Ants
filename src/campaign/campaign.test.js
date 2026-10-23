@@ -1017,9 +1017,12 @@ describe("level 8 - Sorlorg's Eyes", () => {
     const finder = { ...createAnt('scout', 'player1', new HexCoord(99, 99)), id: 'finder' };
     state = { ...state, ants: { ...state.ants, finder } };
     state = moveAnt(state, 'finder', new HexCoord(spot.q, spot.r));
-    expect(state.ants[target.id].owner).toBe('player1');
-    expect(state.ants[target.id].lost).toBeUndefined();
-    expect(state.campaign.recruited).toBeGreaterThanOrEqual(1);
+    // The whole squad joins at once
+    lost.forEach(a => {
+      expect(state.ants[a.id].owner).toBe('player1');
+      expect(state.ants[a.id].lost).toBeUndefined();
+    });
+    expect(state.campaign.recruited).toBe(3);
   }, 60000);
 
   test('burning all 3 watch-nests wins', () => {

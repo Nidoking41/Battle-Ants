@@ -11,8 +11,9 @@ export function recruitLostAnts(gameState, playerId = 'player1') {
   const lost = Object.values(gameState.ants || {}).filter(a => a.lost);
   if (lost.length === 0 || !gameState.campaign) return gameState;
   const seen = getVisibleHexes(gameState, playerId);
-  const found = lost.filter(a => seen.has(`${a.position.q},${a.position.r}`));
-  if (found.length === 0) return gameState;
+  // Spotting any one of them brings the whole lost squad over together
+  if (!lost.some(a => seen.has(`${a.position.q},${a.position.r}`))) return gameState;
+  const found = lost;
   const ants = { ...gameState.ants };
   found.forEach(a => {
     const { lost: _lost, colorOverride: _color, ...rest } = a;
