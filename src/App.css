@@ -415,3 +415,13 @@ body, html {
   60% { transform: scaleY(1); opacity: 1; }
   100% { transform: scaleY(0.2); opacity: 0; }
 }
+.spike-dirt {
+  opacity: 0;
+  animation: spike-dirt 0.55s ease-out forwards;
+}
+@keyframes spike-dirt {
+  0% { opacity: 0; }
+  20% { opacity: 0.9; }
+  70% { opacity: 0.9; }
+  100% { opacity: 0; }
+}

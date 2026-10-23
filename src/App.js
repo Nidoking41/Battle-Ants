@@ -167,6 +167,9 @@ function getAnthillSprite(anthill, players) {
   // Sorlorg's fungus garden (campaign level 10)
   if (anthill.isGarden) return { file: 'fungus_garden.png', hasOwnerColor: true };
   const colorName = PLAYER_COLOR_NAMES[String(players[anthill.owner]?.color || '').toUpperCase()];
+  // Sorlorg's watch-nests (campaign level 8): a taller spire with a watching
+  // eye, 40x52 art drawn bigger than a normal mound
+  if (anthill.isWatchNest) return { file: `watch_nest_${colorName || 'red'}.png`, hasOwnerColor: true, big: true };
   const shape = anthill.isComplete ? 'anthill' : 'anthill_building';
   return {
     file: `${shape}${colorName ? `_${colorName}` : ''}.png`,
@@ -4586,6 +4589,18 @@ function App() {
             style={{ imageRendering: 'pixelated' }}
           />
         </pattern>
+        {/* Scent-marked ground around Sorlorg's watch-nests: amber pheromone
+            trails on a transparent tile, pulsing slowly */}
+        <pattern id="watchGroundPattern" patternUnits="userSpaceOnUse" width="64" height="64">
+          <image
+            href={`${process.env.PUBLIC_URL}/sprites/terrain/watch_ground.png`}
+            width="64"
+            height="64"
+            style={{ imageRendering: 'pixelated' }}
+          >
+            <animate attributeName="opacity" values="0.45;1;0.45" dur="3s" repeatCount="indefinite" />
+          </image>
+        </pattern>
         <pattern id="creepGlowPattern" patternUnits="userSpaceOnUse" width="128" height="128">
           <image
             href={`${process.env.PUBLIC_URL}/sprites/terrain/creep_glow.png`}
@@ -4745,6 +4760,12 @@ function App() {
       getSpawningPoolHexes(a, getNeighbors, gameState).forEach(n => creepKeys.add(`${n.q},${n.r}`));
     });
     const isCreepHex = (cq, cr) => creepKeys.has(`${cq},${cr}`);
+
+    // Watched ground: the six hexes around each of Sorlorg's watch-nests
+    const watchedKeys = new Set();
+    Object.values(gameState.anthills || {}).forEach(h => {
+      if (h.isWatchNest) getNeighbors(h.position).forEach(n => watchedKeys.add(`${n.q},${n.r}`));
+    });
 
     // Render each hex on the map
     for (const hex of mapHexes) {
@@ -4924,6 +4945,21 @@ function App() {
                 </g>
               );
             })()}
+            {watchedKeys.has(`${q},${r}`) && !waterKeys.has(`${q},${r}`) && (() => {
+              // Scent-marked ground: darkened earth with amber pheromone
+              // trails that slowly glow, and an amber rim
+              const ringHex = `${x + 50},${y} ${x + 25},${y - 43} ${x - 25},${y - 43} ${x - 50},${y} ${x - 25},${y + 43} ${x + 25},${y + 43}`;
+              const innerHex = `${x + 44},${y} ${x + 22},${y - 38} ${x - 22},${y - 38} ${x - 44},${y} ${x - 22},${y + 38} ${x + 22},${y + 38}`;
+              return (
+                <g transform={`translate(${-x}, ${-y})`} style={{ pointerEvents: 'none' }}>
+                  <polygon points={ringHex} fill="#2a1206" opacity="0.45" />
+                  <polygon points={ringHex} fill="url(#watchGroundPattern)" />
+                  <polygon points={innerHex} fill="none" stroke="#f8a020" strokeWidth="2" strokeDasharray="6 5" opacity="0.7">
+                    <animate attributeName="opacity" values="0.35;0.85;0.35" dur="3s" repeatCount="indefinite" />
+                  </polygon>
+                </g>
+              );
+            })()}
             {/* Campaign goal hex: the Golden Throne on its mound (32x40 art at 48x60) */}
             {isGoalHex && gameState.campaign?.goalSprite === 'throne' && (
               <image
@@ -4940,11 +4976,12 @@ function App() {
                 {/* Anthill sprite (32x32 pixel art shown at 48px): a finished mound,
                     or a half-built one while under construction. The base of the
                     mound is in the owner's colour. */}
+                {/* A watch-nest is 40x52 art shown at 70x91, standing on the same baseline */}
                 <image
-                  x={-24}
-                  y={-29}
-                  width={48}
-                  height={48}
+                  x={getAnthillSprite(anthill, gameState.players).big ? -35 : -24}
+                  y={getAnthillSprite(anthill, gameState.players).big ? -72 : -29}
+                  width={getAnthillSprite(anthill, gameState.players).big ? 70 : 48}
+                  height={getAnthillSprite(anthill, gameState.players).big ? 91 : 48}
                   href={`${process.env.PUBLIC_URL}/sprites/anthill/${getAnthillSprite(anthill, gameState.players).file}`}
                   style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
                 />
@@ -6379,26 +6416,62 @@ function App() {
             })}
 
             {/* Bomber Explosion Animations */}
-            {/* Burrowed Marauder strike: a row of spikes erupting toward the target */}
+            {/* Burrowed Marauder strike: a row of spikes erupting toward the target.
+                Each spike has a lit face and a shadowed face split by a pale
+                ridge, so it reads as a solid 3D spike, and bursts out of a
+                little mound of dirt. */}
             {spikeStrikes.map(({ id, from, to }) => {
               const a = hexToPixel(from, hexSize), b = hexToPixel(to, hexSize);
               const n = 5;
+              const gid = id.replace(/[^a-zA-Z0-9_]/g, '_');
               return (
                 <g key={id} style={{ pointerEvents: 'none' }}>
+                  <defs>
+                    <linearGradient id={`${gid}_lit`} x1="0" y1="1" x2="0" y2="0">
+                      <stop offset="0%" stopColor="#6b4426" />
+                      <stop offset="70%" stopColor="#d8b48a" />
+                      <stop offset="100%" stopColor="#fff0d0" />
+                    </linearGradient>
+                    <linearGradient id={`${gid}_dark`} x1="0" y1="1" x2="0" y2="0">
+                      <stop offset="0%" stopColor="#1c0e06" />
+                      <stop offset="70%" stopColor="#5a3418" />
+                      <stop offset="100%" stopColor="#9a6a40" />
+                    </linearGradient>
+                  </defs>
                   {Array.from({ length: n }, (_, i) => {
                     const t = (i + 1) / n;
                     const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + 10;
                     const h = 14 + i * 5, w = 5 + i;
+                    const tipX = x + (b.x > a.x ? 3 : -3), tipY = y - h;
+                    // The front ridge meets the ground a little forward of centre
+                    const midX = x + w * 0.15, midY = y + 2;
                     return (
-                      <polygon
-                        key={i}
-                        className="spike-strike"
-                        points={`${x - w},${y} ${x + w},${y} ${x + (b.x > a.x ? 3 : -3)},${y - h}`}
-                        fill="#2a1408"
-                        stroke="#c49a64"
-                        strokeWidth="1.5"
-                        style={{ animationDelay: `${i * 70}ms` }}
-                      />
+                      <g key={i}>
+                        <ellipse
+                          className="spike-dirt"
+                          cx={x}
+                          cy={y + 1}
+                          rx={w + 5}
+                          ry={3.5}
+                          fill="#3b2412"
+                          style={{ animationDelay: `${i * 70}ms` }}
+                        />
+                        <g className="spike-strike" style={{ animationDelay: `${i * 70}ms` }}>
+                          <polygon points={`${x - w},${y} ${midX},${midY} ${tipX},${tipY}`} fill={`url(#${gid}_lit)`} />
+                          <polygon points={`${midX},${midY} ${x + w},${y} ${tipX},${tipY}`} fill={`url(#${gid}_dark)`} />
+                          <line x1={midX} y1={midY} x2={tipX} y2={tipY} stroke="#f4dcb0" strokeWidth="0.8" strokeLinecap="round" />
+                          <polygon
+                            points={`${x - w},${y} ${midX},${midY} ${x + w},${y} ${tipX},${tipY}`}
+                            fill="none"
+                            stroke="#160a04"
+                            strokeWidth="1.2"
+                            strokeLinejoin="round"
+                          />
+                          {/* Clods of dirt thrown up around the base */}
+                          <circle cx={x - w - 2} cy={y - 2} r="1.6" fill="#7a5230" />
+                          <circle cx={x + w + 2} cy={y - 3} r="1.3" fill="#5a3a20" />
+                        </g>
+                      </g>
                     );
                   })}
                 </g>

@@ -181,6 +181,7 @@ function applyLayout(state, level) {
     const res = Object.values(state.resources).find(r => r.position.q === pos.q && r.position.r === pos.r);
     const hill = completeAnthill(createAnthillInProgress(res.id, 'player2', pos, res.type, 2), false);
     hill.id = `camp_player2_nest${i + 1}`;
+    hill.isWatchNest = true;
     state.anthills[hill.id] = hill;
   });
   // 'Z' the fungus garden: an enemy anthill with three times the health
