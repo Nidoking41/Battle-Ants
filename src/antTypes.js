@@ -173,7 +173,7 @@ export const AntTypes = {
     icon: '👑🐜'
   },
 
-  // A deployed Emissary spends two turns wrapped in a cocoon before it opens
+  // A deployed Emissary spends one turn wrapped in a cocoon before it opens
   // into a Broodwarden. It cannot do anything while it pupates.
   BROODWARDEN_COCOON: {
     id: 'broodwardenCocoon',
@@ -188,7 +188,7 @@ export const AntTypes = {
     moveRange: 0,
     attackRange: 0,
     resourceGatherRate: 0,
-    description: 'A deployed Emissary, pupating. Opens into a Broodwarden after two turns.',
+    description: 'A deployed Emissary, pupating. Opens into a Broodwarden next turn.',
     icon: '🐛👑'
   },
 

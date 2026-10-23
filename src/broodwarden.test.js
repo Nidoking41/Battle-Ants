@@ -5,18 +5,18 @@ import { getNeighbors, HexCoord } from './hexUtils';
 import { getAntTypeById } from './antTypes';
 
 describe('Emissary deploys into a Broodwarden', () => {
-  test('deploying makes a cocoon that opens two turns later into a 30-health Broodwarden with 2 egg spots', () => {
+  test('deploying makes a cocoon that opens one turn later into a 30-health Broodwarden with 2 egg spots', () => {
     const base = createInitialGameState({ playerCount: 2, mapSize: 'small' });
     const e = { ...createAnt('emissary', 'player1', new HexCoord(0, 3)), id: 'e1' }; // off the small map's centre lake
     let s = deployEmissary({ ...base, turn: 3, ants: { ...base.ants, e1: e } }, 'e1');
     expect(s.ants.e1).toBeUndefined();
     expect(s.ants.cocoon_e1.type).toBe('broodwardenCocoon');
-    // player1 ends, player2 ends (round 3 over), then round 4
-    s = endTurn(endTurn(s).gameState).gameState;
-    expect(s.turn).toBe(4);
+    // Still a cocoon while the round plays out...
+    s = endTurn(s).gameState;
     expect(s.ants.cocoon_e1.type).toBe('broodwardenCocoon');
-    s = endTurn(endTurn(s).gameState).gameState;
-    expect(s.turn).toBe(5);
+    // ...and open when round 4 begins
+    s = endTurn(s).gameState;
+    expect(s.turn).toBe(4);
     expect(s.ants.cocoon_e1).toBeUndefined();
     const g = s.ants.broodwarden_e1;
     expect(g.type).toBe('broodwarden');

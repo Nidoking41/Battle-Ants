@@ -7238,7 +7238,7 @@ function App() {
                         updateGame(newState);
                         setSelectedAnt(null);
                         setSelectedAction(null);
-                        showFeedback('The Emissary wraps itself in a cocoon. In two turns it opens as a Broodwarden!');
+                        showFeedback('The Emissary wraps itself in a cocoon. Next turn it opens as a Broodwarden!');
                       }}
                       disabled={!isMyTurn()}
                       style={{

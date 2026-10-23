@@ -2030,8 +2030,8 @@ export function canDeployEmissary(gameState, ant) {
   return true;
 }
 
-// Deploying wraps the Emissary in a cocoon; it opens into a Broodwarden two turns
-// later (at the end of the next round - see matureBroodwardenCocoons).
+// Deploying wraps the Emissary in a cocoon; it opens into a Broodwarden one turn
+// later (at the end of this round - see matureBroodwardenCocoons).
 export function deployEmissary(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!canDeployEmissary(gameState, ant)) return gameState;
@@ -2040,7 +2040,7 @@ export function deployEmissary(gameState, antId) {
     id: `cocoon_${antId}`,
     hasMoved: true,
     hasAttacked: true,
-    maturesTurn: (gameState.turn || 1) + 1
+    maturesTurn: gameState.turn || 1
   };
   const ants = { ...gameState.ants };
   delete ants[antId];
