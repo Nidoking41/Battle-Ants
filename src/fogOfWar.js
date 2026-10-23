@@ -1,4 +1,4 @@
-import { HexCoord, hexDistance, hexesInRange, cliffAt } from './hexUtils';
+import { HexCoord, hexDistance, hexesInRange, cliffAt, cliffFaceTowards } from './hexUtils';
 
 // How far a watch-nest sees, and detects burrowed ants
 export const WATCH_NEST_RANGE = 3;
@@ -54,10 +54,14 @@ export function getVisibleHexes(gameState, playerId) {
           }
         }
 
-        // Standing on a cliff: +1 vision
-        if (cliffAt(ant.position, gameState.mapShape) !== undefined) {
+        // Standing on a cliff: +1 vision. From the ground, long-range sight
+        // can't see up onto a cliff whose rock face is in the way.
+        const onCliff = cliffAt(ant.position, gameState.mapShape) !== undefined;
+        if (onCliff) {
           VISION_RADIUS += 1;
         }
+        const hiddenUpCliff = hex => !onCliff && hexDistance(ant.position, hex) >= 2 &&
+          cliffFaceTowards(hex, ant.position, gameState.mapShape);
 
         // Add all hexes within vision radius of this ant
         for (let q = -VISION_RADIUS; q <= VISION_RADIUS; q++) {
@@ -65,7 +69,7 @@ export function getVisibleHexes(gameState, playerId) {
             const s = -q - r;
             if (Math.abs(q) <= VISION_RADIUS && Math.abs(r) <= VISION_RADIUS && Math.abs(s) <= VISION_RADIUS) {
               const visibleHex = new HexCoord(ant.position.q + q, ant.position.r + r);
-              if (hexDistance(ant.position, visibleHex) <= VISION_RADIUS) {
+              if (hexDistance(ant.position, visibleHex) <= VISION_RADIUS && !hiddenUpCliff(visibleHex)) {
                 visibleHexes.add(`${visibleHex.q},${visibleHex.r}`);
               }
             }

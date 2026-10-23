@@ -210,6 +210,25 @@ export function isCliffEdge(from, to, mapShape) {
   return false;
 }
 
+// True if someone standing at `viewer` looks at the cliff on `cliffHex`
+// from the side of its rock face (so the wall hides its top). Uses the
+// direction(s) closest to the line of sight; looking straight along a corner
+// counts as open if either side there is open.
+export function cliffFaceTowards(cliffHex, viewer, mapShape) {
+  const ramp = cliffAt(cliffHex, mapShape);
+  if (ramp === undefined) return false;
+  const dq = viewer.q - cliffHex.q, dr = viewer.r - cliffHex.r;
+  const angle = Math.atan2(Math.sqrt(3) * (dr + dq / 2), 1.5 * dq);
+  const facing = NEIGHBOR_DIRS
+    .map(([q, r], i) => {
+      const a = Math.atan2(Math.sqrt(3) * (r + q / 2), 1.5 * q);
+      const diff = Math.abs(((angle - a + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+      return { i, diff };
+    })
+    .filter(d => d.diff <= Math.PI / 6 + 1e-6);
+  return !facing.some(d => cliffSideOpen(ramp, d.i));
+}
+
 // Check if hex is valid on the board
 // For diamond grids (2-player rectangle maps)
 export function isValidHex(hex, gridSize, mapShape = 'rectangle') {

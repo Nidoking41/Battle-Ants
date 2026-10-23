@@ -2,6 +2,8 @@ import { SCRIMMAGE_MAPS, getMapsForSize, createScrimmageGameState } from './scri
 import { parseLayout } from '../campaign/mapLayout';
 import { getNeighbors, isValidHex, isCliffEdge, getMovementRange, HexCoord } from '../hexUtils';
 import { getVisibleHexes } from '../fogOfWar';
+import { createAnt } from '../gameState';
+import { canAttack, resolveCombat } from '../combatSystem';
 
 const key = h => `${h.q},${h.r}`;
 const NODES_PER_SIDE = { small: { food: 2, minerals: 2 }, medium: { food: 3, minerals: 2 }, large: { food: 4, minerals: 2 } };
@@ -109,5 +111,46 @@ describe('Cliffs', () => {
     expect(seen.has(`${cliff.q},${cliff.r + 2}`)).toBe(true);
     state.ants.a.position = north;
     expect(getVisibleHexes(state, 'player1').has(`${north.q},${north.r + 2}`)).toBe(false);
+  });
+
+  const players = {
+    player1: { id: 'player1', upgrades: { meleeAttack: 0, rangedAttack: 0, defense: 0 }, resources: {} },
+    player2: { id: 'player2', upgrades: { meleeAttack: 0, rangedAttack: 0, defense: 0 }, resources: {} }
+  };
+  const stats = { player1: {}, player2: {} };
+  const battle = (mine, theirs) => {
+    const a = { ...createAnt(mine.type, 'player1', mine.at), id: 'a' };
+    const b = { ...createAnt(theirs.type, 'player2', theirs.at), id: 'b' };
+    return { mapShape: layout.mapShape, gridRadius: layout.gridRadius, players, stats, ants: { a, b }, eggs: {}, anthills: {} };
+  };
+
+  test("melee can't bite through a cliff wall, either way", () => {
+    const up = battle({ type: 'soldier', at: south }, { type: 'soldier', at: cliff });
+    expect(canAttack(up.ants.a, up.ants.b, up)).toBe(false);
+    const down = battle({ type: 'soldier', at: cliff }, { type: 'soldier', at: south });
+    expect(canAttack(down.ants.a, down.ants.b, down)).toBe(false);
+    // from the ramp side it's a normal fight
+    const ramp = battle({ type: 'soldier', at: north }, { type: 'soldier', at: cliff });
+    expect(canAttack(ramp.ants.a, ramp.ants.b, ramp)).toBe(true);
+  });
+
+  test('ranged units shoot over cliff walls, and nobody bites back through one', () => {
+    const shot = battle({ type: 'spitter', at: new HexCoord(cliff.q, cliff.r + 2) }, { type: 'soldier', at: cliff });
+    expect(canAttack(shot.ants.a, shot.ants.b, shot)).toBe(true);
+    const r = resolveCombat(shot, 'a', 'b');
+    expect(r.damageDealt).toHaveLength(1);
+  });
+
+  test("long-range sight can't see up a cliff through its wall", () => {
+    const below = new HexCoord(cliff.q, cliff.r + 2);
+    const above = new HexCoord(cliff.q, cliff.r - 2);
+    const sees = (type, at) => getVisibleHexes({
+      mapShape: layout.mapShape,
+      players: { player1: {} },
+      ants: { s: { id: 's', type, owner: 'player1', position: at } }
+    }, 'player1').has(key(cliff));
+    expect(sees('scout', below)).toBe(false); // the rock face is in the way
+    expect(sees('scout', above)).toBe(true);  // looking from the ramp side
+    expect(sees('drone', south)).toBe(true);  // right next to it, it still sees
   });
 });

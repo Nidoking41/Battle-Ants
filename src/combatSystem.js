@@ -1,5 +1,5 @@
 import { AntTypes, GameConstants, getAntTypeById, isMeleeType } from './antTypes';
-import { hexDistance, getNeighbors } from './hexUtils';
+import { hexDistance, getNeighbors, isCliffEdge } from './hexUtils';
 import { getAntAttack, getAntDefense, unitStrength } from './gameState';
 import { awardKillXp } from './experience';
 
@@ -544,7 +544,10 @@ export function resolveCombat(gameState, attackerId, defenderId) {
   // An undetected burrowed Marauder strikes from below and takes no hit back
   const attackerHidden = isHiddenBurrowedMarauder(updatedGameState, attacker, defender.owner);
 
-  if (defenderSurvived && isMeleeRange && !attackerHidden) {
+  // ...and nobody bites back through a cliff wall
+  const wallBetween = meleeBlockedByCliff(defender, attacker.position, updatedGameState);
+
+  if (defenderSurvived && isMeleeRange && !attackerHidden && !wallBetween) {
     // Defender counter-attacks with updated health
     const updatedDefender = updatedAnts[defenderId];
     const counterDamage = calculateDamage(updatedDefender, attacker, { ...updatedGameState, ants: updatedAnts });
@@ -631,6 +634,16 @@ export function resolveCombat(gameState, attackerId, defenderId) {
 }
 
 // Check if an attack is valid
+// True when a melee unit would have to bite through a cliff wall to reach
+// `targetPos`. Cliff faces block melee both ways; ranged attacks fly over.
+export function meleeBlockedByCliff(attacker, targetPos, gameState) {
+  if (!attacker || !targetPos || !gameState?.mapShape?.cliffs) return false;
+  const type = getAntTypeById(attacker.type);
+  if (!type || !isMeleeType(type)) return false;
+  return hexDistance(attacker.position, targetPos) === 1 &&
+    isCliffEdge(attacker.position, targetPos, gameState.mapShape);
+}
+
 export function canAttack(attacker, defender, gameState) {
   if (!attacker || !defender) return false;
 
@@ -660,6 +673,9 @@ export function canAttack(attacker, defender, gameState) {
 
   // Check if within attack range
   if (distance > attackRange) return false;
+
+  // A cliff wall between them blocks melee
+  if (meleeBlockedByCliff(attacker, defender.position, gameState)) return false;
 
   // Check minimum attack range (e.g., Bombardier cannot attack adjacent enemies)
   if (attackerType.minAttackRange && distance < attackerType.minAttackRange) return false;

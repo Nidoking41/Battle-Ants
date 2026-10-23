@@ -971,7 +971,8 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
     if (canHitEggs && !(antType.cannotMoveAndAttack && moved) && eggValue > bestTV) {
       const egg = enemyEggs.find(e => {
         const d = hexDistance(opt.hex, e.position);
-        return d >= minRange && d <= antType.attackRange;
+        return d >= minRange && d <= antType.attackRange &&
+          !(d === 1 && antType.attackRange <= 1 && isCliffEdge(opt.hex, e.position, state.mapShape));
       });
       if (egg) { bestTV = eggValue; bestTarget = { egg: true, id: egg.id }; }
     }

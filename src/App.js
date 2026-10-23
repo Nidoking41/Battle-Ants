@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
-import { canDeployEmissary, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea } from './gameState';
-import { moveAnt, resolveCombat, canAttack, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
+import { canDeployEmissary, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
+import { moveAnt, resolveCombat, canAttack, meleeBlockedByCliff, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { createScrimmageGameState } from './maps/scrimmageMaps';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes, cliffAt } from './hexUtils';
@@ -11,7 +11,7 @@ import LocalGameSetup from './LocalGameSetup';
 import AIGameSetup from './AIGameSetup';
 import GameSummary from './GameSummary';
 import { applyFogOfWar, getVisibleHexes } from './fogOfWar';
-import { AcidGlob, AcidSplash, Shell, Blast, MushroomCloud, EFFECT_DURATION, FLIGHT_TIME } from './attackEffects';
+import { AcidGlob, AcidSplash, Shell, Blast, MushroomCloud, Bite, biteScale, ATTACK_TIMING, EFFECT_DURATION, FLIGHT_TIME } from './attackEffects';
 // Firebase-backed multiplayer helpers are imported lazily (see loadMultiplayer
 // below) so that offline play never initializes Firebase or touches the network.
 import { executeAITurn } from './aiController';
@@ -1334,7 +1334,7 @@ function App() {
   const shakeScreen = (strength) => {
     const shakeId = `shake_${Date.now()}_${Math.random()}`;
     setScreenShake({ id: shakeId, strength });
-    setTimeout(() => setScreenShake(prev => (prev?.id === shakeId ? null : prev)), strength === 'strong' ? 600 : 300);
+    setTimeout(() => setScreenShake(prev => (prev?.id === shakeId ? null : prev)), strength === 'strong' ? ATTACK_TIMING.shakeStrong : ATTACK_TIMING.shakeLight);
   };
 
   // A burrowed Marauder hit in melee strikes back with its spikes. A
@@ -1345,7 +1345,7 @@ function App() {
     if (!countered) return;
     const spikeId = `spikes_${Date.now()}_${Math.random()}`;
     setSpikeStrikes(prev => [...prev, { id: spikeId, from: defender.position, to: attackerPos }]);
-    setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), 900);
+    setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), ATTACK_TIMING.spikes);
   };
 
   // An effect where a shot lands (acid splash or shell blast)
@@ -1386,7 +1386,25 @@ function App() {
       // Return to idle after attack animation
       setTimeout(() => {
         setAntAnimation(attackerId, attacker.type, 'idle', playerColor);
-      }, isRanged ? 200 : 300);
+      }, isRanged ? ATTACK_TIMING.windUp : ATTACK_TIMING.lunge);
+    }
+
+    // Melee: the mandibles open and snap shut on the target, bigger the
+    // harder the blow
+    if (!isRanged && attacker && !(attacker.isBurrowed && attacker.type === 'soldier')) {
+      const state = fullGameState || gameState;
+      let damage = 0;
+      try {
+        const defender = Object.values(state.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
+        damage = defender
+          ? calculateDamage(attacker, defender, state)
+          : getAntAttack(attacker, state.players[attacker.owner]);
+      } catch (e) {
+        damage = getAntTypeById(attacker.type)?.attack || 0;
+      }
+      const biteId = `bite_${Date.now()}_${Math.random()}`;
+      setImpacts(prev => [...prev, { id: biteId, kind: 'bite', position: targetPosition, from: attacker.position, scale: biteScale(damage), timestamp: Date.now() }]);
+      setTimeout(() => setImpacts(prev => prev.filter(i => i.id !== biteId)), EFFECT_DURATION.bite);
     }
 
     // A burrowed Marauder attacks from below: spikes burst out of the ground
@@ -1394,7 +1412,7 @@ function App() {
     if (attacker && attacker.isBurrowed && attacker.type === 'soldier') {
       const spikeId = `spikes_${Date.now()}_${Math.random()}`;
       setSpikeStrikes(prev => [...prev, { id: spikeId, from: attacker.position, to: targetPosition }]);
-      setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), 900);
+      setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), ATTACK_TIMING.spikes);
     }
 
     // If ranged, spawn projectile after shake animation (0.2s). Spitters spit
@@ -1419,15 +1437,15 @@ function App() {
             shakeScreen('light');
           }
         }, flightTime);
-      }, 200);
+      }, ATTACK_TIMING.windUp);
     }
 
     // Remove attack animation after completion. Ranged needs to outlast the
-    // projectile (spawns at 200ms, lands 300ms later) so the shooter stays
-    // animated until its shot connects.
+    // projectile (spawns after the wind-up, lands flightTime later) so the
+    // shooter stays animated until its shot connects.
     setTimeout(() => {
       setAttackAnimations(prev => prev.filter(a => a.id !== id));
-    }, isRanged ? 200 + flightTime : 400);
+    }, isRanged ? ATTACK_TIMING.windUp + flightTime : ATTACK_TIMING.meleeHit);
   };
 
   // Function to show resource gain number
@@ -1657,7 +1675,7 @@ function App() {
                     damageDealt.forEach(({ damage, position }) => {
                       showDamageNumber(damage, position);
                     });
-                  }, isRanged ? 300 : 200);
+                  }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
                 }
               }
             }
@@ -1947,9 +1965,9 @@ function App() {
             setTimeout(() => {
               (damageDealt || []).forEach(({ damage, position }) => showDamageNumber(damage, position));
               applyDamage(damageDealt);
-            }, 250);
-            // Blast lasts 1s; hold for it before the next action
-            await new Promise(resolve => setTimeout(resolve, 1050));
+            }, 500);
+            // Hold for the whole blast before the next action
+            await new Promise(resolve => setTimeout(resolve, EFFECT_DURATION.mushroom + 100));
             continue;
           }
 
@@ -1958,20 +1976,20 @@ function App() {
             // The player's burrowed Marauder strikes back with spikes
             const defender = Object.values(currentState.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
             const hitBack = (damageDealt || []).find(d => d.position && !hexEquals(d.position, targetPosition));
-            if (!isRanged && hitBack) setTimeout(() => showCounterSpikes(defender, hitBack.position, damageDealt), 200);
+            if (!isRanged && hitBack) setTimeout(() => showCounterSpikes(defender, hitBack.position, damageDealt), 300);
             // Damage numbers and health bars change in the same instant. This
             // includes the counter-attack, which lands on the attacker's hex.
             setTimeout(() => {
               (damageDealt || []).forEach(({ damage, position }) => showDamageNumber(damage, position));
               applyDamage(damageDealt);
-            }, isRanged ? 300 : 200);
+            }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
           } else {
             applyDamage(damageDealt);
           }
 
           // Hold until this attack's visuals have fully cleared, plus a beat,
           // so the next attack reads as a separate blow rather than a volley.
-          await new Promise(resolve => setTimeout(resolve, isRanged ? 800 : 600));
+          await new Promise(resolve => setTimeout(resolve, isRanged ? 1200 : 900));
         }
 
         // End AI turn to switch back to player
@@ -2606,9 +2624,12 @@ function App() {
 
   // Why an attack can't reach: a burrowed unit that can't fight from below
   // says so, rather than blaming the range
-  const outOfRangeMessage = (ant, what) => (ant?.isBurrowed && ant.type !== 'soldier'
+  // or a cliff wall in the way does
+  const outOfRangeMessage = (ant, what, targetPos, state) => (ant?.isBurrowed && ant.type !== 'soldier'
     ? "Can't attack while burrowed! Unburrow first."
-    : `${what} is out of attack range!`);
+    : meleeBlockedByCliff(ant, targetPos, state)
+      ? "Can't attack through a cliff wall! Go round to the ramp."
+      : `${what} is out of attack range!`);
 
   // Show feedback message that auto-clears after 3 seconds
   const showFeedback = (message) => {
@@ -2681,7 +2702,8 @@ function App() {
           Math.abs(ant.position.r - enemyAnt.position.r),
           Math.abs((-ant.position.q - ant.position.r) - (-enemyAnt.position.q - enemyAnt.position.r))
         );
-        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0) &&
+            !meleeBlockedByCliff(ant, enemyAnt.position, currentState)) {
           enemies.push(enemyAnt);
         }
       }
@@ -2698,7 +2720,8 @@ function App() {
           Math.abs(ant.position.r - anthill.position.r),
           Math.abs((-ant.position.q - ant.position.r) - (-anthill.position.q - anthill.position.r))
         );
-        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0) &&
+            !meleeBlockedByCliff(ant, anthill.position, currentState)) {
           enemies.push(anthill);
         }
       }
@@ -2712,7 +2735,8 @@ function App() {
           Math.abs(ant.position.r - egg.position.r),
           Math.abs((-ant.position.q - ant.position.r) - (-egg.position.q - egg.position.r))
         );
-        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0)) {
+        if (distance <= antType.attackRange && distance >= (antType.minAttackRange || 0) &&
+            !meleeBlockedByCliff(ant, egg.position, currentState)) {
           enemies.push(egg);
         }
       }
@@ -2951,10 +2975,10 @@ function App() {
 
             // Clear pending combat flag
             setPendingCombat(false);
-          }, isRanged ? 500 : 400); // Ranged: wait for projectile, Melee: wait for lunge
+          }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit); // Ranged: wait for projectile, Melee: wait for the bite
           return;
         } else {
-          showFeedback(outOfRangeMessage(ant, 'Enemy'));
+          showFeedback(outOfRangeMessage(ant, 'Enemy', enemyAtHex.position, currentState));
           return;
         }
       }
@@ -2968,8 +2992,8 @@ function App() {
           Math.abs((-ant.position.q - ant.position.r) - (-eggAtHex.position.q - eggAtHex.position.r))
         );
 
-        if (distance > antType.attackRange) {
-          showFeedback(outOfRangeMessage(ant, 'Egg'));
+        if (distance > antType.attackRange || meleeBlockedByCliff(ant, eggAtHex.position, currentState)) {
+          showFeedback(outOfRangeMessage(ant, 'Egg', eggAtHex.position, currentState));
           return;
         }
 
@@ -3011,7 +3035,7 @@ function App() {
           updateGame(markedState);
           setSelectedAction(null);
           setSelectedAnt(null);
-        }, isRanged ? 500 : 400);
+        }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
         return;
       }
       // If there's an anthill and no ant/egg, can attack the anthill
@@ -3024,8 +3048,8 @@ function App() {
           Math.abs((-ant.position.q - ant.position.r) - (-anthillAtHex.position.q - anthillAtHex.position.r))
         );
 
-        if (distance > antType.attackRange) {
-          showFeedback(outOfRangeMessage(ant, 'Anthill'));
+        if (distance > antType.attackRange || meleeBlockedByCliff(ant, anthillAtHex.position, currentState)) {
+          showFeedback(outOfRangeMessage(ant, 'Anthill', anthillAtHex.position, currentState));
           return;
         }
 
@@ -3067,7 +3091,7 @@ function App() {
           updateGame(markedState);
           setSelectedAction(null);
           setSelectedAnt(null);
-        }, isRanged ? 500 : 400);
+        }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
         return;
       }
       // No valid target
@@ -3299,10 +3323,10 @@ function App() {
             updateGame(markedState);
             setSelectedAction(null);
             setSelectedAnt(null);
-          }, isRanged ? 500 : 400);
+          }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
           return;
         } else {
-          showFeedback(outOfRangeMessage(ant, 'Enemy'));
+          showFeedback(outOfRangeMessage(ant, 'Enemy', enemyAtHex.position, currentState));
           return;
         }
       }
@@ -3322,8 +3346,8 @@ function App() {
           Math.abs((-ant.position.q - ant.position.r) - (-eggAtHex.position.q - eggAtHex.position.r))
         );
 
-        if (distance > antType.attackRange) {
-          showFeedback(outOfRangeMessage(ant, 'Egg'));
+        if (distance > antType.attackRange || meleeBlockedByCliff(ant, eggAtHex.position, currentState)) {
+          showFeedback(outOfRangeMessage(ant, 'Egg', eggAtHex.position, currentState));
           return;
         }
 
@@ -3366,7 +3390,7 @@ function App() {
           updateGame(markedState);
           setSelectedAction(null);
           setSelectedAnt(null);
-        }, isRanged ? 500 : 400);
+        }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
         return;
       }
       // If there's an enemy anthill and no ant/egg, can attack the anthill
@@ -3385,8 +3409,8 @@ function App() {
           Math.abs((-ant.position.q - ant.position.r) - (-anthillAtHex.position.q - anthillAtHex.position.r))
         );
 
-        if (distance > antType.attackRange) {
-          showFeedback(outOfRangeMessage(ant, 'Anthill'));
+        if (distance > antType.attackRange || meleeBlockedByCliff(ant, anthillAtHex.position, currentState)) {
+          showFeedback(outOfRangeMessage(ant, 'Anthill', anthillAtHex.position, currentState));
           return;
         }
 
@@ -3429,7 +3453,7 @@ function App() {
           updateGame(markedState);
           setSelectedAction(null);
           setSelectedAnt(null);
-        }, isRanged ? 500 : 400);
+        }, isRanged ? ATTACK_TIMING.rangedHit : ATTACK_TIMING.meleeHit);
         return;
       }
 
@@ -3602,7 +3626,7 @@ function App() {
                     const attackerColor = newState.players?.[attacker.owner]?.color || fullGameState.players?.[attacker.owner]?.color;
                     showAttackAnimation(attackAnim.attackerId, attackAnim.targetPosition, attackAnim.isRanged, attacker);
                   }
-                  await new Promise(resolve => setTimeout(resolve, attackAnim.isRanged ? 800 : 600));
+                  await new Promise(resolve => setTimeout(resolve, attackAnim.isRanged ? 1200 : 900));
                 }
               }
 
@@ -5675,14 +5699,14 @@ function App() {
         let attackOffset = '';
 
         if (isRanged) {
-          // Ranged: shake animation (0.2s)
-          const shakeProgress = Math.min(elapsed / 200, 1);
+          // Ranged: shake animation
+          const shakeProgress = Math.min(elapsed / ATTACK_TIMING.windUp, 1);
           const shakeX = Math.sin(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
           const shakeY = Math.cos(shakeProgress * Math.PI * 4) * 3 * (1 - shakeProgress);
           attackOffset = `translate(${shakeX}px, ${shakeY}px)`;
         } else {
-          // Melee: lunge animation (0.3s)
-          const lungeProgress = Math.min(elapsed / 300, 1);
+          // Melee: lunge animation
+          const lungeProgress = Math.min(elapsed / ATTACK_TIMING.lunge, 1);
           // Ease in-out
           const eased = lungeProgress < 0.5
             ? 2 * lungeProgress * lungeProgress
@@ -6471,10 +6495,11 @@ function App() {
               );
             })}
 
-            {/* Where shots land: acid splashes and shell blasts */}
-            {impacts.map(({ id, kind, position, timestamp }) => {
+            {/* Where blows land: acid splashes, shell blasts and mandible bites */}
+            {impacts.map(({ id, kind, position, from, scale, timestamp }) => {
               const at = hexToPixel(position, hexSize);
               const p = Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION[kind]);
+              if (kind === 'bite') return <Bite key={id} at={at} from={hexToPixel(from, hexSize)} p={p} scale={scale} />;
               return kind === 'acid'
                 ? <AcidSplash key={id} at={at} p={p} />
                 : <Blast key={id} at={at} p={p} />;

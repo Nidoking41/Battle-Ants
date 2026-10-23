@@ -1,6 +1,6 @@
 // Pixel-art attack effects: the Spitter's acid glob and splash, the
-// Bombardier's lobbed shell and blast, and the Exploding ant's mushroom cloud
-// and shockwaves. Each one plays frames from a sprite sheet in
+// Bombardier's lobbed shell and blast, the Exploding ant's mushroom cloud
+// and shockwaves, and the mandible bite every melee unit uses. Each one plays frames from a sprite sheet in
 // public/sprites/effects (frames side by side), shown at 2x like the ants.
 // Each takes a progress value from 0 to 1, so App can drive them all from one
 // timer.
@@ -16,13 +16,34 @@ const SHEETS = {
   shell: { w: 12, h: 14, frames: 2 },
   blast: { w: 48, h: 44, frames: 7 },
   mushroom: { w: 48, h: 64, frames: 10 },
-  shockwave: { w: 128, h: 48, frames: 6 }
+  shockwave: { w: 128, h: 48, frames: 6 },
+  bite: { w: 36, h: 32, frames: 7 }
 };
 
-// How long each impact effect lasts (ms)
-export const EFFECT_DURATION = { acid: 500, blast: 700, mushroom: 1700 };
-// How long a projectile is in the air (ms)
-export const FLIGHT_TIME = { spitter: 320, bombardier: 400, default: 300 };
+// Attack timings (ms). Everything here plays at 1.5x its original length, and
+// the Exploding ant's blast at 2x.
+export const ATTACK_TIMING = {
+  windUp: 300,     // a ranged unit's shake before its shot leaves
+  lunge: 450,      // a melee unit's lunge
+  meleeHit: 600,   // when a melee blow's damage lands
+  rangedHit: 750,  // when a ranged shot's damage lands
+  spikes: 1350,    // a burrowed Marauder's spikes
+  shakeLight: 450, // screen shake from a Bombardier shell
+  shakeStrong: 1200 // screen shake from an Exploding ant
+};
+// How long each impact effect lasts. The bite snaps shut about 510ms in.
+export const EFFECT_DURATION = { acid: 750, blast: 1050, mushroom: 3400, bite: 900 };
+// How long a projectile is in the air
+export const FLIGHT_TIME = { spitter: 480, bombardier: 600, default: 450 };
+
+// Bite size by the damage it deals: Skrazzit's un-upgraded Drone (3) is the
+// smallest, Thorgrim's fully upgraded Bullet Ant (35) is huge.
+const BITE_DAMAGE = { min: 3, max: 35 };
+const BITE_SCALE = { min: 0.6, max: 2.6 };
+export function biteScale(damage) {
+  const t = Math.max(0, Math.min(1, ((damage || 0) - BITE_DAMAGE.min) / (BITE_DAMAGE.max - BITE_DAMAGE.min)));
+  return BITE_SCALE.min + t * (BITE_SCALE.max - BITE_SCALE.min);
+}
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -82,6 +103,20 @@ export function MushroomCloud({ at, p }) {
     <g style={{ pointerEvents: 'none' }}>
       {wave < 1 && <Frame name="shockwave" frame={frameAt('shockwave', wave)} x={at.x} y={at.y + 8} ax={64} ay={24} />}
       <Frame name="mushroom" frame={frameAt('mushroom', p)} x={at.x} y={at.y + 10} ax={24} ay={58} />
+    </g>
+  );
+}
+
+/**
+ * Two mandibles open wide, then snap shut on the target. The jaws reach back
+ * toward the attacker (`from`) and meet on the target (`at`); `scale` comes
+ * from biteScale.
+ */
+export function Bite({ at, from, p, scale = 1 }) {
+  const angle = Math.atan2(at.y - from.y, at.x - from.x) * 180 / Math.PI;
+  return (
+    <g transform={`translate(${at.x}, ${at.y}) rotate(${angle}) scale(${scale})`} style={{ pointerEvents: 'none' }}>
+      <Frame name="bite" frame={frameAt('bite', p)} x={0} y={0} ax={25} ay={16} />
     </g>
   );
 }
