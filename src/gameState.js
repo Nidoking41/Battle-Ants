@@ -1,4 +1,4 @@
-import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater } from './hexUtils';
+import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater, cliffAt } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType } from './antTypes';
 import { getHeroById } from './heroQueens';
 
@@ -937,7 +937,8 @@ export function respawnResource(gameState, resourceType, isNorthSide) {
 
     for (let r = rStart; r <= rEnd; r++) {
       const s = -q - r;
-      if (isValidHex({ q, r }, gridRadius, gameState.mapShape || 'rectangle')) {
+      // never on a cliff
+      if (isValidHex({ q, r }, gridRadius, gameState.mapShape || 'rectangle') && cliffAt({ q, r }, gameState.mapShape) === undefined) {
         const hex = new HexCoord(q, r);
 
         // Check distance from queen on this side

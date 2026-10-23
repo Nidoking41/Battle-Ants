@@ -253,8 +253,14 @@ export function detonateBomber(gameState, bomberId) {
   const updatedAnts = { ...gameState.ants };
   let updatedGameState = { ...gameState, ants: updatedAnts };
 
-  // Get all adjacent hexes
-  const adjacentHexes = getNeighbors(bomber.position);
+  // Skrazzit's swarm is cheap, so her Exploding ants hit softer: 18 -> 14
+  const detonationDamage = gameState.players?.[bomber.owner]?.heroId === 'skrazzit'
+    ? Math.floor(bomberType.attack * 0.8)
+    : bomberType.attack;
+
+  // Get all adjacent hexes - a cliff wall stops the blast
+  const adjacentHexes = getNeighbors(bomber.position)
+    .filter(hex => !isCliffEdge(bomber.position, hex, gameState.mapShape));
 
   // Find all ants in adjacent hexes
   const adjacentAnts = Object.values(updatedAnts).filter(ant => {
@@ -273,7 +279,7 @@ export function detonateBomber(gameState, bomberId) {
 
   adjacentAnts.forEach(target => {
     // Acid: the blast ignores defense entirely
-    const damage = bomberType.attack;
+    const damage = detonationDamage;
     const newHealth = target.health - damage;
 
     // Track damage for animation

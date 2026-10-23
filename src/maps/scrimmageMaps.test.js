@@ -2,8 +2,8 @@ import { SCRIMMAGE_MAPS, getMapsForSize, createScrimmageGameState } from './scri
 import { parseLayout } from '../campaign/mapLayout';
 import { getNeighbors, isValidHex, isCliffEdge, getMovementRange, HexCoord } from '../hexUtils';
 import { getVisibleHexes } from '../fogOfWar';
-import { createAnt } from '../gameState';
-import { canAttack, resolveCombat } from '../combatSystem';
+import { createAnt, respawnResource } from '../gameState';
+import { canAttack, resolveCombat, detonateBomber } from '../combatSystem';
 
 const key = h => `${h.q},${h.r}`;
 const NODES_PER_SIDE = { small: { food: 2, minerals: 2 }, medium: { food: 3, minerals: 2 }, large: { food: 4, minerals: 2 } };
@@ -153,4 +153,35 @@ describe('Cliffs', () => {
     expect(sees('scout', above)).toBe(true);  // looking from the ramp side
     expect(sees('drone', south)).toBe(true);  // right next to it, it still sees
   });
+
+  test('a cliff wall stops an Exploding ant blast', () => {
+    const state = battle({ type: 'bomber', at: south }, { type: 'soldier', at: cliff });
+    const r = detonateBomber(state, 'a');
+    expect(r.gameState.ants.b.health).toBe(state.ants.b.health);
+    // from the ramp side it hits
+    const open = battle({ type: 'bomber', at: north }, { type: 'soldier', at: cliff });
+    expect(detonateBomber(open, 'a').gameState.ants.b.health).toBeLessThan(open.ants.b.health);
+  });
+});
+
+test('resources never respawn on a cliff', () => {
+  const state = createScrimmageGameState({ mapId: 'highlands' });
+  const cliffs = new Set(Object.keys(state.mapShape.cliffs));
+  for (let i = 0; i < 40; i++) {
+    const res = respawnResource(state, i % 2 ? 'food' : 'minerals', i % 4 < 2);
+    if (res) expect(cliffs.has(key(res.position))).toBe(false);
+  }
+});
+
+test("Skrazzit's Exploding ants blast for 14", () => {
+  const mk = hero => {
+    const state = createScrimmageGameState({ mapSize: 'small', player1Hero: hero });
+    const bomber = { ...createAnt('bomber', 'player1', new HexCoord(0, 0)), id: 'bomb' };
+    const target = { ...createAnt('tank', 'player2', new HexCoord(1, 0)), id: 'tgt', health: 100, maxHealth: 100 };
+    state.mapShape = 'rectangle';
+    state.ants = { bomb: bomber, tgt: target };
+    return 100 - detonateBomber(state, 'bomb').gameState.ants.tgt.health;
+  };
+  expect(mk('skrazzit')).toBe(14);
+  expect(mk('gorlak')).toBe(18);
 });
