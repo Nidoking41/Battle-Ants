@@ -47,7 +47,17 @@ describe('Scrimmage maps', () => {
     ['food', 'minerals'].forEach(type => {
       expect(layout.resources.filter(r => r.type === type)).toHaveLength(want[type] * 2);
     });
-    // every hex can be walked to from the player's queen
+    // all 6 hexes round each queen are open ground she can lay eggs on:
+    // no trees, resources, cliffs, water or map edge
+    const blocked = new Set([
+      ...layout.resources.map(r => key(r.position)),
+      ...layout.trees.map(key),
+      ...Object.keys(layout.mapShape.cliffs || {})
+    ]);
+    [a, b].forEach(queen => getNeighbors(queen).forEach(n => {
+      expect(at.has(key(n)) && !blocked.has(key(n))).toBe(true);
+    }));
+        // every hex can be walked to from the player's queen
     const reach = walkable(layout, layout.leaders.player1);
     expect(layout.mapHexes.filter(h => !reach.has(key(h)))).toEqual([]);
   });

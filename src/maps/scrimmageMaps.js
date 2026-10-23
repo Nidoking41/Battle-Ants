@@ -20,8 +20,8 @@ export const SCRIMMAGE_MAPS = [
     description: 'Two ponds split the middle into three paths, with a cliff lookout on each side.',
     layout: [
       '  . . .',
-      '   . T',
-      '  . 2 .',
+      '   . .',
+      '  . 2 T',
       ' . . . .',
       '. F . F .',
       ' . T . T',
@@ -33,8 +33,8 @@ export const SCRIMMAGE_MAPS = [
       ' T . T .',
       '. F . F .',
       ' . . . .',
-      '  . 1 .',
-      '   T .',
+      '  T 1 .',
+      '   . .',
       '  . . .'
     ]
   },
@@ -44,8 +44,8 @@ export const SCRIMMAGE_MAPS = [
     name: 'Long Hall',
     description: 'A long, narrow tunnel. Little room to go around, so every fight is head-on.',
     layout: [
-      '. . .',
-      ' . T',
+      '. . T',
+      ' . .',
       '. 2 .',
       ' . .',
       'F . M',
@@ -67,8 +67,8 @@ export const SCRIMMAGE_MAPS = [
       'M . F',
       ' . .',
       '. 1 .',
-      ' T .',
-      '. . .'
+      ' . .',
+      'T . .'
     ]
   },
   {
@@ -78,23 +78,23 @@ export const SCRIMMAGE_MAPS = [
     description: 'Wide nests and a tight waist in the middle, guarded by two cliffs.',
     layout: [
       ' T . . .',
-      '. . 2 T .',
+      '. . . T .',
       ' ~ . . .',
-      '  . . F',
-      ' . M . M',
-      '  F T .',
+      '  M 2 F',
+      ' . . . M',
+      '  F . .',
       '   . T',
-      '  . . .',
+      '  . T .',
       '   ^ .',
       '    .',
       '   . v',
-      '  . . .',
+      '  . T .',
       '   T .',
-      '  . T F',
-      ' M . M .',
-      '  F . .',
+      '  . . F',
+      ' M . . .',
+      '  F 1 M',
       ' . . . ~',
-      '. T 1 . .',
+      '. T . . .',
       ' . . . T'
     ]
   },
@@ -105,23 +105,23 @@ export const SCRIMMAGE_MAPS = [
     description: 'A river cuts the map corner to corner. Two fords near the edges.',
     layout: [
       '  . . . T',
-      ' . T 2 . .',
+      ' . T . . .',
       '. . . . . .',
-      ' T . . F .',
+      ' T . 2 F .',
       '. F . . . .',
-      ' ~ . F . M',
+      ' ~ . . . M',
       '~ . . T . .',
-      ' M ~ . . .',
+      ' M ~ F . .',
       '. . ~ . . .',
       ' . ^ ~ v .',
       '. . . ~ . .',
-      ' . . . ~ M',
+      ' . . F ~ M',
       '. . T . . ~',
-      ' M . F . ~',
+      ' M . . . ~',
       '. . . . F .',
-      ' . F . . T',
+      ' . F 1 . T',
       '. . . . . .',
-      ' . . 1 T .',
+      ' . . . T .',
       '  T . . .'
     ]
   },
@@ -160,6 +160,7 @@ export const SCRIMMAGE_MAPS = [
     name: 'Twin Lanes',
     description: 'A long lake splits the map into two lanes, with one bridge in the middle.',
     layout: [
+      '. . . . .',
       ' . . . .',
       '. T 2 T .',
       ' . . . .',
@@ -182,7 +183,8 @@ export const SCRIMMAGE_MAPS = [
       '. . . . .',
       ' . . . .',
       '. T 1 T .',
-      ' . . . .'
+      ' . . . .',
+      '. . . . .'
     ]
   },
   {
@@ -270,10 +272,10 @@ export const SCRIMMAGE_MAPS = [
     description: 'Rolling hills full of cliffs. Hold the high ground to see further.',
     layout: [
       '   . . . .',
-      '  . T 2 . .',
+      '  . T . . .',
       ' . . . . . .',
-      '. . . . T . .',
-      ' . F M . F .',
+      '. . M 2 T . .',
+      ' . F . . F .',
       '. . . . . . .',
       ' F . ^ ^ . {',
       '. . . ^ . . .',
@@ -287,14 +289,13 @@ export const SCRIMMAGE_MAPS = [
       '. . . v . . .',
       ' ] . v v . F',
       '. . . . . . .',
-      ' . F . M F .',
-      '. . T . . . .',
+      ' . F . . F .',
+      '. . T 1 M . .',
       ' . . . . . .',
-      '  . . 1 T .',
+      '  . . . T .',
       '   . . . .'
     ]
   }
-
 ];
 
 const CLASSIC_DESCRIPTIONS = {
