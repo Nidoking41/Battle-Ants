@@ -3066,8 +3066,8 @@ function App() {
       const ant = currentState.ants[selectedAnt];
       console.log('Queen ant:', ant ? { id: ant.id, type: ant.type, position: ant.position } : 'NOT FOUND');
 
-      // Only queens (and Gynes) can lay eggs
-      if (ant.type !== 'queen' && ant.type !== 'gyne') {
+      // Only queens (and Broodwardens) can lay eggs
+      if (ant.type !== 'queen' && ant.type !== 'broodwarden') {
         showFeedback('Only queens can lay eggs!');
         setSelectedAction(null);
         return;
@@ -4069,9 +4069,9 @@ function App() {
         // Auto-select action based on unit type and available actions:
         // - Queens: lay egg (if has energy, can lay even after attacking/healing)
         // - Others: move (if hasn't moved or attacked)
-        if (clickedAnt.type === 'gyne') {
+        if (clickedAnt.type === 'broodwarden') {
           setSelectedAction('layEgg');
-        } else if (clickedAnt.type === 'gyneCocoon') {
+        } else if (clickedAnt.type === 'broodwardenCocoon') {
           setSelectedAction(null);
         } else if (clickedAnt.type === 'queen') {
           const energyCost = getEggLayCost(clickedAnt);
@@ -4158,15 +4158,15 @@ function App() {
       return;
     }
 
-    // An egg on one of a Gyne's spots is hers: no energy needed
+    // An egg on one of a Broodwarden's spots is hers: no energy needed
     const spotPos = hexPosition || (selectedEggHex && !selectedEggHex.antType ? selectedEggHex : null);
-    const gyneLayer = spotPos && Object.values(currentState.ants).find(a =>
-      a.type === 'gyne' && a.owner === currentState.currentPlayer &&
+    const broodwardenLayer = spotPos && Object.values(currentState.ants).find(a =>
+      a.type === 'broodwarden' && a.owner === currentState.currentPlayer &&
       getSpawningPoolHexes(a, getNeighbors, currentState).some(h => hexEquals(h, spotPos)));
 
     // Check energy cost
     const energyCost = getEggLayCost(queen);
-    if (!gyneLayer && !hasEnoughEnergy(queen, energyCost)) {
+    if (!broodwardenLayer && !hasEnoughEnergy(queen, energyCost)) {
       showFeedback(`Not enough energy! Need ${energyCost} energy to lay an egg.`);
       return;
     }
@@ -4187,7 +4187,7 @@ function App() {
     // Lay egg
     const newEgg = createEgg(type, currentState.currentPlayer, eggPosition, currentState.turn);
     const updatedPlayer = deductCost(currentPlayer, type);
-    const updatedQueen = gyneLayer ? queen : deductEnergy(queen, energyCost);
+    const updatedQueen = broodwardenLayer ? queen : deductEnergy(queen, energyCost);
 
     updateGame({
       ...currentState,
@@ -4307,10 +4307,10 @@ function App() {
     const antType = getAntTypeById(ant.type);
 
     // A cocoon can do nothing until it opens
-    if (ant.type === 'gyneCocoon') return false;
+    if (ant.type === 'broodwardenCocoon') return false;
 
-    // A Gyne has something to do while one of her egg spots is free
-    if (ant.type === 'gyne') {
+    // A Broodwarden has something to do while one of her egg spots is free
+    if (ant.type === 'broodwarden') {
       const taken = h => Object.values(currentState.ants).some(a => hexEquals(a.position, h)) ||
         Object.values(currentState.eggs || {}).some(e => hexEquals(e.position, h));
       return getSpawningPoolHexes(ant, getNeighbors, currentState).some(h => !taken(h));
@@ -4432,7 +4432,7 @@ function App() {
 
       console.log('getValidMovesForSelectedAnt: Returning', validMoveHexes.length, 'move hexes +', treeHexesInRange.length, 'tree hexes');
       return [...validMoveHexes, ...treeHexesInRange];
-    } else if (selectedAction === 'layEgg' && (ant.type === 'queen' || ant.type === 'gyne')) {
+    } else if (selectedAction === 'layEgg' && (ant.type === 'queen' || ant.type === 'broodwarden')) {
       // Get spawning pool hexes based on queen tier
       const spawningPool = getSpawningPoolHexes(ant, getNeighbors, gameState);
       console.log('getValidMovesForSelectedAnt: layEgg action, spawningPool:', spawningPool.length, 'hexes');
@@ -4740,7 +4740,7 @@ function App() {
     // Creep: every queen's own hex plus her egg-laying spots
     const creepKeys = new Set();
     Object.values(gameState.ants).forEach(a => {
-      if (a.type !== 'queen' && a.type !== 'gyne') return;
+      if (a.type !== 'queen' && a.type !== 'broodwarden') return;
       creepKeys.add(`${a.position.q},${a.position.r}`);
       getSpawningPoolHexes(a, getNeighbors, gameState).forEach(n => creepKeys.add(`${n.q},${n.r}`));
     });
@@ -6069,9 +6069,9 @@ function App() {
                           return;
                         }
                         // Set selected action to lay egg with this ant type. A
-                        // selected Gyne keeps the egg on her own spots.
+                        // selected Broodwarden keeps the egg on her own spots.
                         const picked = gameState.ants[selectedAnt];
-                        const layer = picked && picked.type === 'gyne' && picked.owner === gameState.currentPlayer ? picked.id : queen.id;
+                        const layer = picked && picked.type === 'broodwarden' && picked.owner === gameState.currentPlayer ? picked.id : queen.id;
                         setSelectedAnt(layer);
                         setSelectedAction('layEgg');
                         setShowAntTypeSelector(false);
@@ -6818,7 +6818,7 @@ function App() {
               {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
               <div className="ant-actions">
                 {/* Hide Move button for queens since they can't move */}
-                {!['queen', 'gyne', 'gyneCocoon'].includes(gameState.ants[selectedAnt].type) && (
+                {!['queen', 'broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) && (
                   <button
                     onClick={() => setSelectedAction('move')}
                     style={{
@@ -7008,7 +7008,7 @@ function App() {
                       💥 Splash (8, 3-hex)
                     </button>
                   </>
-                ) : ['gyne', 'gyneCocoon'].includes(gameState.ants[selectedAnt].type) ? null : (
+                ) : ['broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) ? null : (
                   <button data-tip="queenAttack"
                     onClick={() => setSelectedAction('attack')}
                     style={{
@@ -7099,13 +7099,13 @@ function App() {
                       )}
                     </>
                   )}
-                  {gameState.ants[selectedAnt].type === 'gyneCocoon' && (
+                  {gameState.ants[selectedAnt].type === 'broodwardenCocoon' && (
                     <div style={{ color: '#e8c45a', fontSize: '14px', padding: '6px 0' }}>
-                      Pupating: opens into a Gyne on turn {gameState.ants[selectedAnt].maturesTurn + 1}
+                      Pupating: opens into a Broodwarden on turn {gameState.ants[selectedAnt].maturesTurn + 1}
                     </div>
                   )}
-                  {gameState.ants[selectedAnt].type === 'gyne' && (
-                    <button data-tip="gyneLay"
+                  {gameState.ants[selectedAnt].type === 'broodwarden' && (
+                    <button data-tip="broodwardenLay"
                       onClick={() => setSelectedAction('layEgg')}
                       style={{
                         marginRight: '5px',
@@ -7129,7 +7129,7 @@ function App() {
                         updateGame(newState);
                         setSelectedAnt(null);
                         setSelectedAction(null);
-                        showFeedback('The Emissary wraps itself in a cocoon. In two turns it opens as a Gyne!');
+                        showFeedback('The Emissary wraps itself in a cocoon. In two turns it opens as a Broodwarden!');
                       }}
                       disabled={!isMyTurn()}
                       style={{
@@ -7142,7 +7142,7 @@ function App() {
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
-                      👑 Deploy as Gyne
+                      👑 Deploy as Broodwarden
                     </button>
                   )}
                   {gameState.ants[selectedAnt].type === 'drone' && !gameState.ants[selectedAnt].hasBuilt && (

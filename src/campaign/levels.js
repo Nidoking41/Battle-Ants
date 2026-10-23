@@ -834,7 +834,7 @@ export const LEVELS = [
     },
     uiTips: [
       { target: 'upgrades', title: 'Burrow', text: 'Sorlorg\'s Marauders hide underground and burst out when you walk past. Buy the Burrow upgrade to do it back: a burrowed ant is hidden, heals each turn, and can pop up next to an enemy and strike. Scouts can smell burrowed ants within 2 hexes.' },
-      { target: 'upgrades', title: 'Emissary', text: 'New: the Queen\'s Emissary (Advanced tab). Walk it out across the map and press Deploy as Gyne: it wraps itself in a cocoon, and two turns later opens as a Gyne, a young queen with 2 egg spots, so you can hatch ants right at the front. A Gyne cannot move, attack or heal, and has only 30 health - guard her.' }
+      { target: 'upgrades', title: 'Emissary', text: 'New: the Queen\'s Emissary (Advanced tab). Walk it out across the map and press Deploy as Broodwarden: it wraps itself in a cocoon, and two turns later opens as a Broodwarden, a young queen with 2 egg spots, so you can hatch ants right at the front. A Broodwarden cannot move, attack or heal, and has only 30 health - guard her.' }
     ],
     outro: {
       portrait: 'hero_black.png',

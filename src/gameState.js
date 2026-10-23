@@ -1149,7 +1149,7 @@ export function endTurn(rawGameState) {
   const roundEnds = (parseInt(String(rawGameState.currentPlayer).replace('player', ''), 10) % (rawGameState.playerCount || 2)) + 1 === 1;
   const gameState = {
     ...rawGameState,
-    ants: matureGyneCocoons(Object.fromEntries(
+    ants: matureBroodwardenCocoons(Object.fromEntries(
       Object.entries(rawGameState.ants || {}).filter(([, a]) => a && a.id && a.position && typeof a.position.q === 'number')
     ), rawGameState.turn || 1, roundEnds)
   };
@@ -2010,7 +2010,7 @@ export function canAffordQueenUpgrade(gameState, queenId) {
          currentPlayer.resources.minerals >= nextTierData.cost.minerals;
 }
 
-// An Emissary can deploy into a Gyne (a forward egg layer) unless it has
+// An Emissary can deploy into a Broodwarden (a forward egg layer) unless it has
 // already attacked, or the campaign level has no Emissary in its roster
 // (level 7's escort must stay an Emissary).
 export function canDeployEmissary(gameState, ant) {
@@ -2020,13 +2020,13 @@ export function canDeployEmissary(gameState, ant) {
   return true;
 }
 
-// Deploying wraps the Emissary in a cocoon; it opens into a Gyne two turns
-// later (at the end of the next round - see matureGyneCocoons).
+// Deploying wraps the Emissary in a cocoon; it opens into a Broodwarden two turns
+// later (at the end of the next round - see matureBroodwardenCocoons).
 export function deployEmissary(gameState, antId) {
   const ant = gameState.ants[antId];
   if (!canDeployEmissary(gameState, ant)) return gameState;
   const cocoon = {
-    ...createAnt('gyneCocoon', ant.owner, ant.position),
+    ...createAnt('broodwardenCocoon', ant.owner, ant.position),
     id: `cocoon_${antId}`,
     hasMoved: true,
     hasAttacked: true,
@@ -2038,16 +2038,16 @@ export function deployEmissary(gameState, antId) {
   return { ...gameState, ants };
 }
 
-// At the end of a round, cocoons that are ready open into Gynes
-export function matureGyneCocoons(ants, turn, roundEnds) {
+// At the end of a round, cocoons that are ready open into Broodwardens
+export function matureBroodwardenCocoons(ants, turn, roundEnds) {
   if (!roundEnds) return ants;
-  const ready = Object.values(ants).filter(a => a.type === 'gyneCocoon' && a.maturesTurn <= turn);
+  const ready = Object.values(ants).filter(a => a.type === 'broodwardenCocoon' && a.maturesTurn <= turn);
   if (ready.length === 0) return ants;
   const out = { ...ants };
   ready.forEach(c => {
     delete out[c.id];
-    const gyne = { ...createAnt('gyne', c.owner, c.position), id: c.id.replace(/^cocoon_/, 'gyne_') };
-    out[gyne.id] = gyne;
+    const broodwarden = { ...createAnt('broodwarden', c.owner, c.position), id: c.id.replace(/^cocoon_/, 'broodwarden_') };
+    out[broodwarden.id] = broodwarden;
   });
   return out;
 }
@@ -2499,11 +2499,11 @@ export function getValidEnsnareTargets(gameState, healerId) {
 // takes the next spots in the order instead).
 export function getSpawningPoolHexes(queen, getNeighborsFunc, gameState = null) {
   const queenTier = QueenTiers[queen.queenTier || 'queen'];
-  // A Gyne (deployed Emissary) always has exactly 2 egg spots
-  let spawningSpots = queen.type === 'gyne' ? 2 : queenTier.spawningSpots;
+  // A Broodwarden (deployed Emissary) always has exactly 2 egg spots
+  let spawningSpots = queen.type === 'broodwarden' ? 2 : queenTier.spawningSpots;
 
   // Apply hero bonus if applicable (Skrazzit gets +1 spawning spot)
-  if (queen.heroId && queen.type !== 'gyne') {
+  if (queen.heroId && queen.type !== 'broodwarden') {
     const { getHeroById } = require('./heroQueens');
     const hero = getHeroById(queen.heroId);
     if (hero && hero.bonuses && hero.bonuses.spawningSpotBonus) {

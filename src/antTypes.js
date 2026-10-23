@@ -155,7 +155,7 @@ export const AntTypes = {
 
   // Campaign-only: a Drone wearing a crown, carrying the old queen's
   // scent-mark. Never hatched; placed by levels that need an escort.
-  // Buildable from campaign level 8 on: Deploy turns it into a Gyne, a
+  // Buildable from campaign level 8 on: Deploy turns it into a Broodwarden, a
   // forward egg layer. Level 7's escort Emissary cannot deploy (its roster
   // has no Emissary).
   EMISSARY: {
@@ -169,15 +169,15 @@ export const AntTypes = {
     moveRange: 2,
     attackRange: 1,
     resourceGatherRate: 0,
-    description: "Carries the queen's scent-mark. Deploy it anywhere to become a Gyne: a young queen with 2 egg spots.",
+    description: "Carries the queen's scent-mark. Deploy it anywhere to become a Broodwarden: a young queen with 2 egg spots.",
     icon: '👑🐜'
   },
 
   // A deployed Emissary spends two turns wrapped in a cocoon before it opens
-  // into a Gyne. It cannot do anything while it pupates.
-  GYNE_COCOON: {
-    id: 'gyneCocoon',
-    name: 'Gyne Cocoon',
+  // into a Broodwarden. It cannot do anything while it pupates.
+  BROODWARDEN_COCOON: {
+    id: 'broodwardenCocoon',
+    name: 'Broodwarden Cocoon',
     cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
     campaignOnly: true,
     drawSize: 64,
@@ -188,16 +188,16 @@ export const AntTypes = {
     moveRange: 0,
     attackRange: 0,
     resourceGatherRate: 0,
-    description: 'A deployed Emissary, pupating. Opens into a Gyne after two turns.',
+    description: 'A deployed Emissary, pupating. Opens into a Broodwarden after two turns.',
     icon: '🐛👑'
   },
 
-  // A deployed Emissary: a young queen ("gyne" is the real word for an ant
+  // A deployed Emissary: a young queen that guards a forward brood.
   // queen-to-be). Never moves, cannot attack or heal - she only lays eggs on
   // her two egg spots, with no energy cost.
-  GYNE: {
-    id: 'gyne',
-    name: 'Gyne',
+  BROODWARDEN: {
+    id: 'broodwarden',
+    name: 'Broodwarden',
     cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
     campaignOnly: true,
     drawSize: 64, // a little smaller than a full queen
