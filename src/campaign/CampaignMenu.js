@@ -16,14 +16,18 @@ function CampaignMenu({ onStartLevel, onBack }) {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      overflowY: 'auto',
+      boxSizing: 'border-box',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
       padding: '20px',
       color: '#e0e0e0'
     }}>
+      {/* auto margins centre the panel, but let it scroll from the top when it is taller than the screen */}
       <div style={{
+        margin: 'auto 0',
         width: '100%',
         maxWidth: '520px',
         padding: '25px',
@@ -32,10 +36,28 @@ function CampaignMenu({ onStartLevel, onBack }) {
         border: '2px solid rgba(255, 215, 0, 0.35)',
         boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
       }}>
-        <h1 style={{ margin: '0 0 4px', color: '#ffd700', textAlign: 'center' }}>Campaign</h1>
-        <p style={{ margin: '0 0 18px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>
-          Learn the colony one level at a time.
-        </p>
+        {/* Back sits at the top so it is always on screen, however many levels there are */}
+        <div style={{ position: 'relative', marginBottom: '18px' }}>
+          <button
+            onClick={onBack}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              padding: '6px 12px',
+              background: 'transparent',
+              color: '#aaa',
+              border: '2px solid #555',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            &larr; Back
+          </button>
+          <h1 style={{ margin: 0, color: '#ffd700', textAlign: 'center' }}>Campaign</h1>
+        </div>
 
         {LEVELS.map(level => {
           const unlocked = isUnlocked(level.id, progress);
@@ -100,23 +122,6 @@ function CampaignMenu({ onStartLevel, onBack }) {
             </button>
           );
         })}
-
-        <button
-          onClick={onBack}
-          style={{
-            width: '100%',
-            padding: '10px',
-            marginTop: '8px',
-            background: 'transparent',
-            color: '#aaa',
-            border: '2px solid #555',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          Back
-        </button>
 
         {/* Playtest shortcut: open every level without beating them in order */}
         {progress.highestUnlocked < LEVELS.length && (
