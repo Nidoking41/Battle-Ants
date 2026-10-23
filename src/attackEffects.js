@@ -1,19 +1,28 @@
-// Drawn attack effects: the Spitter's acid glob and splash, the Bombardier's
-// lobbed shell and blast, and the Exploding ant's mushroom cloud. Each takes
-// a progress value from 0 to 1 and returns SVG, so App can drive them all from
-// one timer. Shapes are kept chunky (no gradients, hard colour steps) so they
-// sit with the pixel art.
+// Pixel-art attack effects: the Spitter's acid glob and splash, the
+// Bombardier's lobbed shell and blast, and the Exploding ant's mushroom cloud
+// and shockwaves. Each one plays frames from a sprite sheet in
+// public/sprites/effects (frames side by side), shown at 2x like the ants.
+// Each takes a progress value from 0 to 1, so App can drive them all from one
+// timer.
 
 import React from 'react';
 
-const ACID = ['#1f5a10', '#3f9a18', '#7fd82a', '#c8ff5a', '#f4ffc0'];
-const FIRE = ['#5a1a08', '#a83214', '#f06418', '#ffb428', '#fff0a0'];
-const SMOKE = ['#2a2420', '#4a403a', '#6e625a', '#9a8e84'];
+const SCALE = 2;
+
+// Sprite sheets: frame size in art pixels and number of frames
+const SHEETS = {
+  acid_glob: { w: 14, h: 12, frames: 2 },
+  acid_splash: { w: 32, h: 24, frames: 6 },
+  shell: { w: 12, h: 14, frames: 2 },
+  blast: { w: 48, h: 44, frames: 7 },
+  mushroom: { w: 48, h: 64, frames: 10 },
+  shockwave: { w: 128, h: 48, frames: 6 }
+};
 
 // How long each impact effect lasts (ms)
-export const EFFECT_DURATION = { acid: 650, blast: 800, mushroom: 1700 };
+export const EFFECT_DURATION = { acid: 500, blast: 700, mushroom: 1700 };
 // How long a projectile is in the air (ms)
-export const FLIGHT_TIME = { spitter: 320, bombardier: 450, default: 300 };
+export const FLIGHT_TIME = { spitter: 320, bombardier: 400, default: 300 };
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -22,164 +31,57 @@ function arcPoint(start, end, t, peak) {
   return { x: lerp(start.x, end.x, t), y: lerp(start.y, end.y, t) - peak * 4 * t * (1 - t) };
 }
 
-// Same pseudo-random numbers every frame for a given effect id
-function seeded(id, i) {
-  let h = 0;
-  const s = `${id}:${i}`;
-  for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0;
-  return ((h >>> 0) % 1000) / 1000;
+const frameAt = (name, p) => Math.min(SHEETS[name].frames - 1, Math.floor(p * SHEETS[name].frames));
+
+/**
+ * One frame of a sprite sheet. (ax, ay) is the art pixel that lands on (x, y);
+ * flip mirrors it left to right around that point.
+ */
+function Frame({ name, frame, x, y, ax, ay, flip = false, opacity = 1 }) {
+  const { w, h, frames } = SHEETS[name];
+  return (
+    <g transform={`translate(${x}, ${y})${flip ? ' scale(-1, 1)' : ''}`} opacity={opacity} style={{ pointerEvents: 'none' }}>
+      <svg x={-ax * SCALE} y={-ay * SCALE} width={w * SCALE} height={h * SCALE} viewBox={`${frame * w} 0 ${w} ${h}`} overflow="hidden">
+        <image
+          href={`${process.env.PUBLIC_URL}/sprites/effects/${name}.png`}
+          width={w * frames}
+          height={h}
+          style={{ imageRendering: 'pixelated' }}
+        />
+      </svg>
+    </g>
+  );
 }
 
-/** A glob of acid in flight, with drips trailing behind it. */
+/** A glob of acid in flight, wobbling as it goes. */
 export function AcidGlob({ start, end, t }) {
-  const peak = 22;
-  const head = arcPoint(start, end, t, peak);
-  const trail = [0.07, 0.14, 0.21].map(d => arcPoint(start, end, Math.max(0, t - d), peak));
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      {trail.map((p, i) => (
-        <rect key={i} x={p.x - (4 - i)} y={p.y - (4 - i)} width={(4 - i) * 2} height={(4 - i) * 2}
-          fill={ACID[2 - Math.min(i, 1)]} opacity={0.8 - i * 0.2} />
-      ))}
-      <g transform={`translate(${head.x}, ${head.y}) scale(1.6)`}>
-        <rect x={-6} y={-5} width={12} height={10} fill={ACID[0]} />
-        <rect x={-5} y={-6} width={10} height={12} fill={ACID[0]} />
-        <rect x={-4} y={-4} width={8} height={8} fill={ACID[2]} />
-        <rect x={-4} y={-4} width={4} height={3} fill={ACID[3]} />
-        <rect x={-3} y={-3} width={2} height={2} fill={ACID[4]} />
-        {/* A drip hanging off the back of the glob */}
-        <rect x={end.x > start.x ? -8 : 6} y={0} width={2} height={3} fill={ACID[1]} />
-      </g>
-    </g>
-  );
+  const head = arcPoint(start, end, t, 22);
+  return <Frame name="acid_glob" frame={Math.floor(t * 8) % 2} x={head.x} y={head.y} ax={8} ay={6} flip={end.x < start.x} />;
 }
 
-/** Acid hitting the target: a splat, flying droplets and fizzing bubbles. */
-export function AcidSplash({ id, at, p }) {
-  const fade = 1 - Math.max(0, (p - 0.6) / 0.4);
-  const splat = Math.min(1, p / 0.15);
-  const drops = Array.from({ length: 8 }, (_, i) => {
-    const ang = (i / 8) * Math.PI * 2 + seeded(id, i);
-    const dist = 10 + 18 * Math.min(1, p / 0.5) * (0.6 + seeded(id, i + 10) * 0.6);
-    return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist * 0.6 - 10 * Math.sin(Math.min(1, p / 0.5) * Math.PI) };
-  });
-  return (
-    <g transform={`translate(${at.x}, ${at.y})`} style={{ pointerEvents: 'none' }} opacity={fade}>
-      <ellipse cx={0} cy={6} rx={16 * splat} ry={7 * splat} fill={ACID[1]} />
-      <ellipse cx={-2} cy={5} rx={10 * splat} ry={4 * splat} fill={ACID[2]} />
-      <ellipse cx={-4} cy={4} rx={4 * splat} ry={2 * splat} fill={ACID[3]} />
-      {drops.map((d, i) => (
-        <rect key={i} x={d.x - 2} y={d.y - 2} width={4} height={4} fill={i % 2 ? ACID[2] : ACID[3]} />
-      ))}
-      {/* Fizzing bubbles rising off the splat */}
-      {[0, 1, 2, 3].map(i => {
-        const bp = (p * 2 + seeded(id, i + 20)) % 1;
-        return (
-          <rect key={`b${i}`} x={-10 + i * 6 + seeded(id, i + 30) * 4} y={4 - bp * 22} width={4} height={4}
-            fill={ACID[3]} opacity={1 - bp} />
-        );
-      })}
-    </g>
-  );
+/** Acid hitting the target: a splat, droplets and fizzing bubbles. */
+export function AcidSplash({ at, p }) {
+  return <Frame name="acid_splash" frame={frameAt('acid_splash', p)} x={at.x} y={at.y + 6} ax={16} ay={17} />;
 }
 
-/** A Bombardier shell lobbed high, with a sparking fuse and a ground shadow. */
+/** A Bombardier shell lobbed high, with a sparking fuse. */
 export function Shell({ start, end, t }) {
-  const peak = 70;
-  const p = arcPoint(start, end, t, peak);
-  const ground = { x: lerp(start.x, end.x, t), y: lerp(start.y, end.y, t) };
-  const spark = Math.floor(t * 20) % 2;
+  const p = arcPoint(start, end, t, 70);
+  return <Frame name="shell" frame={Math.floor(t * 12) % 2} x={p.x} y={p.y} ax={6} ay={8} flip={end.x < start.x} />;
+}
+
+/** The Bombardier shell landing: fireball, flying dirt, then smoke. */
+export function Blast({ at, p }) {
+  return <Frame name="blast" frame={frameAt('blast', p)} x={at.x} y={at.y + 4} ax={24} ay={30} />;
+}
+
+/** The Exploding ant going off: shockwaves rolling out and a mushroom cloud. */
+export function MushroomCloud({ at, p }) {
+  const wave = p / 0.5; // the shockwaves play in the first half
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <ellipse cx={ground.x} cy={ground.y + 8} rx={7 * (0.6 + t * 0.4)} ry={3} fill="#000" opacity={0.3} />
-      <g transform={`translate(${p.x}, ${p.y}) scale(1.5)`}>
-        <rect x={-6} y={-5} width={12} height={10} fill="#140c08" />
-        <rect x={-5} y={-6} width={10} height={12} fill="#140c08" />
-        <rect x={-4} y={-4} width={8} height={8} fill="#3a2e28" />
-        <rect x={-3} y={-3} width={3} height={2} fill="#7a6a5e" />
-        <rect x={2} y={-9} width={2} height={4} fill="#5a3a20" />
-        <rect x={1 + spark} y={-12} width={3} height={3} fill={spark ? FIRE[4] : FIRE[3]} />
-      </g>
-    </g>
-  );
-}
-
-/** The Bombardier shell landing: flash, fireball, flying dirt and smoke. */
-export function Blast({ id, at, p }) {
-  const grow = Math.min(1, p / 0.25);
-  const fireFade = 1 - Math.min(1, Math.max(0, (p - 0.25) / 0.35));
-  const smoke = Math.max(0, (p - 0.2) / 0.8);
-  return (
-    <g transform={`translate(${at.x}, ${at.y})`} style={{ pointerEvents: 'none' }}>
-      {/* Ground shockwave */}
-      <ellipse cx={0} cy={8} rx={10 + p * 50} ry={4 + p * 18} fill="none" stroke={FIRE[3]}
-        strokeWidth={4 * (1 - p)} opacity={1 - p} />
-      {/* Smoke rising after the fire */}
-      {[0, 1, 2, 3, 4].map(i => (
-        <circle key={`s${i}`} cx={(seeded(id, i) - 0.5) * 30} cy={-smoke * 40 - i * 4}
-          r={6 + smoke * 10} fill={SMOKE[i % 3 + 1]} opacity={smoke > 0 ? 0.7 * (1 - smoke) : 0} />
-      ))}
-      {/* Fireball */}
-      <g opacity={fireFade}>
-        <circle cx={0} cy={-4} r={30 * grow} fill={FIRE[1]} />
-        <circle cx={-3} cy={-7} r={22 * grow} fill={FIRE[2]} />
-        <circle cx={-5} cy={-9} r={13 * grow} fill={FIRE[3]} />
-        <circle cx={-6} cy={-10} r={6 * grow} fill={FIRE[4]} />
-      </g>
-      {/* Clods of dirt thrown out */}
-      {Array.from({ length: 8 }, (_, i) => {
-        const ang = (i / 8) * Math.PI * 2 + seeded(id, i + 5);
-        const d = 10 + p * 45 * (0.6 + seeded(id, i + 15) * 0.5);
-        return (
-          <rect key={`d${i}`} x={Math.cos(ang) * d - 2} y={Math.sin(ang) * d * 0.6 - 30 * Math.sin(p * Math.PI) - 2}
-            width={4} height={4} fill={i % 2 ? '#5a3a20' : '#7a5230'} opacity={1 - p} />
-        );
-      })}
-      {/* White flash */}
-      {p < 0.12 && <circle cx={0} cy={-4} r={40} fill="#fff" opacity={0.8 * (1 - p / 0.12)} />}
-    </g>
-  );
-}
-
-/** The Exploding ant going off: flash, shockwaves along the ground and a mushroom cloud. */
-export function MushroomCloud({ id, at, p, hexSize }) {
-  const rise = Math.min(1, p / 0.55);            // the cloud climbs, then hangs
-  const fade = 1 - Math.max(0, (p - 0.65) / 0.35);
-  const capY = -20 - rise * 70;
-  const capR = 14 + rise * 18;
-  const hot = Math.max(0, 1 - p / 0.45);         // fire colours cool into smoke
-  const tone = (fire, smoke) => (hot > 0.5 ? fire : hot > 0.15 ? FIRE[1] : smoke);
-  return (
-    <g transform={`translate(${at.x}, ${at.y})`} style={{ pointerEvents: 'none' }}>
-      {/* Shockwaves rolling out across the ground */}
-      {[0, 0.12, 0.24].map((delay, i) => {
-        const w = Math.max(0, Math.min(1, (p - delay) / 0.6));
-        return w > 0 && w < 1 ? (
-          <ellipse key={`w${i}`} cx={0} cy={6} rx={w * hexSize * (2.6 - i * 0.4)} ry={w * hexSize * (1.2 - i * 0.2)}
-            fill="none" stroke={i === 0 ? '#fff4c0' : FIRE[3]} strokeWidth={6 * (1 - w)} opacity={1 - w} />
-        ) : null;
-      })}
-      <g opacity={fade}>
-        {/* Base: a ring of dust where the stem meets the ground */}
-        <ellipse cx={0} cy={4} rx={18 + rise * 22} ry={6 + rise * 6} fill={tone(FIRE[2], SMOKE[2])} />
-        {/* Stem */}
-        <rect x={-6 - rise * 2} y={capY} width={12 + rise * 4} height={-capY + 4} fill={tone(FIRE[2], SMOKE[1])} />
-        <rect x={-3} y={capY} width={4} height={-capY} fill={tone(FIRE[3], SMOKE[2])} />
-        {/* A ring around the stem, part way up */}
-        <ellipse cx={0} cy={capY * 0.5} rx={10 + rise * 6} ry={4} fill={tone(FIRE[2], SMOKE[2])} />
-        {/* Cap: billowing puffs */}
-        {[-1, -0.5, 0, 0.5, 1].map((k, i) => (
-          <circle key={`c${i}`} cx={k * capR * 0.9} cy={capY + Math.abs(k) * 6 + (seeded(id, i) - 0.5) * 4}
-            r={capR * (0.55 + (1 - Math.abs(k)) * 0.25)} fill={tone(FIRE[1], SMOKE[1])} />
-        ))}
-        {[-0.5, 0, 0.5].map((k, i) => (
-          <circle key={`h${i}`} cx={k * capR * 0.8 - 2} cy={capY - capR * 0.25} r={capR * 0.45}
-            fill={tone(FIRE[3], SMOKE[3])} />
-        ))}
-        {hot > 0.3 && <circle cx={-4} cy={capY - capR * 0.3} r={capR * 0.25} fill={FIRE[4]} />}
-      </g>
-      {/* Blinding flash at the start */}
-      {p < 0.1 && <circle cx={0} cy={-10} r={hexSize * 1.4} fill="#fff" opacity={0.9 * (1 - p / 0.1)} />}
+      {wave < 1 && <Frame name="shockwave" frame={frameAt('shockwave', wave)} x={at.x} y={at.y + 8} ax={64} ay={24} />}
+      <Frame name="mushroom" frame={frameAt('mushroom', p)} x={at.x} y={at.y + 10} ax={24} ay={58} />
     </g>
   );
 }

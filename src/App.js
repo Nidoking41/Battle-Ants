@@ -6409,8 +6409,8 @@ function App() {
               const at = hexToPixel(position, hexSize);
               const p = Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION[kind]);
               return kind === 'acid'
-                ? <AcidSplash key={id} id={id} at={at} p={p} />
-                : <Blast key={id} id={id} at={at} p={p} />;
+                ? <AcidSplash key={id} at={at} p={p} />
+                : <Blast key={id} at={at} p={p} />;
             })}
 
             {/* Damage Numbers */}
@@ -6517,10 +6517,8 @@ function App() {
             {explosions.map(({ id, position, timestamp }) => (
               <MushroomCloud
                 key={id}
-                id={id}
                 at={hexToPixel(position, hexSize)}
                 p={Math.min(1, (Date.now() - timestamp) / EFFECT_DURATION.mushroom)}
-                hexSize={hexSize}
               />
             ))}
 
