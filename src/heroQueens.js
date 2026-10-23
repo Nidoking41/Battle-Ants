@@ -60,9 +60,9 @@ export const HeroQueens = {
     },
     heroAbility: {
       name: 'Resource Surge',
-      description: 'Food in stock is multiplied by 1.2, units gain +10% attack',
-      resourceMultiplier: 1.2, // Food only
-      attackBonus: 0.10
+      description: 'Food and minerals in stock are multiplied by 1.2, units gain +2 attack',
+      resourceMultiplier: 1.2, // food and minerals
+      attackBonus: 2 // flat
     }
   },
   THORGRIM: {

@@ -1747,9 +1747,9 @@ export function getAntAttack(ant, player) {
       else if (player.heroId === 'sorlorg' && antType.attackRange > 1 && ability.rangedDamageBonus) {
         attack = Math.floor(attack * (1 + ability.rangedDamageBonus));
       }
-      // Skrazzit: +10% attack for all units
+      // Skrazzit: +2 attack for all units
       else if (player.heroId === 'skrazzit' && ability.attackBonus) {
-        attack = Math.floor(attack * (1 + ability.attackBonus));
+        attack += ability.attackBonus;
       }
       // Thorgrim: +2 attack for all units
       else if (player.heroId === 'thorgrim' && ability.attackBonus) {
@@ -2622,12 +2622,13 @@ export function activateHeroAbility(gameState, playerId) {
       break;
 
     case "skrazzit":
-      // Boost stockpiled food only - minerals are untouched
+      // Boost stockpiled food and minerals
       updatedPlayers[playerId] = {
         ...updatedPlayers[playerId],
         resources: {
           ...player.resources,
-          food: Math.floor(player.resources.food * (hero?.heroAbility?.resourceMultiplier || 1.2))
+          food: Math.floor(player.resources.food * (hero?.heroAbility?.resourceMultiplier || 1.2)),
+          minerals: Math.floor(player.resources.minerals * (hero?.heroAbility?.resourceMultiplier || 1.2))
         },
         heroAbilityExpiresAtOwnTurnStart: true // Lasts this turn + the opponent's turn
       };
