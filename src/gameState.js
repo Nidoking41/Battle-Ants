@@ -2111,7 +2111,9 @@ export function unburrowAnt(gameState, antId) {
       [antId]: {
         ...ant,
         isBurrowed: false,
-        hasMoved: true // Unburrowing counts as your move action
+        // Unburrowing takes the whole turn: no move and no attack after it
+        hasMoved: true,
+        hasAttacked: true
       }
     }
   };

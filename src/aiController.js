@@ -691,17 +691,13 @@ function handleGuardUnit(state, unit, aiPlayer, enemies) {
   if (unit.type === 'bombardier') return remember(fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true }));
 
   // Burrowed: stay hidden until one of your units comes within 2 hexes (it
-  // feels the footsteps, no need to see them), then burst out and attack it
+  // feels the footsteps, no need to see them), then tunnel up to it and spike
+  // it from below. It stays burrowed: unburrowing would spend its whole turn.
   if (unit.isBurrowed) {
     const near = enemiesOf(state, aiPlayer).filter(e => e.position && hexDistance(e.position, unit.position) <= 2);
     if (near.length === 0) return remember({ state });
-    const { unburrowAnt } = require('./gameState');
-    const up = unburrowAnt(state, unit.id);
-    if (up === state) return remember({ state });
-    // Unburrowing spends the move; free the move again so it can close in and bite
-    const popped = { ...up, ants: { ...up.ants, [unit.id]: { ...up.ants[unit.id], hasMoved: false } } };
     const target = near.reduce((a, b) => (hexDistance(a.position, unit.position) <= hexDistance(b.position, unit.position) ? a : b));
-    return remember(fightOrAdvance(popped, popped.ants[unit.id], aiPlayer, target.position, { caution: 0, advance: 1.5 }), { engaged: true });
+    return remember(fightOrAdvance(state, unit, aiPlayer, target.position, { caution: 0, advance: 1.5 }), { engaged: true });
   }
 
   if (unit.type === 'scout') {

@@ -948,7 +948,7 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(state.ants[PLAYER_QUEEN_ID].queenTier).toBe('broodQueen');
   });
 
-  test('a burrowed Marauder stays hidden, then bursts out at a unit 2 hexes away', async () => {
+  test('a burrowed Marauder stays hidden, then spikes a unit 2 hexes away without unburrowing', async () => {
     let state = buildCampaignGameState(getLevel(8));
     const u = state.ants.camp_player2_U1;
     const res1 = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
@@ -964,7 +964,7 @@ describe("level 8 - Sorlorg's Eyes", () => {
     state = { ...state, ants: { ...state.ants, bait } };
     const res2 = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
     const after = res2.gameState.ants[u.id];
-    expect(after.isBurrowed).toBe(false);
+    expect(after.isBurrowed).toBe(true);
     const baitAfter = res2.gameState.ants.bait;
     expect(!baitAfter || baitAfter.health < bait.health || hexDistance(after.position, free) <= 1).toBe(true);
   }, 60000);

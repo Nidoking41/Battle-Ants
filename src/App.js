@@ -1333,6 +1333,17 @@ function App() {
     setTimeout(() => setScreenShake(prev => (prev?.id === shakeId ? null : prev)), strength === 'strong' ? 600 : 300);
   };
 
+  // A burrowed Marauder hit in melee strikes back with its spikes. A
+  // counter-attack shows up as damage on the attacker's own hex.
+  const showCounterSpikes = (defender, attackerPos, damageDealt) => {
+    if (!defender || !defender.isBurrowed || defender.type !== 'soldier' || !attackerPos) return;
+    const countered = (damageDealt || []).some(d => d.position && hexEquals(d.position, attackerPos));
+    if (!countered) return;
+    const spikeId = `spikes_${Date.now()}_${Math.random()}`;
+    setSpikeStrikes(prev => [...prev, { id: spikeId, from: defender.position, to: attackerPos }]);
+    setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), 900);
+  };
+
   // An effect where a shot lands (acid splash or shell blast)
   const showImpact = (kind, position) => {
     const impactId = `impact_${Date.now()}_${Math.random()}`;
@@ -1940,6 +1951,10 @@ function App() {
 
           if (attacker) {
             showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
+            // The player's burrowed Marauder strikes back with spikes
+            const defender = Object.values(currentState.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
+            const hitBack = (damageDealt || []).find(d => d.position && !hexEquals(d.position, targetPosition));
+            if (!isRanged && hitBack) setTimeout(() => showCounterSpikes(defender, hitBack.position, damageDealt), 200);
             // Damage numbers and health bars change in the same instant. This
             // includes the counter-attack, which lands on the attacker's hex.
             setTimeout(() => {
@@ -2571,6 +2586,12 @@ function App() {
     );
   }
 
+  // Why an attack can't reach: a burrowed unit that can't fight from below
+  // says so, rather than blaming the range
+  const outOfRangeMessage = (ant, what) => (ant?.isBurrowed && ant.type !== 'soldier'
+    ? "Can't attack while burrowed! Unburrow first."
+    : `${what} is out of attack range!`);
+
   // Show feedback message that auto-clears after 3 seconds
   const showFeedback = (message) => {
     setFeedbackMessage(message);
@@ -2882,6 +2903,7 @@ function App() {
           // Delay damage and state update to match animation timing
           setTimeout(() => {
             const combatResult = resolveCombat(currentState, selectedAnt, enemyAtHex.id);
+            showCounterSpikes(currentState.ants[enemyAtHex.id], currentState.ants[selectedAnt]?.position, combatResult.damageDealt);
             const newState = combatResult.gameState;
 
             // Show damage numbers
@@ -2914,7 +2936,7 @@ function App() {
           }, isRanged ? 500 : 400); // Ranged: wait for projectile, Melee: wait for lunge
           return;
         } else {
-          showFeedback('Enemy is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Enemy'));
           return;
         }
       }
@@ -2929,7 +2951,7 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          showFeedback('Egg is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Egg'));
           return;
         }
 
@@ -2985,7 +3007,7 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          showFeedback('Anthill is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Anthill'));
           return;
         }
 
@@ -3234,6 +3256,7 @@ function App() {
           // Delay damage and state update to match animation timing
           setTimeout(() => {
             const combatResult = resolveCombat(currentState, selectedAnt, enemyAtHex.id);
+            showCounterSpikes(currentState.ants[enemyAtHex.id], currentState.ants[selectedAnt]?.position, combatResult.damageDealt);
             const newState = combatResult.gameState;
 
             // Show damage numbers
@@ -3261,7 +3284,7 @@ function App() {
           }, isRanged ? 500 : 400);
           return;
         } else {
-          showFeedback('Enemy is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Enemy'));
           return;
         }
       }
@@ -3282,7 +3305,7 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          showFeedback('Egg is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Egg'));
           return;
         }
 
@@ -3345,7 +3368,7 @@ function App() {
         );
 
         if (distance > antType.attackRange) {
-          showFeedback('Anthill is out of attack range!');
+          showFeedback(outOfRangeMessage(ant, 'Anthill'));
           return;
         }
 
