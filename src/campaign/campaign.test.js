@@ -1050,15 +1050,13 @@ describe('level 9 - The Rot Below', () => {
     const { spawnDueWaves } = require('./waves');
     let state = buildCampaignGameState(getLevel(9));
     expect(state.campaign.waveSpawns).toHaveLength(4);
-    expect(state.campaign.goalHexes.length).toBe(7);
+    expect(state.campaign.goalHexes.length).toBe(6);
     expect(state.campaign.goalSprite).toBe(null);
     state = spawnDueWaves({ ...state, turn: 3 }, createAnt);
-    const w2 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave2_'));
+    // Round 3: a pair at the far end of each side tunnel
     const w3 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave3_'));
-    expect(w2).toHaveLength(4);
-    expect(w3).toHaveLength(3);
-    w2.forEach(a => expect(hexDistance(a.position, state.campaign.waveSpawns[0])).toBeLessThanOrEqual(3));
-    w3.forEach(a => expect(hexDistance(a.position, state.campaign.waveSpawns[1])).toBeLessThanOrEqual(3));
+    expect(w3).toHaveLength(4);
+    [0, 1].forEach(i => expect(w3.filter(a => hexDistance(a.position, state.campaign.waveSpawns[i]) <= 3)).toHaveLength(2));
 
     // An ant standing in the chamber does not count before round 8
     const goal = state.campaign.goalHexes[0];
@@ -1067,6 +1065,27 @@ describe('level 9 - The Rot Below', () => {
     expect(evaluateAllObjectives(inChamber(5)).won).toBe(false);
     expect(evaluateAllObjectives(inChamber(8)).won).toBe(true);
   });
+
+  test('the swarm charges down both side tunnels and reaches the queen by round 4', async () => {
+    const { executeAITurn } = require('../aiController');
+    let state = buildCampaignGameState(getLevel(9));
+    const queen = state.ants[PLAYER_QUEEN_ID];
+    const hunters = Object.values(state.ants).filter(a => a.hunter);
+    expect(hunters).toHaveLength(8);
+    // Half on each side of the queen, far down the tunnels
+    expect(hunters.filter(a => a.position.q < queen.position.q)).toHaveLength(4);
+    expect(hunters.filter(a => a.position.q > queen.position.q)).toHaveLength(4);
+    hunters.forEach(a => expect(hexDistance(a.position, queen.position)).toBeGreaterThanOrEqual(7));
+    // The player does nothing; after the enemy's 3rd turn the swarm is at the queen
+    for (let round = 1; round <= 3; round++) {
+      state = endTurn(state).gameState;
+      state = (await executeAITurn(state, 'player2', 'medium', { fogOfWar: true })).gameState;
+      state = endTurn(state).gameState;
+    }
+    const near = Object.values(state.ants).filter(a => a.owner === 'player2' && hexDistance(a.position, queen.position) <= 2);
+    expect(near.length).toBeGreaterThanOrEqual(2);
+    expect(getLevel(9).heroPopups[0]).toMatchObject({ turn: 8, hero: 'skrazzit' });
+  }, 60000);
 
   test('the Golden Throne is drawn only on level 7', () => {
     expect(buildCampaignGameState(getLevel(7)).campaign.goalSprite).toBe('throne');

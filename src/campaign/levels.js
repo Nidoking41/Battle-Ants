@@ -848,16 +848,17 @@ export const LEVELS = [
   },
   // ---------------------------------------------------------------------
   // Level 9 - The Rot Below (vs Skrazzit, paid by Sorlorg)
-  // Tunnels under the Throne Mound: narrow passages that open into small
-  // caves. Skrazzit's swarm pours in from side tunnels (P spawn points) on a
-  // fixed schedule. Hold the nest for 8 rounds, then push down and get any ant
-  // into the Deep Chamber (G). Vexxara can grow into a Swarm Queen here, which
+  // Tunnels under the Throne Mound. Vexxara starts in a small 3x3 cave with a
+  // long tunnel running off each side; Skrazzit's swarm waits at the far ends
+  // of both and charges the queen from round 1, arriving by round 4, with more
+  // pouring in behind (P spawn points). Hold for 8 rounds, then push down the
+  // short tunnel and get any ant into the Deep Chamber (G). Vexxara can grow into a Swarm Queen here, which
   // unlocks the Bullet Ant - made for holding a tunnel.
   {
     id: 9,
     name: 'The Rot Below',
     fogOfWar: true,
-    speedBase: 650,
+    speedBase: 500,
     cutscene: {
       portrait: 'hero_black.png',
       lines: [
@@ -868,72 +869,45 @@ export const LEVELS = [
         'Hold the nest until the swarm breaks. Then push down to the Deep Chamber. Grow into a Swarm Queen if you can afford it: Bullet Ants were made for tunnels.'
       ]
     },
-    briefing: ['Hold out for 8 turns against Skrazzit\'s swarm, then get any ant to the Deep Chamber at the bottom.'],
+    briefing: ['Skrazzit\'s swarm is coming down both side tunnels, straight for your queen. Hold out for 8 turns, then get any ant to the Deep Chamber at the bottom.'],
     map: {
       layout: [
-        '                    .',
-        '                   . .',
-        '                  . M .',
-        '                 . . . .',
-        '                  . . .',
-        '                 F . . F',
-        '                  . 1 .',
-        '                 . . . .',
-        '                  m . m',
-        '                 . . . .',
-        '  P             . . M .',
-        '   .             . . .',
-        '    .           . . .',
-        '     .         . . .',
-        '      .     . . . .                   P',
-        '       .   . . . .                 . .',
-        '        . . . . .                 . .',
-        '         . . M .               . . .',
-        '          T . .               . .',
-        '           F . . .           . .',
-        '          . . . . .       . .',
-        '           . . . . .     . .',
-        '            . . . . .   . .',
-        '               . . . . . .',
-        '                . . . .',
-        '                 . . . .',
-        '                  . . . . .',
-        '                   . . . . .',
-        '                      . . . .',
-        '                       . T .',
-        '                        . . .',
-        '                       . . T',
-        '                      . . . .',
-        '                     . . . .',
-        '                    . . . .',
-        '                   . . . .',
-        '                  . . .',
-        '                 . . . .',
-        '              . . . . .',
-        '             . . . .',
-        '            . . . . .',
-        '             . . . .',
-        '            . . .',
-        '             . T .',
-        '          . . . .',
-        '         . . . . .',
-        '        . .   . . .                   P',
-        '       . .     . .                 . .',
-        '      .         . . .             . .',
-        '     .         . . . .         . . .',
-        '    .           . . . .       . .',
-        '   P             . . . .   . . .',
-        '                  . G T . . .',
-        '                 . G G . .',
-        '                  . G . .',
-        '                 . G G .',
-        '                  . G .',
-        '                 . . . .',
-        '                  T . .',
-        '                   . .',
-        '                    .'
+        '           .',
+        '          . .',
+        ' . R T . . 1 . . . R .',
+        'P S . . . . . . . . S P',
+        ' A R . . . . . . T R A',
+        '. . . . F m m M . . . .',
+        '           .',
+        '            .',
+        '           .',
+        '            .',
+        '           F',
+        '            .',
+        '           .',
+        '            .',
+        '           . .',
+        '            .',
+        '             M',
+        '            .',
+        '             T',
+        '            .',
+        '           . .',
+        '            .',
+        '           .',
+        '          . .',
+        '           . .',
+        '          . .',
+        '       . . . .',
+        '      P . . . .',
+        '       . . . . .',
+        '        . T G . .',
+        '           G G . P',
+        '          . G   .',
+        '           G',
+        '            G'
       ],
-      legend: { m: 'soldier' }
+      legend: { m: 'soldier', R: 'soldier', S: 'scout', A: 'spitter' }
     },
     player: {
       hero: 'vexxara',
@@ -949,23 +923,30 @@ export const LEVELS = [
       aiDifficulty: 'medium',
       hunt: true,
       huntWithScouts: true, // the swarm's Scouts fight too
+      // R, S, A: the swarm at the far end of each side tunnel. Awake from
+      // round 1 and going for the queen and nothing else.
+      hunterMarkers: ['R', 'S', 'A'],
+      huntersWakeTurn: 1,
       unitMix: {},
       resources: { food: 0, minerals: 0 },
       units: [],
-      // at: which spawn point (P, in reading order): 0 upper left, 1 right,
-      // 2 lower right (into the Deep Chamber), 3 lower left
+      // at: which spawn point (P, in reading order): 0 left tunnel end,
+      // 1 right tunnel end, 2 left of the Deep Chamber, 3 right of it
       waves: [
-        { turn: 2, at: 0, units: [{ type: 'scout', count: 3 }, { type: 'soldier', count: 1 }] },
-        { turn: 3, at: 1, units: [{ type: 'scout', count: 2 }, { type: 'soldier', count: 1 }] },
-        { turn: 5, at: 0, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }, { type: 'scout', count: 1 }] },
-        { turn: 6, at: 1, units: [{ type: 'soldier', count: 2 }, { type: 'scout', count: 2 }] },
-        { turn: 8, at: 0, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 2 }] },
-        { turn: 8, at: 1, units: [{ type: 'scout', count: 3 }, { type: 'soldier', count: 1 }] },
-        { turn: 10, at: 3, units: [{ type: 'soldier', count: 3 }, { type: 'spitter', count: 1 }] },
-        { turn: 11, at: 2, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 2 }, { type: 'scout', count: 1 }] },
-        { turn: 13, at: 3, units: [{ type: 'soldier', count: 3 }, { type: 'scout', count: 2 }] }
+        { turn: 3, at: 0, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
+        { turn: 3, at: 1, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
+        { turn: 5, at: 0, units: [{ type: 'soldier', count: 2 }] },
+        { turn: 5, at: 1, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
+        { turn: 7, at: 0, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
+        { turn: 7, at: 1, units: [{ type: 'soldier', count: 2 }] },
+        { turn: 9, at: 2, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }] },
+        { turn: 10, at: 3, units: [{ type: 'soldier', count: 1 }, { type: 'scout', count: 2 }] }
       ]
     },
+    // Small pop-ups with a hero's portrait, once each, when the round comes
+    heroPopups: [
+      { turn: 8, hero: 'skrazzit', text: 'Both tunnels, straight at the queen, and she\'s still standing? Tch. Sorlorg is not paying me enough for this.' }
+    ],
     uiTips: [
       { target: 'queenUpgrade', title: 'Swarm Queen', text: 'Vexxara can grow again. Press Upgrade to Swarm Queen (20 food, 15 minerals): more energy, faster recharge, more food, and the Bullet Ant - a heavy biter that can plug a tunnel on its own.' }
     ],

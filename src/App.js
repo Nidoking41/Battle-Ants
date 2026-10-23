@@ -254,6 +254,20 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState]);
+  // Campaign hero pop-ups (level.heroPopups): a small box with a hero's
+  // portrait and one line, shown once when its round comes round
+  const [heroPopup, setHeroPopup] = useState(null);
+  const shownHeroPopupsRef = useRef(new Set());
+  useEffect(() => {
+    const c = gameState.campaign;
+    if (!c || heroPopup || midEventScene || gameState.gameOver || gameState.currentPlayer !== 'player1') return;
+    const popups = getLevel(c.levelId)?.heroPopups || [];
+    const i = popups.findIndex((p, idx) => (gameState.turn || 1) >= p.turn && !shownHeroPopupsRef.current.has(`${c.levelId}:${idx}`));
+    if (i < 0) return;
+    shownHeroPopupsRef.current.add(`${c.levelId}:${i}`);
+    setHeroPopup(popups[i]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
   const finishMidEvent = () => {
     const full = getGameStateForLogic();
     const ants = Object.fromEntries(Object.entries(full.ants).map(([id, a]) => [id, a.hunter ? { ...a, dormant: false } : a]));
@@ -2264,6 +2278,7 @@ function App() {
         isMultiplayer: false
       });
       setFullGameState(state);
+      shownHeroPopupsRef.current = new Set(); // a fresh start shows the level's hero pop-ups again
       setGameState(campaignFog ? applyFogOfWar(state, 'player1') : state);
       return;
     }
@@ -8177,6 +8192,46 @@ function App() {
           {feedbackMessage}
         </div>
       )}
+
+      {/* Campaign hero pop-up: portrait, name and one line, until dismissed */}
+      {heroPopup && (() => {
+        const { getHeroById } = require('./heroQueens');
+        const hero = getHeroById(heroPopup.hero);
+        return (
+          <div
+            onClick={() => setHeroPopup(null)}
+            style={{
+              position: 'fixed',
+              top: '72px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              width: 'min(520px, 90vw)',
+              padding: '12px 16px',
+              background: 'rgba(16, 12, 20, 0.95)',
+              border: `2px solid ${hero?.color || '#c9a23a'}`,
+              borderRadius: '8px',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
+              zIndex: 3500,
+              cursor: 'pointer',
+              animation: 'feedbackPop 0.18s ease-out'
+            }}
+          >
+            <img
+              src={`${process.env.PUBLIC_URL}/sprites/${hero?.portraitImage}`}
+              alt={hero?.name}
+              style={{ width: '72px', height: '72px', objectFit: 'cover', imageRendering: 'pixelated', border: '1px solid #444', borderRadius: '4px', flexShrink: 0 }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: hero?.color || '#e8c45a', fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>{hero?.name}</div>
+              <div style={{ color: '#eee', fontSize: '14px', lineHeight: 1.35 }}>{heroPopup.text}</div>
+              <div style={{ color: '#888', fontSize: '11px', marginTop: '6px', textAlign: 'right' }}>click to close</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Concede Confirmation Modal */}
       {showConcedeConfirm && (
