@@ -123,9 +123,9 @@ describe('lake on the small 2-player map', () => {
   const lake = getLakeHexes();
   const queens = Object.values(state.ants).filter(a => a.type === 'queen');
 
-  test('is the centre hex plus the ring around it, the same every game, and there is no river', () => {
+  test('is the centre hex plus the ring around it except its top and bottom, the same every game, and there is no river', () => {
     expect(state.mapShape).toBe('lake');
-    expect(lake.map(key).sort()).toEqual(['-1,0', '-1,1', '0,-1', '0,0', '0,1', '1,-1', '1,0'].sort());
+    expect(lake.map(key).sort()).toEqual(['-1,0', '-1,1', '0,0', '1,-1', '1,0'].sort());
     lake.forEach(w => expect(isValidHex(w, R, state.mapShape)).toBe(false));
     getRiverLayout(R).water.filter(w => !lake.some(l => key(l) === key(w)))
       .forEach(w => expect(isValidHex(w, R, state.mapShape)).toBe(true));

@@ -140,12 +140,14 @@ export function getRiverLayout(gridRadius) {
 
 // ---- Lake (small 2-player 'lake' maps) ----
 // The small map is too tight for a river, so it gets a lake instead: the
-// centre hex and the ring of six hexes around it. Units walk round either
-// side. Same rules as river water: off the board, but ranged attacks reach
-// across. Never random.
+// centre hex and the ring of six hexes around it, minus the ring's top and
+// bottom hexes (0,-1) and (0,1), which are land. Units walk round either
+// side or straight across the middle. Same rules as river water: off the
+// board, but ranged attacks reach across. Never random.
 export const LAKE_RADIUS = 1;
 
 export function isLakeWater(hex) {
+  if (hex.q === 0 && Math.abs(hex.r) === 1) return false; // top and bottom of the ring are land
   return Math.max(Math.abs(hex.q), Math.abs(hex.r), Math.abs(hex.q + hex.r)) <= LAKE_RADIUS;
 }
 
