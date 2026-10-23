@@ -1,4 +1,5 @@
-import { createInitialGameState, createAnt, endTurn, deployEmissary, canDeployEmissary, getSpawningPoolHexes } from './gameState';
+import { createInitialGameState, createAnt, endTurn, deployEmissary, canDeployEmissary, emissaryDeployBlock, getSpawningPoolHexes } from './gameState';
+import { createScrimmageGameState } from './maps/scrimmageMaps';
 import { buildCampaignGameState } from './campaign/campaignState';
 import { getLevel } from './campaign/levels';
 import { getNeighbors, HexCoord } from './hexUtils';
@@ -35,5 +36,34 @@ describe('Emissary deploys into a Broodwarden', () => {
     const l8 = buildCampaignGameState(getLevel(8));
     const e = { ...createAnt('emissary', 'player1', new HexCoord(0, 0)), id: 'e1' };
     expect(canDeployEmissary(l8, e)).toBe(true);
+  });
+
+  test("can't deploy on or next to a cliff, or next to water", () => {
+    const s = createScrimmageGameState({ mapId: 'highlands', heroes: {} });
+    const cliffs = Object.keys(s.mapShape.cliffs).map(k => { const [q, r] = k.split(',').map(Number); return new HexCoord(q, r); });
+    expect(cliffs.length).toBeGreaterThan(0);
+    const onCliff = { ...createAnt('emissary', 'player1', cliffs[0]), id: 'e1' };
+    expect(emissaryDeployBlock(s, onCliff.position)).toBe('cliff');
+    expect(canDeployEmissary(s, onCliff)).toBe(false);
+    expect(canDeployEmissary(s, onCliff, { ignoreGround: true })).toBe(true);
+    const nextToCliff = getNeighbors(cliffs[0]).find(h => s.mapHexes.some(m => m.q === h.q && m.r === h.r) && !s.mapShape.cliffs[`${h.q},${h.r}`]);
+    expect(emissaryDeployBlock(s, nextToCliff)).toBe('cliff');
+    const lake = createScrimmageGameState({ mapId: 'great_lake', heroes: {} });
+    const cliffy = h => [h, ...getNeighbors(h)].some(n => (lake.mapShape.cliffs || {})[`${n.q},${n.r}`] !== undefined);
+    const shore = lake.mapWater.flatMap(w => getNeighbors(w))
+      .find(h => lake.mapHexes.some(m => m.q === h.q && m.r === h.r) && !cliffy(h));
+    expect(emissaryDeployBlock(lake, shore)).toBe('water');
+  });
+
+  test('deploying clears trees off the future egg spots', () => {
+    const base = createInitialGameState({ playerCount: 2, mapSize: 'small' });
+    const pos = new HexCoord(0, 3);
+    const spots = getSpawningPoolHexes({ type: 'broodwarden', position: pos }, getNeighbors, base);
+    const other = getNeighbors(pos).find(h => !spots.some(p => p.q === h.q && p.r === h.r));
+    const trees = { t1: { id: 't1', position: spots[0] }, t2: { id: 't2', position: other } };
+    const e = { ...createAnt('emissary', 'player1', pos), id: 'e1' };
+    const s = deployEmissary({ ...base, turn: 3, trees, ants: { ...base.ants, e1: e } }, 'e1');
+    expect(s.trees.t1).toBeUndefined();
+    expect(s.trees.t2).toBeDefined();
   });
 });

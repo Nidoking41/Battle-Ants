@@ -1,4 +1,4 @@
-import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater, cliffAt } from './hexUtils';
+import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater, cliffAt, isMapWater } from './hexUtils';
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType } from './antTypes';
 import { getHeroById } from './heroQueens';
 
@@ -2026,10 +2026,27 @@ export function canAffordQueenUpgrade(gameState, queenId) {
 // An Emissary can deploy into a Broodwarden (a forward egg layer) unless it has
 // already attacked, or the campaign level has no Emissary in its roster
 // (level 7's escort must stay an Emissary).
-export function canDeployEmissary(gameState, ant) {
+// Why an Emissary can't deploy on this hex: 'cliff' or 'water' when the hex
+// is on or next to a cliff, or next to water; null when the ground is fine.
+export function emissaryDeployBlock(gameState, pos) {
+  const { getNeighbors } = require('./hexUtils');
+  const shape = gameState.mapShape;
+  const waterKeys = new Set((gameState.mapWater || []).map(w => `${w.q},${w.r}`));
+  const isWater = h => waterKeys.has(`${h.q},${h.r}`) || isMapWater(h, gameState.gridRadius, shape);
+  if (cliffAt(pos, shape) !== undefined) return 'cliff';
+  const around = getNeighbors(pos);
+  if (around.some(h => cliffAt(h, shape) !== undefined)) return 'cliff';
+  if (around.some(isWater)) return 'water';
+  return null;
+}
+
+// `ignoreGround` asks only whether this ant could ever deploy (for showing
+// the button); the ground rule is checked separately so the player is told why.
+export function canDeployEmissary(gameState, ant, { ignoreGround = false } = {}) {
   if (!ant || ant.type !== 'emissary' || ant.hasAttacked) return false;
   const roster = gameState.campaign?.roster;
   if (gameState.campaign && Array.isArray(roster) && !roster.includes('emissary')) return false;
+  if (!ignoreGround && emissaryDeployBlock(gameState, ant.position)) return false;
   return true;
 }
 
@@ -2048,7 +2065,12 @@ export function deployEmissary(gameState, antId) {
   const ants = { ...gameState.ants };
   delete ants[antId];
   ants[cocoon.id] = cocoon;
-  return { ...gameState, ants };
+  // Trees standing on the Broodwarden's future egg spots are cleared away
+  const { getNeighbors } = require('./hexUtils');
+  const spots = getSpawningPoolHexes({ type: 'broodwarden', position: ant.position }, getNeighbors, gameState);
+  const onSpot = t => spots.some(h => h.q === t.position.q && h.r === t.position.r);
+  const trees = Object.fromEntries(Object.entries(gameState.trees || {}).filter(([, t]) => !onSpot(t)));
+  return { ...gameState, ants, trees };
 }
 
 // At the end of a round, cocoons that are ready open into Broodwardens

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
-import { canDeployEmissary, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
+import { canDeployEmissary, emissaryDeployBlock, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
 import { moveAnt, resolveCombat, canAttack, meleeBlockedByCliff, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { createScrimmageGameState } from './maps/scrimmageMaps';
@@ -7350,9 +7350,16 @@ function App() {
                       Lay Egg
                     </button>
                   )}
-                  {canDeployEmissary(getGameStateForLogic(), gameState.ants[selectedAnt]) && (
+                  {canDeployEmissary(getGameStateForLogic(), gameState.ants[selectedAnt], { ignoreGround: true }) && (
                     <button data-tip="deploy"
                       onClick={() => {
+                        const block = emissaryDeployBlock(getGameStateForLogic(), gameState.ants[selectedAnt].position);
+                        if (block) {
+                          showFeedback(block === 'cliff'
+                            ? "Can't deploy here: a Broodwarden can't nest on or next to a cliff."
+                            : "Can't deploy here: a Broodwarden can't nest next to water.");
+                          return;
+                        }
                         const newState = deployEmissary(getGameStateForLogic(), selectedAnt);
                         updateGame(newState);
                         setSelectedAnt(null);
@@ -7367,6 +7374,7 @@ function App() {
                         border: '2px solid #e8c45a',
                         borderRadius: '4px',
                         cursor: isMyTurn() ? 'pointer' : 'not-allowed',
+                        opacity: emissaryDeployBlock(getGameStateForLogic(), gameState.ants[selectedAnt].position) ? 0.55 : 1,
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}
                     >
