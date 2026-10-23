@@ -6417,61 +6417,31 @@ function App() {
             })}
 
             {/* Bomber Explosion Animations */}
-            {/* Burrowed Marauder strike: a row of spikes erupting toward the target.
-                Each spike has a lit face and a shadowed face split by a pale
-                ridge, so it reads as a solid 3D spike, and bursts out of a
-                little mound of dirt. */}
+            {/* Burrowed Marauder strike: a row of pixel-art spikes (13x26 art,
+                lit and shadowed faces on a mound of dirt) erupting toward the
+                target, each one bigger than the last */}
             {spikeStrikes.map(({ id, from, to }) => {
               const a = hexToPixel(from, hexSize), b = hexToPixel(to, hexSize);
               const n = 5;
-              const gid = id.replace(/[^a-zA-Z0-9_]/g, '_');
+              const flip = b.x < a.x; // the art leans right; mirror it when striking left
               return (
                 <g key={id} style={{ pointerEvents: 'none' }}>
-                  <defs>
-                    <linearGradient id={`${gid}_lit`} x1="0" y1="1" x2="0" y2="0">
-                      <stop offset="0%" stopColor="#6b4426" />
-                      <stop offset="70%" stopColor="#d8b48a" />
-                      <stop offset="100%" stopColor="#fff0d0" />
-                    </linearGradient>
-                    <linearGradient id={`${gid}_dark`} x1="0" y1="1" x2="0" y2="0">
-                      <stop offset="0%" stopColor="#1c0e06" />
-                      <stop offset="70%" stopColor="#5a3418" />
-                      <stop offset="100%" stopColor="#9a6a40" />
-                    </linearGradient>
-                  </defs>
                   {Array.from({ length: n }, (_, i) => {
                     const t = (i + 1) / n;
                     const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + 10;
-                    const h = 14 + i * 5, w = 5 + i;
-                    const tipX = x + (b.x > a.x ? 3 : -3), tipY = y - h;
-                    // The front ridge meets the ground a little forward of centre
-                    const midX = x + w * 0.15, midY = y + 2;
+                    // The spike's base (row 22 of 26) sits on y
+                    const h = (14 + i * 5) * 26 / 21, w = h / 2;
                     return (
-                      <g key={i}>
-                        <ellipse
-                          className="spike-dirt"
-                          cx={x}
-                          cy={y + 1}
-                          rx={w + 5}
-                          ry={3.5}
-                          fill="#3b2412"
-                          style={{ animationDelay: `${i * 70}ms` }}
+                      <g key={i} className="spike-strike" style={{ animationDelay: `${i * 70}ms` }}>
+                        <image
+                          x={flip ? -x - w / 2 : x - w / 2}
+                          y={y - h * 22 / 26}
+                          width={w}
+                          height={h}
+                          transform={flip ? 'scale(-1, 1)' : undefined}
+                          href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/spike.png`}
+                          style={{ imageRendering: 'pixelated' }}
                         />
-                        <g className="spike-strike" style={{ animationDelay: `${i * 70}ms` }}>
-                          <polygon points={`${x - w},${y} ${midX},${midY} ${tipX},${tipY}`} fill={`url(#${gid}_lit)`} />
-                          <polygon points={`${midX},${midY} ${x + w},${y} ${tipX},${tipY}`} fill={`url(#${gid}_dark)`} />
-                          <line x1={midX} y1={midY} x2={tipX} y2={tipY} stroke="#f4dcb0" strokeWidth="0.8" strokeLinecap="round" />
-                          <polygon
-                            points={`${x - w},${y} ${midX},${midY} ${x + w},${y} ${tipX},${tipY}`}
-                            fill="none"
-                            stroke="#160a04"
-                            strokeWidth="1.2"
-                            strokeLinejoin="round"
-                          />
-                          {/* Clods of dirt thrown up around the base */}
-                          <circle cx={x - w - 2} cy={y - 2} r="1.6" fill="#7a5230" />
-                          <circle cx={x + w + 2} cy={y - 3} r="1.3" fill="#5a3a20" />
-                        </g>
                       </g>
                     );
                   })}
