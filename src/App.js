@@ -53,6 +53,18 @@ const AUDIO_ENABLED = false;
 const MOVE_STEP_MS = 300;
 const MOVE_TRANSITION = 'transform 0.27s ease-in-out';
 
+// Steps a sprite sheet <image> through its frames by sliding its x. The
+// browser runs this by itself, so idle ants never make React redraw the
+// board. `seed` (an ant or egg id) starts each one at a different point so
+// they don't all bob in step.
+function SpriteCycle({ start, step, frames, msPerFrame, seed }) {
+  const values = Array.from({ length: frames }, (_, i) => start - i * step).join(';');
+  const total = frames * msPerFrame;
+  let hash = 0;
+  for (const ch of String(seed)) hash = (hash * 31 + ch.charCodeAt(0)) % 100000;
+  return <animate attributeName="x" values={values} dur={`${total}ms`} begin={`-${hash % total}ms`} calcMode="discrete" repeatCount="indefinite" />;
+}
+
 // Build the combat record the opponent replays as an animation.
 //
 // Two attacks in the same millisecond used to produce identical Date.now()
@@ -272,7 +284,6 @@ function App() {
   const [bombardierRotation, setBombardierRotation] = useState(0); // 0-5 for the 6 hex directions
   const [bombardierTargetHex, setBombardierTargetHex] = useState(null); // Store the center hex for bombardier splash
   const [showHeroInfo, setShowHeroInfo] = useState(false); // Show hero info modal
-  const [effectAnimationFrame, setEffectAnimationFrame] = useState(0); // Current frame for status effect animations (0-7)
   const [showTurnPopup, setShowTurnPopup] = useState(false); // Show "Your Turn!" popup
   const [pheromoneAnimations, setPheromoneAnimations] = useState([]); // Array of {id, centerHex, currentStep, timestamp} for pheromone pulse animations
   const [ambientMusic, setAmbientMusic] = useState(null); // Audio object for ambient music
@@ -454,15 +465,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAction, bombardierTargetHex, selectedAnt]);
 
-  // Cycle effect animation frames (ensnare, plague)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setEffectAnimationFrame(prev => (prev + 1) % 8); // Cycle through 8 frames
-    }, 100); // 100ms per frame = ~10 FPS
-
-    return () => clearInterval(interval);
-  }, []);
-
   // Handle pheromone pulse animation cycling
   useEffect(() => {
     if (pheromoneAnimations.length === 0) return;
@@ -643,6 +645,9 @@ function App() {
   const [boardSvg, setBoardSvg] = useState(null); // the board's <svg>, once it is on screen
   const touchViewRef = useRef({ zoom: zoomLevel, offset: cameraOffset });
   touchViewRef.current = { zoom: zoomLevel, offset: cameraOffset };
+  const boardSizeRef = useRef(svgSize);
+  boardSizeRef.current = svgSize;
+  const cameraGroupRef = useRef(null); // the <g> that moves and zooms the board
   useEffect(() => {
     const svg = boardSvg;
     if (!svg) return undefined;
@@ -650,7 +655,25 @@ function App() {
     let gesture = null;
     const midpoint = t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
     const spread = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    // While a finger is down the board is moved directly, without redrawing
+    // the whole game each time the finger moves (much smoother on tablets).
+    // The new view is saved once the finger lifts.
+    let live = null;
+    const showView = (zoom, offset) => {
+      live = { zoom, offset };
+      const g = cameraGroupRef.current;
+      const size = boardSizeRef.current;
+      if (g) g.setAttribute('transform', `translate(${size.width / 2}, ${size.height / 2}) scale(${zoom}) translate(${offset.x}, ${offset.y})`);
+    };
+    const saveView = () => {
+      if (!live) return;
+      touchViewRef.current = live;
+      setZoomLevel(live.zoom);
+      setCameraOffset(live.offset);
+      live = null;
+    };
     const start = (e) => {
+      saveView();
       const { zoom, offset } = touchViewRef.current;
       if (e.touches.length === 1) {
         const t = e.touches[0];
@@ -668,19 +691,19 @@ function App() {
         if (!gesture.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         gesture.moved = true;
         e.preventDefault(); // a drag, not a tap: no click afterwards and no page scroll
-        setCameraOffset({ x: gesture.offset.x + dx / gesture.zoom, y: gesture.offset.y + dy / gesture.zoom });
+        showView(gesture.zoom, { x: gesture.offset.x + dx / gesture.zoom, y: gesture.offset.y + dy / gesture.zoom });
       } else if (gesture.kind === 'pinch' && e.touches.length === 2) {
         e.preventDefault();
         const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, gesture.zoom * spread(e.touches) / gesture.dist));
         const mid = midpoint(e.touches);
-        setZoomLevel(zoom);
-        setCameraOffset({
+        showView(zoom, {
           x: gesture.offset.x + (mid.x - gesture.mid.x) / zoom,
           y: gesture.offset.y + (mid.y - gesture.mid.y) / zoom
         });
       }
     };
     const end = (e) => {
+      saveView();
       if (e.touches.length === 0) gesture = null;
       else if (e.touches.length === 1 && gesture?.kind === 'pinch') {
         // one finger lifted mid-pinch: carry on as a drag from here
@@ -1611,39 +1634,20 @@ function App() {
     }
   };
 
-  // Animate damage numbers
+  // Redraw once per screen frame while anything is moving (damage numbers,
+  // attacks, projectiles, impacts, resource numbers). One shared loop, so
+  // several animations at once still only redraw the board once a frame.
+  const [, setAnimationTick] = useState(0);
+  const anyAnimationRunning = damageNumbers.length > 0 || attackAnimations.length > 0 ||
+    projectiles.length > 0 || impacts.length > 0 || explosions.length > 0 || resourceGainNumbers.length > 0;
   useEffect(() => {
-    if (damageNumbers.length === 0) return;
-
-    const interval = setInterval(() => {
-      // Force re-render for animation
-      setDamageNumbers(prev => [...prev]);
-    }, 16); // ~60fps
-
-    return () => clearInterval(interval);
-  }, [damageNumbers.length]);
-
-  // Animate attack animations
-  useEffect(() => {
-    if (attackAnimations.length === 0) return;
-
-    const interval = setInterval(() => {
-      setAttackAnimations(prev => [...prev]);
-    }, 16); // ~60fps
-
-    return () => clearInterval(interval);
-  }, [attackAnimations.length]);
-
-  // Animate projectiles
-  useEffect(() => {
-    if (projectiles.length === 0) return;
-
-    const interval = setInterval(() => {
-      setProjectiles(prev => [...prev]);
-    }, 16); // ~60fps
-
-    return () => clearInterval(interval);
-  }, [projectiles.length]);
+    if (!anyAnimationRunning) return undefined;
+    let frame = requestAnimationFrame(function tick() {
+      setAnimationTick(t => t + 1);
+      frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [anyAnimationRunning]);
 
   // Campaign: say so when lost ants are found and join the colony
   const recruitedCount = gameState?.campaign?.recruited || 0;
@@ -1660,28 +1664,6 @@ function App() {
     lastRecruitedRef.current = recruitedCount;
   }, [recruitedCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Animate impacts and explosions
-  useEffect(() => {
-    if (impacts.length === 0 && explosions.length === 0) return;
-
-    const interval = setInterval(() => {
-      setImpacts(prev => [...prev]);
-    }, 16); // ~60fps
-
-    return () => clearInterval(interval);
-  }, [impacts.length, explosions.length]);
-
-  // Animate resource gain numbers
-  useEffect(() => {
-    if (resourceGainNumbers.length === 0) return;
-
-    const interval = setInterval(() => {
-      // Force re-render for animation
-      setResourceGainNumbers(prev => [...prev]);
-    }, 16); // ~60fps
-
-    return () => clearInterval(interval);
-  }, [resourceGainNumbers.length]);
 
   // Subscribe to multiplayer game state
   useEffect(() => {
@@ -5313,13 +5295,15 @@ function App() {
                   </defs>
                   <image
                     href={eggFrame.fullPath}
-                    x={-30 - (eggFrame.currentFrame * eggFrame.frameWidth * eggScale)}
+                    x={-30}
                     y="-30"
                     width={eggFrame.frameWidth * eggFrame.frames * eggScale}
                     height={eggFrame.frameHeight * eggScale}
                     clipPath={`url(#egg-clip-${egg.id})`}
                     style={{ pointerEvents: 'none' }}
-                  />
+                  >
+                    <SpriteCycle start={-30} step={eggFrame.frameWidth * eggScale} frames={eggFrame.frames} msPerFrame={eggFrame.animationSpeed} seed={egg.id} />
+                  </image>
                   {/* Team indicator for eggs */}
                   {gameState.playerCount >= 3 && eggPlayer?.team && (
                     <g transform="translate(18, -18)">
@@ -5840,14 +5824,16 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-40 - (effectAnimationFrame * 80)}
+                x={-40}
                 y={-40}
                 width={80 * 8}
                 height={80}
                 href={`${process.env.PUBLIC_URL}/sprites/ants/Auras/${getAuraSprite(playerColor)}`}
                 clipPath={`url(#aura-clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-              />
+              >
+                <animate attributeName="x" values="-40;-120;-200;-280;-360;-440;-520;-600" dur="0.8s" calcMode="discrete" repeatCount="indefinite" />
+              </image>
             </g>
           )}
           {/* Render sprite if available, otherwise fall back to emoji */}
@@ -5863,21 +5849,22 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-half - (spriteFrame.currentFrame * size)}
+                x={-half}
                 y={-half}
                 width={size * spriteFrame.frames}
                 height={size}
                 href={spriteFrame.fullPath}
                 clipPath={`url(#clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-              />
+              >
+                <SpriteCycle start={-half} step={size} frames={spriteFrame.frames} msPerFrame={spriteFrame.animationSpeed} seed={ant.id} />
+              </image>
             </g>
             );
           })() : null}
           {/* A burrowed Marauder shows as spikes breaking the ground (a Lurker) */}
           {ant.isBurrowed && ant.type === 'soldier' && (() => {
             const colorName = { '#FF0000': 'red', '#0000FF': 'blue', '#00FF00': 'green', '#FFFF00': 'yellow', '#000000': 'black' }[String(playerColor || '').toUpperCase()] || 'red';
-            const frame = spriteFrame ? spriteFrame.currentFrame % 8 : 0;
             return (
               <g opacity={hasActions ? 1 : 0.5}>
                 <defs>
@@ -5886,14 +5873,16 @@ function App() {
                   </clipPath>
                 </defs>
                 <image
-                  x={-32 - frame * 64}
+                  x={-32}
                   y={-28}
                   width={512}
                   height={64}
                   href={`${process.env.PUBLIC_URL}/sprites/ants/Marauder/marauder_burrowed_${colorName}.png`}
                   clipPath={`url(#clip-burrow-${ant.id})`}
                   style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-                />
+                >
+                  <SpriteCycle start={-32} step={64} frames={8} msPerFrame={spriteFrame?.animationSpeed || 300} seed={ant.id} />
+                </image>
               </g>
             );
           })()}
@@ -5943,14 +5932,16 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-32 - (effectAnimationFrame * 64)}
+                x={-32}
                 y={-32}
                 width={32 * 8 * 2}
                 height={32 * 2}
                 href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/ensnare_effect.png`}
                 clipPath={`url(#ensnare-clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-              />
+              >
+                <animate attributeName="x" values="-32;-96;-160;-224;-288;-352;-416;-480" dur="0.8s" calcMode="discrete" repeatCount="indefinite" />
+              </image>
             </g>
           )}
           {/* Plague effect (rendered on top of ant, twice as big as 32x32 sprite = 64x64) */}
@@ -5962,14 +5953,16 @@ function App() {
                 </clipPath>
               </defs>
               <image
-                x={-32 - (effectAnimationFrame * 64)}
+                x={-32}
                 y={-32}
                 width={32 * 8 * 2}
                 height={32 * 2}
                 href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/plague_effect.png`}
                 clipPath={`url(#plague-clip-${ant.id})`}
                 style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
-              />
+              >
+                <animate attributeName="x" values="-32;-96;-160;-224;-288;-352;-416;-480" dur="0.8s" calcMode="discrete" repeatCount="indefinite" />
+              </image>
             </g>
           )}
           {/* Rank insignia - sits just right of the health bar, only shown once promoted */}
@@ -6464,7 +6457,7 @@ function App() {
                 </clipPath>
               ))}
             </defs>
-            <g transform={`translate(${svgSize.width / 2}, ${svgSize.height / 2}) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
+            <g ref={cameraGroupRef} transform={`translate(${svgSize.width / 2}, ${svgSize.height / 2}) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
             {/* Ants Overlay - rendered on top of all hexes */}
