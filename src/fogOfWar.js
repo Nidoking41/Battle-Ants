@@ -35,7 +35,7 @@ export function getVisibleHexes(gameState, playerId) {
   let playerAntCount = 0;
   if (gameState.ants) {
     Object.values(gameState.ants).forEach(ant => {
-      if (sharedVisionPlayers.has(ant.owner)) {
+      if (sharedVisionPlayers.has(ant.owner) && !ant.lost) {
         playerAntCount++;
 
         // Base vision

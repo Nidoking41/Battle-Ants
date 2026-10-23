@@ -997,6 +997,31 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(detected.has('far')).toBe(false);
   });
 
+  test('a lost squad hides in the north-west and joins you when you see it', async () => {
+    const { moveAnt } = require('../combatSystem');
+    const { applyFogOfWar } = require('../fogOfWar');
+    let state = buildCampaignGameState(getLevel(8));
+    const lost = Object.values(state.ants).filter(a => a.lost);
+    expect(lost.map(a => a.type).sort()).toEqual(['scout', 'scout', 'soldier']);
+    // Hidden from the player, and the enemy AI leaves them where they are
+    const view = applyFogOfWar(state, 'player1');
+    lost.forEach(a => expect(view.ants[a.id]).toBeUndefined());
+    const res = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    lost.forEach(a => expect(res.gameState.ants[a.id].position).toEqual(a.position));
+    // Walk a player Scout up next to them
+    const target = lost[0];
+    const spot = hexesInRange(target.position, 2).find(h => hexDistance(h, target.position) === 2 &&
+      isValidHex(h, state.gridRadius, state.mapShape) &&
+      !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r) &&
+      !Object.values(state.trees).some(t => t.position.q === h.q && t.position.r === h.r));
+    const finder = { ...createAnt('scout', 'player1', new HexCoord(99, 99)), id: 'finder' };
+    state = { ...state, ants: { ...state.ants, finder } };
+    state = moveAnt(state, 'finder', new HexCoord(spot.q, spot.r));
+    expect(state.ants[target.id].owner).toBe('player1');
+    expect(state.ants[target.id].lost).toBeUndefined();
+    expect(state.campaign.recruited).toBeGreaterThanOrEqual(1);
+  }, 60000);
+
   test('burning all 3 watch-nests wins', () => {
     const state = buildCampaignGameState(getLevel(8));
     const won = { ...state, stats: { ...state.stats, player1: { ...state.stats.player1, anthillsDestroyed: 3 } } };

@@ -65,6 +65,8 @@ export function buildCampaignGameState(level) {
     const m = /^camp_player2_([A-Z])\d+$/.exec(a.id);
     if (m && hunterMarkers.includes(m[1])) state.ants[a.id] = { ...a, hunter: true, dormant: true };
     if (m && burrowedMarkers.includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], isBurrowed: true };
+    // enemy.lostMarkers: lost ants that join the player once she sees them
+    if (m && (level.enemy?.lostMarkers || []).includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], lost: true };
     // enemy.guardMarkers: these units hold their post even when the rest of the
     // enemy army plays normally
     if (m && (level.enemy?.guardMarkers || []).includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], guard: true };

@@ -1546,6 +1546,17 @@ function App() {
     return () => clearInterval(interval);
   }, [projectiles.length]);
 
+  // Campaign: say so when lost ants are found and join the colony
+  const recruitedCount = gameState?.campaign?.recruited || 0;
+  const lastRecruitedRef = useRef(0);
+  useEffect(() => {
+    if (recruitedCount > lastRecruitedRef.current) {
+      setFeedbackMessage('Lost ants found! They join your colony.');
+      setTimeout(() => setFeedbackMessage(''), 3000);
+    }
+    lastRecruitedRef.current = recruitedCount;
+  }, [recruitedCount]);
+
   // Animate impacts and explosions
   useEffect(() => {
     if (impacts.length === 0 && explosions.length === 0) return;

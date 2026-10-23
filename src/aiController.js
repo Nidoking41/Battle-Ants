@@ -1082,6 +1082,9 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   // A campaign Queen Larva is the enemy's heart when it has no queen
   const enemyQueen = enemies.find(a => a.type === 'queen') || enemies.find(a => a.type === 'queenLarva');
 
+  // Lost ants (campaign) wait in the fog for the player to find them
+  if (unit.lost) return { state };
+
   // The old queen never moves: she only bites what stands next to her
   if (unit.type === 'oldQueen') return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
 

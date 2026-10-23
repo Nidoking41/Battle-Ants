@@ -1480,6 +1480,10 @@ export function endTurn(rawGameState) {
       withTotals = spawned;
       finalGameState.ants = spawned.ants;
     }
+    // Lost ants that came into view (hatchlings, reveals) join the player
+    const { recruitLostAnts } = require('./campaign/lostAnts');
+    withTotals = recruitLostAnts(withTotals, 'player1');
+    finalGameState.ants = withTotals.ants;
     const result = evaluateAllObjectives(withTotals, 'player1');
     finalGameState.campaign = { ...withTotals.campaign, objectives: result.objectives };
     if (result.won) {
@@ -1922,7 +1926,7 @@ export function revealArea(gameState, queenId, targetHex) {
   // Store the revealed hexes with the player's state (lasts until end of turn)
   const currentRevealed = gameState.players[queen.owner]?.revealedHexes || [];
 
-  return {
+  const revealed = {
     ...gameState,
     ants: {
       ...gameState.ants,
@@ -1939,6 +1943,12 @@ export function revealArea(gameState, queenId, targetHex) {
       }
     }
   };
+  // Campaign: lost ants caught in the reveal join the queen's side
+  if (revealed.campaign && queen.owner === 'player1') {
+    const { recruitLostAnts } = require('./campaign/lostAnts');
+    return recruitLostAnts(revealed, 'player1');
+  }
+  return revealed;
 }
 
 // Upgrade queen to next tier

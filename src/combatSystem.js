@@ -716,7 +716,7 @@ export function moveAnt(gameState, antId, targetPosition) {
   // Normal move - just update position. A unit that cannot move and attack
   // in the same turn (the Bombardier) goes dormant once it has moved.
   const dormant = getAntTypeById(ant.type)?.cannotMoveAndAttack;
-  return {
+  const moved = {
     ...gameState,
     ants: {
       ...gameState.ants,
@@ -727,6 +727,12 @@ export function moveAnt(gameState, antId, targetPosition) {
       }
     }
   };
+  // Campaign: lost ants the mover can now see join its side
+  if (moved.campaign && ant.owner === 'player1') {
+    const { recruitLostAnts } = require('./campaign/lostAnts');
+    return recruitLostAnts(moved, 'player1');
+  }
+  return moved;
 }
 
 // Bombardier splash attack at target hex (affects 3-hex area in a line based on rotation)

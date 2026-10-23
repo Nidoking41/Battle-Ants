@@ -39,6 +39,8 @@
 //   enemy.burrowedMarkers  layout markers whose units start burrowed; they
 //                      stay hidden until one of your units comes within 2
 //                      hexes, then burst out and attack (holdPosition levels)
+//   enemy.lostMarkers  layout markers for lost ants: hidden, ignored by the
+//                      enemy AI, and they join the player as soon as she sees them
 //   enemy.huntersWakeTurn  with hunterMarkers and no midEvent: the hunters
 //                      wake on this round and march on your queen
 //   map layout 'W'     an enemy watch-nest: a finished enemy anthill
@@ -779,8 +781,8 @@ export const LEVELS = [
       layout: [
         '    T . T T T . . T . . . . T T T',
         '   . T . T T . T . . . . . . . . .',
-        '  . . T . . . . . . . . . . . . . .',
-        ' . T . . . . . . . . . . . . . . . .',
+        '  . . T . L . . . . . . . . . . . .',
+        ' . T . . . K L . . . . . . . . . . .',
         'T . T . T T . . . . T . T . . . . . .',
         ' . . . . U . . . . . . . . T . . W .',
         '. . . . . . . . . . T . . . . . R . T',
@@ -805,7 +807,7 @@ export const LEVELS = [
         '   . . . . M . T . T T T . T . . .',
         '    . . F . T . . . . T T . T . .'
       ],
-      legend: { m: 'soldier', a: 'spitter', B: 'bombardier', A: 'spitter', R: 'soldier', S: 'scout', U: 'soldier', X: 'soldier', Y: 'spitter' }
+      legend: { m: 'soldier', a: 'spitter', B: 'bombardier', A: 'spitter', R: 'soldier', S: 'scout', U: 'soldier', X: 'soldier', Y: 'spitter', L: 'scout', K: 'soldier' }
     },
     player: {
       hero: 'vexxara',
@@ -828,6 +830,9 @@ export const LEVELS = [
       // then they march on your queen
       hunterMarkers: ['X', 'Y'],
       huntersWakeTurn: 12,
+      // L and K: two Scouts and a Marauder lost in the empty north-west.
+      // No hint is given; they join you when one of your ants sees them.
+      lostMarkers: ['L', 'K'],
       unitMix: {},
       resources: { food: 0, minerals: 0 },
       units: []
