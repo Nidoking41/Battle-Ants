@@ -296,7 +296,7 @@ function App() {
   const [showVictoryModal, setShowVictoryModal] = useState(false); // Show victory/defeat popup modal
   const [showGameSummary, setShowGameSummary] = useState(false); // Show game summary screen
   const [explosions, setExplosions] = useState([]); // Array of {id, position, timestamp} for bomber explosions
-  const [spikeStrikes, setSpikeStrikes] = useState([]); // burrowed Marauder attacks: {id, from, to}
+  const [spikeStrikes, setSpikeStrikes] = useState([]); // burrowed Marauder attacks: {id, from, to, color}
   const [impacts, setImpacts] = useState([]); // acid splashes and shell blasts: {id, kind, position, timestamp}
   const [screenShake, setScreenShake] = useState(null); // {id, strength: 'light' | 'strong'}
   const [showHelpGuide, setShowHelpGuide] = useState(false); // Show help/guide popup
@@ -1455,7 +1455,9 @@ function App() {
     const countered = (damageDealt || []).some(d => d.position && hexEquals(d.position, attackerPos));
     if (!countered) return;
     const spikeId = `spikes_${Date.now()}_${Math.random()}`;
-    setSpikeStrikes(prev => [...prev, { id: spikeId, from: defender.position, to: attackerPos }]);
+    const players = getGameStateForLogic()?.players || {};
+    const color = PLAYER_COLOR_NAMES[String(defender.colorOverride || players[defender.owner]?.color || '').toUpperCase()] || 'red';
+    setSpikeStrikes(prev => [...prev, { id: spikeId, from: defender.position, to: attackerPos, color }]);
     setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), ATTACK_TIMING.spikes);
   };
 
@@ -1523,7 +1525,9 @@ function App() {
     // in a line toward the target
     if (attacker && attacker.isBurrowed && attacker.type === 'soldier') {
       const spikeId = `spikes_${Date.now()}_${Math.random()}`;
-      setSpikeStrikes(prev => [...prev, { id: spikeId, from: attacker.position, to: targetPosition }]);
+      // in the hero's colour, like the bite
+      const color = PLAYER_COLOR_NAMES[String(attacker.colorOverride || (fullGameState || gameState).players?.[attacker.owner]?.color || '').toUpperCase()] || 'red';
+      setSpikeStrikes(prev => [...prev, { id: spikeId, from: attacker.position, to: targetPosition, color }]);
       setTimeout(() => setSpikeStrikes(prev => prev.filter(s => s.id !== spikeId)), ATTACK_TIMING.spikes);
     }
 
@@ -6703,7 +6707,7 @@ function App() {
             {/* Burrowed Marauder strike: a row of pixel-art spikes (13x26 art,
                 lit and shadowed faces on a mound of dirt) erupting toward the
                 target, each one bigger than the last */}
-            {spikeStrikes.map(({ id, from, to }) => {
+            {spikeStrikes.map(({ id, from, to, color }) => {
               const a = hexToPixel(from, hexSize), b = hexToPixel(to, hexSize);
               const n = 5;
               const flip = b.x < a.x; // the art leans right; mirror it when striking left
@@ -6722,7 +6726,7 @@ function App() {
                           width={w}
                           height={h}
                           transform={flip ? 'scale(-1, 1)' : undefined}
-                          href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/spike.png`}
+                          href={`${process.env.PUBLIC_URL}/sprites/ants/Effects/spike_${color || 'red'}.png`}
                           style={{ imageRendering: 'pixelated' }}
                         />
                       </g>
