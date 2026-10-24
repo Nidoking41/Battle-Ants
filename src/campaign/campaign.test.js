@@ -1110,6 +1110,35 @@ describe("level 8 - Sorlorg's Eyes", () => {
   });
 });
 
+describe('winning without ending the turn', () => {
+  const { settleObjectivesNow } = require('./objectives');
+  test('the Bullet Ant level is won the moment the last Bullet Ant dies', () => {
+    const level = getLevel(6);
+    const kill = level.objectives.find(o => o.type === 'killUnits');
+    expect(kill.text).toMatch(/Bullet Ant/);
+    // Round 6: the wave's two Bullet Ants are on the board too
+    const { spawnDueWaves } = require('./waves');
+    const state = spawnDueWaves({ ...buildCampaignGameState(level), turn: 6 }, createAnt);
+    kill.unitIds.forEach(id => expect(state.ants[id]).toBeDefined());
+    expect(settleObjectivesNow(state).gameOver).toBeFalsy();
+    // Three dead: not yet
+    const without = ids => ({ ...state, ants: Object.fromEntries(Object.entries(state.ants).filter(([id]) => !ids.includes(id))) });
+    expect(settleObjectivesNow(without(kill.unitIds.slice(0, 3))).gameOver).toBeFalsy();
+    // The fourth dies: won on the spot
+    const won = settleObjectivesNow(without(kill.unitIds));
+    expect(won.gameOver).toBe(true);
+    expect(won.winner).toBe('player1');
+  });
+
+  test('a killAll level with waves still to come is not won early', () => {
+    const level = { ...getLevel(1), objectives: [{ type: 'killAll', text: 'Kill them all' }] };
+    const state = buildCampaignGameState(level);
+    const empty = { ...state, ants: Object.fromEntries(Object.entries(state.ants).filter(([, a]) => a.owner !== 'player2')),
+      campaign: { ...state.campaign, waves: [{ turn: 9, units: [], spawned: false }] } };
+    expect(settleObjectivesNow(empty).gameOver).toBeFalsy();
+  });
+});
+
 describe('level 9 - The Rot Below', () => {
   test('waves arrive at their spawn points, and the chamber only counts after round 8', () => {
     const { spawnDueWaves } = require('./waves');

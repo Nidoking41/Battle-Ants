@@ -134,6 +134,27 @@ export function evaluateAllObjectives(gameState, playerId = 'player1') {
   return { objectives, won, lost };
 }
 
+/**
+ * Judge the objectives straight after a player's action, so a level is won
+ * (or lost) the moment it happens instead of at End Turn. Returns the state
+ * unchanged when nothing is decided. A killAll level with reinforcement
+ * waves still to come is left to the round change, where the waves land first.
+ */
+export function settleObjectivesNow(gameState, playerId = 'player1') {
+  if (!gameState?.campaign || gameState.gameOver) return gameState;
+  const objectives = gameState.campaign.objectives || [];
+  const wavesPending = (gameState.campaign.waves || []).some(w => !w.spawned);
+  if (wavesPending && objectives.some(o => o.type === 'killAll')) return gameState;
+  const result = evaluateAllObjectives(gameState, playerId);
+  if (!result.won && !result.lost) return gameState;
+  return {
+    ...gameState,
+    gameOver: true,
+    winner: result.won ? playerId : 'player2',
+    campaign: { ...gameState.campaign, objectives: result.objectives }
+  };
+}
+
 /** Progress text for the panel, e.g. "37 / 100". Null when not applicable. */
 export function objectiveProgress(objective, gameState) {
   const stats = gameState.stats?.player1 || {};

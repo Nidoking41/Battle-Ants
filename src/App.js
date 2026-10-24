@@ -26,6 +26,7 @@ import LevelComplete from './campaign/LevelComplete';
 import CampaignMenu from './campaign/CampaignMenu';
 import Cutscene from './campaign/Cutscene';
 import { markLevelComplete } from './campaign/progress';
+import { settleObjectivesNow } from './campaign/objectives';
 import { scoreLevel } from './campaign/score';
 
 // Build panel is split into two tabs so all nine units stay reachable without
@@ -2186,6 +2187,11 @@ function App() {
       }
       // Firebase subscription will also update state when other player makes moves
     } else {
+      // Campaign: a level is won (or lost) the moment its objectives are met,
+      // not only when the turn ends
+      if (newState?.campaign && newState.currentPlayer === 'player1') {
+        newState = settleObjectivesNow(newState, 'player1');
+      }
       // For local games and AI games
       if (gameMode?.isAI) {
         // Always update fullGameState for AI games
@@ -3731,9 +3737,10 @@ function App() {
 
               // Update local state with fog of war
               const currentPlayerId = gameMode.playerRole || 'player1';
-              const filteredState = applyFogOfWar(finalState, currentPlayerId, seenAnthillsRef.current);
+              const settled = finalState.campaign ? settleObjectivesNow(finalState, 'player1') : finalState;
+              const filteredState = applyFogOfWar(settled, currentPlayerId, seenAnthillsRef.current);
               setGameState(filteredState);
-              setFullGameState(finalState);
+              setFullGameState(settled);
 
               setSelectedAction(null);
               setSelectedAnt(null);
