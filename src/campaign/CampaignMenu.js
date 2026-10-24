@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
-import { LEVELS } from './levels';
+import { LEVELS, HOTKEY_TUTORIAL } from './levels';
 import { loadProgress, saveProgress, isUnlocked, isCompleted, resetProgress, bestScore } from './progress';
 
 // Level select. A level unlocks when the one before it has been beaten.
 // Locked levels show only their number - no name or objectives - so the
 // player is not told what is coming.
 
+// The hotkey tutorial is only offered on computers with a mouse and keyboard
+function hasKeyboardAndMouse() {
+  try {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function CampaignMenu({ onStartLevel, onBack }) {
   const [progress, setProgress] = useState(() => loadProgress());
+  const [showTutorial] = useState(hasKeyboardAndMouse);
+  const tutorialDone = isCompleted(HOTKEY_TUTORIAL.id, progress);
 
   const handleReset = () => {
     resetProgress();
@@ -58,6 +69,34 @@ function CampaignMenu({ onStartLevel, onBack }) {
           </button>
           <h1 style={{ margin: 0, color: '#ffd700', textAlign: 'center' }}>Campaign</h1>
         </div>
+
+        {showTutorial && (
+          <button
+            onClick={() => onStartLevel(HOTKEY_TUTORIAL.id)}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '10px 16px',
+              marginBottom: '14px',
+              background: 'linear-gradient(145deg, #2f3b4a, #1c2430)',
+              color: '#e0e0e0',
+              border: `2px solid ${tutorialDone ? '#4ade80' : '#4a6a8a'}`,
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = '#d4a800'; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = tutorialDone ? '#4ade80' : '#4a6a8a'; }}
+          >
+            <div style={{ fontWeight: 'bold', fontSize: '16px', display: 'flex', justifyContent: 'space-between' }}>
+              <span><span style={{ marginRight: '8px' }}>&#9000;</span>{HOTKEY_TUTORIAL.name}</span>
+              {tutorialDone && <span style={{ color: '#4ade80', fontSize: '14px' }}>&#10003; Complete</span>}
+            </div>
+            <div style={{ fontSize: '13px', color: '#aaa', marginTop: '3px' }}>
+              Learn the keyboard shortcuts in under a minute
+            </div>
+          </button>
+        )}
 
         {LEVELS.map(level => {
           const unlocked = isUnlocked(level.id, progress);

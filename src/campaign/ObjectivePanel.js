@@ -49,7 +49,7 @@ function ObjectivePanel({ gameState }) {
         marginBottom: '2px',
         textAlign: 'center'
       }}>
-        {campaign.levelName ? `Level ${campaign.levelId}: ${campaign.levelName}` : 'Objectives'}
+        {campaign.levelName ? (campaign.levelId === 0 ? campaign.levelName : `Level ${campaign.levelId}: ${campaign.levelName}`) : 'Objectives'}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px 22px' }}>
       {campaign.objectives.map((o, i) => {

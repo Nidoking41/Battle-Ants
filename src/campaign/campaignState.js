@@ -70,6 +70,9 @@ export function buildCampaignGameState(level) {
     // enemy.guardMarkers: these units hold their post even when the rest of the
     // enemy army plays normally
     if (m && (level.enemy?.guardMarkers || []).includes(m[1])) state.ants[a.id] = { ...state.ants[a.id], guard: true };
+    // enemy.markerHealth: { D: 3 } - start these units at this much health
+    const markerHealth = m && level.enemy?.markerHealth?.[m[1]];
+    if (markerHealth) state.ants[a.id] = { ...state.ants[a.id], health: markerHealth };
     // enemy.markerColors: { L: '#FF0000' } - an allied hero's troops in her colour
     const markerColor = m && level.enemy?.markerColors?.[m[1]];
     if (markerColor) state.ants[a.id] = { ...state.ants[a.id], colorOverride: markerColor };

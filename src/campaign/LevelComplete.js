@@ -11,6 +11,7 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
   const won = gameState.winner === 'player1';
   const failed = (campaign.objectives || []).find(o => o.status === 'failed');
   const s = scoreLevel(gameState);
+  const tutorial = campaign.levelId === 0;
 
   return (
     <div style={{
@@ -34,10 +35,10 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
         boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)'
       }}>
         <div style={{ fontSize: '13px', color: '#999', letterSpacing: '1px', textTransform: 'uppercase' }}>
-          Level {campaign.levelId}{campaign.levelName ? ` · ${campaign.levelName}` : ''}
+          {tutorial ? campaign.levelName : <>Level {campaign.levelId}{campaign.levelName ? ` · ${campaign.levelName}` : ''}</>}
         </div>
         <h2 style={{ margin: '8px 0 14px', fontSize: '28px', color: won ? '#4ade80' : '#f87171' }}>
-          {won ? 'Level Complete' : 'Level Failed'}
+          {tutorial && won ? 'Tutorial Complete' : won ? 'Level Complete' : 'Level Failed'}
         </h2>
         {!won && failed && (
           <p style={{ margin: '0 0 14px', color: '#ccc' }}>{failed.text} — failed.</p>
@@ -52,7 +53,8 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
             </div>
           ))}
         </div>
-        <div style={{
+        {/* The hotkey tutorial has nothing worth scoring */}
+        {!tutorial && <div style={{
           margin: '0 auto 20px',
           padding: '12px 16px',
           background: 'rgba(0, 0, 0, 0.35)',
@@ -91,11 +93,11 @@ function LevelComplete({ gameState, onRetry, onNext, onMenu }) {
             <span>Score</span>
             <span>{s.score}</span>
           </div>
-        </div>
+        </div>}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           {won && onNext && (
             <button onClick={onNext} style={buttonStyle('#16a34a')}>
-              Next Level
+              {tutorial ? 'Start Level 1' : 'Next Level'}
             </button>
           )}
           <button onClick={onRetry} style={buttonStyle('#3b82f6')}>

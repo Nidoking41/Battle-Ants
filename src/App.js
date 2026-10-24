@@ -351,6 +351,8 @@ function App() {
 
   // Campaign tutorial pop-up (level.tutorialTip): hidden once the player clicks Got it
   const [tipDismissed, setTipDismissed] = useState(false);
+  // Hotkey tutorial: the furthest step the player has reached
+  const tutorialStepRef = useRef(0);
   // Campaign UI pop-ups (level.uiTips): which step is showing, and where its
   // target button sits on screen
   const [uiTipStep, setUiTipStep] = useState(0);
@@ -874,7 +876,7 @@ function App() {
             return;
           case 'o':
             // Soldier (marauder)
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Soldier hotkey - hatching soldier');
               e.preventDefault();
               handleLayEgg('soldier');
@@ -908,6 +910,12 @@ function App() {
           case 'x':
             console.log('Detonate hotkey triggered (X key)');
             e.preventDefault();
+            // X also picks the Exploding ant egg while the queen is laying
+            if (ant && ant.type !== 'bomber' && ((selectedEggHex && !selectedEggHex.antType) || selectedAction === 'layEgg')) {
+              if (selectedEggHex && !selectedEggHex.antType) handleLayEgg('bomber');
+              else setPendingEggType('bomber');
+              return;
+            }
             // Detonate action (for bombers only)
             if (ant && ant.type === 'bomber') {
               setSelectedAction('detonate');
@@ -925,7 +933,7 @@ function App() {
             return;
           case 'd':
             // If ant type selector is showing, directly hatch drone
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Drone hotkey - hatching drone');
               e.preventDefault();
               handleLayEgg('drone');
@@ -935,7 +943,7 @@ function App() {
             break; // not choosing an egg: D pans the camera
           case 's':
             // Don't allow camera panning when ant type selector is showing
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Scout hotkey - hatching scout');
               e.preventDefault();
               handleLayEgg('scout');
@@ -945,7 +953,7 @@ function App() {
             break; // not choosing an egg: S pans the camera
           case 't':
             // Tank (bullet ant) - changed from 'b' to avoid conflict with build
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Tank hotkey - hatching tank');
               e.preventDefault();
               handleLayEgg('tank');
@@ -960,7 +968,7 @@ function App() {
             return;
           case 'z':
             // Spitter (acid ant)
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Spitter hotkey - hatching spitter');
               e.preventDefault();
               handleLayEgg('spitter');
@@ -975,7 +983,7 @@ function App() {
             return;
           case 'x':
             // Bomber (exploding ant)
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Bomber hotkey - hatching bomber');
               e.preventDefault();
               handleLayEgg('bomber');
@@ -990,7 +998,7 @@ function App() {
             return;
           case 'r':
             // Bombardier
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Bombardier hotkey - hatching bombardier');
               e.preventDefault();
               handleLayEgg('bombardier');
@@ -1005,7 +1013,7 @@ function App() {
             return;
           case 'w':
             // Healer (weaver ant) - conflicts with camera up, but ant selector takes priority
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Healer hotkey - hatching healer');
               e.preventDefault();
               handleLayEgg('healer');
@@ -1015,7 +1023,7 @@ function App() {
             break; // not choosing an egg: W pans the camera
           case 'c':
             // Cordyphage
-            if (showAntTypeSelector && selectedEggHex) {
+            if (selectedEggHex && !selectedEggHex.antType) {
               console.log('Cordyphage hotkey - hatching cordyphage');
               e.preventDefault();
               handleLayEgg('cordyphage');
@@ -1136,7 +1144,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions, escapePressed]);
+  }, [gameState, gameMode, selectedAnt, selectedAction, attackTarget, attackPositions, escapePressed, selectedEggHex, pendingEggType]);
 
   // Center camera on queen when game starts
   useEffect(() => {
@@ -2294,6 +2302,7 @@ function App() {
       });
       setFullGameState(state);
       shownHeroPopupsRef.current = new Set(); // a fresh start shows the level's hero pop-ups again
+      tutorialStepRef.current = 0;
       setGameState(campaignFog ? applyFogOfWar(state, 'player1', (seenAnthillsRef.current = {})) : state);
       return;
     }
@@ -6353,7 +6362,7 @@ function App() {
                     'scout': 'S',
                     'soldier': 'O',
                     'tank': 'T',
-                    'spitter': 'I',
+                    'spitter': 'Z',
                     'bomber': 'X',
                     'bombardier': 'R',
                     'healer': 'W',
@@ -8281,6 +8290,60 @@ function App() {
               <div style={{ color: '#eee', fontSize: '14px', lineHeight: 1.35 }}>{heroPopup.text}</div>
               <div style={{ color: '#888', fontSize: '11px', marginTop: '6px', textAlign: 'right' }}>click to close</div>
             </div>
+          </div>
+        );
+      })()}
+
+      {/* Hotkey tutorial: one step at a time. A step stays ticked once done,
+          so pressing Esc or clicking around never sends the player backwards. */}
+      {gameState.campaign && !gameState.gameOver && getLevel(gameState.campaign.levelId)?.hotkeyTutorial && (() => {
+        const ants = Object.values(gameState.ants || {});
+        const sel = selectedAnt && gameState.ants[selectedAnt];
+        const laid = Object.values(gameState.eggs || {}).some(e => e.owner === 'player1');
+        const reached = [
+          sel?.type === 'queen' && sel.owner === 'player1',
+          !!(selectedEggHex && !selectedEggHex.antType),
+          laid,
+          sel?.type === 'soldier' && sel.owner === 'player1',
+          sel?.type === 'soldier' && selectedAction === 'attack'
+        ];
+        // Steps go in order: only the step on screen can be ticked off
+        // (except a laid egg, which also covers the egg-spot step before it)
+        if (laid) tutorialStepRef.current = Math.max(tutorialStepRef.current, 3);
+        while (tutorialStepRef.current < reached.length && reached[tutorialStepRef.current]) tutorialStepRef.current++;
+        const step = tutorialStepRef.current;
+        const steps = [
+          <>Press <kbd>Q</kbd> to select your queen.</>,
+          <>Click one of the glowing egg spots next to her.</>,
+          <>Press <kbd>O</kbd> to lay a Marauder egg. (<kbd>D</kbd> Drone, <kbd>S</kbd> Scout, <kbd>Z</kbd> Acid Ant)</>,
+          <>Press <kbd>Tab</kbd> until your Marauder is selected.</>,
+          <>Press <kbd>A</kbd>, then click the enemy Drone to attack it.</>
+        ];
+        const current = Math.min(step, steps.length - 1);
+        const hasDummy = ants.some(a => a.id === 'camp_player2_D1');
+        if (!hasDummy) return null;
+        return (
+          <div className="hotkey-tutorial" style={{
+            // Sits in the empty part of the right-hand panel, above End Turn
+            position: 'fixed',
+            bottom: '72px',
+            right: '14px',
+            width: '172px',
+            boxSizing: 'border-box',
+            padding: '12px 16px',
+            background: 'rgba(16, 12, 20, 0.95)',
+            border: '2px solid #ffd34d',
+            borderRadius: '8px',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
+            color: '#eee',
+            fontSize: '15px',
+            zIndex: 3400,
+            pointerEvents: 'none'
+          }}>
+            <div style={{ color: '#ffd34d', fontWeight: 'bold', fontSize: '12px', letterSpacing: '1px', marginBottom: '6px' }}>
+              STEP {current + 1} OF {steps.length}
+            </div>
+            <div key={current} style={{ lineHeight: 1.4, animation: 'feedbackPop 0.18s ease-out' }}>{steps[current]}</div>
           </div>
         );
       })()}

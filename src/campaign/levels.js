@@ -1305,6 +1305,56 @@ export const LEVELS = [
   }
 ];
 
+// Hotkey tutorial: shown above level 1 on computers with a keyboard (see
+// CampaignMenu). Teaches Q (queen), clicking an egg spot and an ant-type key,
+// then Tab and A to attack. App.js shows the step-by-step box
+// (hotkeyTutorial: true); finishing both objectives completes it.
+export const HOTKEY_TUTORIAL = {
+  id: 0,
+  name: 'Hotkey Tutorial',
+  keyboardOnly: true,
+  hotkeyTutorial: true,
+  cameraOnArmy: true,
+  briefing: ['Learn the keyboard shortcuts: select your queen, lay an egg, and attack - all from the keyboard.'],
+  map: {
+    layout: [
+        '   .',
+        '  . .',
+        ' . 1 .',
+        '. . . .',
+        ' . . .',
+        '. . . .',
+        ' . . .',
+        '. . . .',
+        ' . . .',
+        '. m . .',
+        ' . D .',
+        '  . .',
+        '   .'
+    ],
+    legend: { m: 'soldier', D: 'drone' }
+  },
+  player: {
+    hero: 'vexxara',
+    queenTier: 'queen',
+    resources: { food: 100, minerals: 50 },
+    roster: ['drone', 'soldier', 'scout', 'spitter'],
+    units: []
+  },
+  enemy: {
+    queenTier: null,
+    behavior: 'passive',
+    units: [],
+    // the practice target goes down in one bite
+    markerHealth: { D: 3 }
+  },
+  objectives: [
+    { type: 'layEgg', text: 'Lay an egg with the keyboard' },
+    { type: 'killUnit', unitId: 'camp_player2_D1', text: 'Attack the enemy Drone' }
+  ]
+};
+
 export function getLevel(id) {
+  if (id === HOTKEY_TUTORIAL.id) return HOTKEY_TUTORIAL;
   return LEVELS.find(l => l.id === id) || null;
 }

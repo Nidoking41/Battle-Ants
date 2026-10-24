@@ -79,6 +79,13 @@ function baseStatus(objective, gameState, playerId) {
       return status(movers.some(a => targets.some(t => a.position.q === t.q && a.position.r === t.r)));
     }
 
+    case 'layEgg': {
+      // An egg on the board, or one that has already hatched
+      const laid = Object.values(gameState.eggs || {}).some(e => e.owner === playerId) ||
+        Object.values(stats.antsHatched || {}).some(v => v > 0);
+      return status(laid);
+    }
+
     case 'hatch': {
       const hatched = stats.antsHatched || {};
       const n = objective.unitType
@@ -146,7 +153,11 @@ export function settleObjectivesNow(gameState, playerId = 'player1') {
   const wavesPending = (gameState.campaign.waves || []).some(w => !w.spawned);
   if (wavesPending && objectives.some(o => o.type === 'killAll')) return gameState;
   const result = evaluateAllObjectives(gameState, playerId);
-  if (!result.won && !result.lost) return gameState;
+  if (!result.won && !result.lost) {
+    // Not decided yet, but tick off any goal that is now met
+    const changed = result.objectives.some((o, i) => o.status !== objectives[i]?.status);
+    return changed ? { ...gameState, campaign: { ...gameState.campaign, objectives: result.objectives } } : gameState;
+  }
   return {
     ...gameState,
     gameOver: true,

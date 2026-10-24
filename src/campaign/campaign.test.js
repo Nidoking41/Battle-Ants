@@ -1328,3 +1328,26 @@ describe('level 12 - The Throne Mound', () => {
     expect(evaluateAllObjectives(dead).won).toBe(true);
   }, 60000);
 });
+
+describe('hotkey tutorial', () => {
+  const { settleObjectivesNow } = require('./objectives');
+  const { createEgg } = require('../gameState');
+  test('lay an egg, then kill the 3-health Drone, and it is won at once', () => {
+    const level = getLevel(0);
+    expect(level.hotkeyTutorial).toBe(true);
+    const state = buildCampaignGameState(level);
+    const dummy = state.ants.camp_player2_D1;
+    expect(dummy.health).toBe(3);
+    const soldier = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'soldier');
+    expect(hexDistance(soldier.position, dummy.position)).toBe(1);
+    const noDummy = { ...state, ants: Object.fromEntries(Object.entries(state.ants).filter(([id]) => id !== dummy.id)) };
+    // Killing the Drone alone is not enough: an egg has to be laid too
+    expect(settleObjectivesNow(noDummy).gameOver).toBeFalsy();
+    const queen = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'queen');
+    const spot = getNeighbors(queen.position).find(h => isValidHex(h, state.gridRadius, state.mapShape));
+    const egg = createEgg('soldier', 'player1', spot, state.turn);
+    const won = settleObjectivesNow({ ...noDummy, eggs: { [egg.id]: egg } });
+    expect(won.gameOver).toBe(true);
+    expect(won.winner).toBe('player1');
+  });
+});

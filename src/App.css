@@ -456,3 +456,19 @@ body, html {
   0%, 35% { filter: grayscale(1) brightness(0.85); }
   100% { filter: grayscale(0) brightness(1); }
 }
+
+/* Key caps in the hotkey tutorial */
+.hotkey-tutorial kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  background: #2b2b2b;
+  border: 1px solid #777;
+  border-bottom-width: 3px;
+  border-radius: 4px;
+  color: #ffd34d;
+  font-family: monospace;
+  font-weight: bold;
+  text-align: center;
+}
