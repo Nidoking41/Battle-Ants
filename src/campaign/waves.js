@@ -61,6 +61,57 @@ export function spawnDueWaves(state, createAnt) {
   };
 }
 
+/**
+ * Level 8's last stand: when `allOut.after` watch-nests have burned, `units`
+ * arrive beside the last nest still standing and the whole enemy army goes
+ * for the player's queen - aggressive, scouts too, guards leave their posts,
+ * ambushers burst out of the ground and sleeping hunters wake. Fires once.
+ */
+export function spawnAllOutAttack(state, createAnt) {
+  const allOut = state.campaign?.allOut;
+  if (!allOut || allOut.fired) return state;
+  const nests = Object.values(state.anthills || {}).filter(h => h.isWatchNest);
+  if (allOut.nestsAtStart - nests.length < allOut.after) return state;
+
+  const ants = {};
+  Object.entries(state.ants).forEach(([id, a]) => {
+    ants[id] = a.owner === ENEMY && !a.lost
+      ? { ...a, guard: false, dormant: false, isBurrowed: false }
+      : a;
+  });
+  const anchor = nests[0]?.position;
+  if (anchor) {
+    const taken = h => Object.values(ants).some(a => a.position.q === h.q && a.position.r === h.r);
+    const spots = hexesInRange(anchor, 3)
+      .filter(h => isValidHex(h, state.gridRadius, state.mapShape) && !taken(h) &&
+        !(h.q === anchor.q && h.r === anchor.r))
+      .sort((a, b) => hexDistance(a, anchor) - hexDistance(b, anchor));
+    let n = 0;
+    (allOut.units || []).forEach(({ type, count = 1 }) => {
+      for (let i = 0; i < count; i++) {
+        const pos = spots.shift();
+        if (!pos) return;
+        const ant = createAnt(type, ENEMY, pos, state.players?.[ENEMY]?.heroId || null);
+        ant.id = `camp_allout_${type}${++n}`;
+        ants[ant.id] = ant;
+      }
+    });
+  }
+  return {
+    ...state,
+    ants,
+    campaign: {
+      ...state.campaign,
+      allOut: { ...allOut, fired: true },
+      events: [...(state.campaign.events || []), 'allOut'],
+      enemyHunts: true,
+      enemyAggressive: true,
+      enemyHuntsWithScouts: true,
+      enemyHoldPosition: false
+    }
+  };
+}
+
 /** Next wave still to come, or null. For the objective strip. */
 export function nextWave(campaign, turn) {
   const pending = (campaign?.waves || []).filter(w => !w.spawned && w.turn > turn);

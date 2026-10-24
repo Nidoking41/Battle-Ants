@@ -258,14 +258,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState]);
   // Campaign hero pop-ups (level.heroPopups): a small box with a hero's
-  // portrait and one line, shown once when its round comes round
+  // portrait and one line, shown once when its round comes (`turn`) or when
+  // a named moment has happened (`event`, see campaign.events)
   const [heroPopup, setHeroPopup] = useState(null);
   const shownHeroPopupsRef = useRef(new Set());
   useEffect(() => {
     const c = gameState.campaign;
     if (!c || heroPopup || midEventScene || gameState.gameOver || gameState.currentPlayer !== 'player1') return;
     const popups = getLevel(c.levelId)?.heroPopups || [];
-    const i = popups.findIndex((p, idx) => (gameState.turn || 1) >= p.turn && !shownHeroPopupsRef.current.has(`${c.levelId}:${idx}`));
+    const due = p => (p.event ? (c.events || []).includes(p.event) : (gameState.turn || 1) >= p.turn);
+    const i = popups.findIndex((p, idx) => due(p) && !shownHeroPopupsRef.current.has(`${c.levelId}:${idx}`));
     if (i < 0) return;
     shownHeroPopupsRef.current.add(`${c.levelId}:${i}`);
     setHeroPopup(popups[i]);

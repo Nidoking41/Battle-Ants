@@ -127,6 +127,14 @@ export function buildCampaignGameState(level) {
       .map(a => a.id),
     // Scripted reinforcements; spawnDueWaves flips `spawned` as they land.
     waves: (level.enemy?.waves || []).map(w => ({ ...w, spawned: false })),
+    // enemy.allOutAfterNests: once this many watch-nests have burned, the
+    // enemy gets reinforcements at the last nest and throws everything at the
+    // player's queen (spawnAllOutAttack in waves.js)
+    allOut: level.enemy?.allOutAfterNests
+      ? { ...level.enemy.allOutAfterNests, nestsAtStart: Object.values(state.anthills || {}).filter(h => h.isWatchNest).length, fired: false }
+      : null,
+    // Named moments that have happened (for level.heroPopups with `event`)
+    events: [],
     // Running totals for `gather` objectives, so spending never un-completes one.
     gathered: { food: 0, minerals: 0 },
     objectives: (level.objectives || []).map(o => ({ ...o, status: 'pending' }))

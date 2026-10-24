@@ -1483,6 +1483,10 @@ export function endTurn(rawGameState) {
       withTotals = spawned;
       finalGameState.ants = spawned.ants;
     }
+    // Level 8: burning the 2nd watch-nest brings the enemy's last stand
+    const { spawnAllOutAttack } = require('./campaign/waves');
+    withTotals = spawnAllOutAttack(withTotals, createAnt);
+    finalGameState.ants = withTotals.ants;
     // Lost ants that came into view (hatchlings, reveals) join the player
     const { recruitLostAnts } = require('./campaign/lostAnts');
     withTotals = recruitLostAnts(withTotals, 'player1');

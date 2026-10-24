@@ -822,6 +822,9 @@ export const LEVELS = [
       // then they march on your queen
       hunterMarkers: ['X', 'Y'],
       huntersWakeTurn: 12,
+      // After the 2nd watch-nest burns: 6 Acid Ants arrive at the last nest
+      // and everything Sorlorg has charges the player's queen
+      allOutAfterNests: { after: 2, units: [{ type: 'spitter', count: 6 }] },
       // L and K: two Scouts and a Marauder lost in the empty north-west.
       // No hint is given; they join you when one of your ants sees them.
       lostMarkers: ['L', 'K'],
@@ -829,6 +832,9 @@ export const LEVELS = [
       resources: { food: 0, minerals: 0 },
       units: []
     },
+    heroPopups: [
+      { event: 'allOut', hero: 'sorlorg', text: 'Two of my eyes, burned out? Then I am done watching. Every claw I have - bring me the Lifebinder\'s queen!' }
+    ],
     uiTips: [
       { target: 'upgrades', title: 'Burrow', text: 'Sorlorg\'s Marauders hide underground and burst out when you walk past. Buy the Burrow upgrade to do it back: a burrowed ant is hidden, heals each turn, and can pop up next to an enemy and strike. Scouts can smell burrowed ants within 2 hexes.' },
       { target: 'upgrades', title: 'Emissary', text: 'New: the Queen\'s Emissary (Advanced tab). Walk it out across the map and press Deploy as Broodwarden: it wraps itself in a cocoon, and one turn later opens as a Broodwarden, a young queen with 2 egg spots, so you can hatch ants right at the front. A Broodwarden cannot move, attack or heal, and has only 30 health - guard her.' }

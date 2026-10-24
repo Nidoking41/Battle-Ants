@@ -997,6 +997,39 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(detected.has('far')).toBe(false);
   });
 
+  test('burning the 2nd watch-nest brings 6 Acid Ants and an all-out attack on the queen', async () => {
+    const { executeAITurn } = require('../aiController');
+    let state = buildCampaignGameState(getLevel(8));
+    const nests = Object.values(state.anthills).filter(h => h.isWatchNest);
+    const queen = state.ants[PLAYER_QUEEN_ID];
+    // One nest down: nothing yet
+    const burn = (st, ids) => ({ ...st, anthills: Object.fromEntries(Object.entries(st.anthills).filter(([id]) => !ids.includes(id))) });
+    state = endTurn(burn(state, [nests[0].id])).gameState;
+    expect(Object.keys(state.ants).some(id => id.startsWith('camp_allout_'))).toBe(false);
+    // Two down: the last stand
+    state = endTurn(burn(state, [nests[1].id])).gameState;
+    const fresh = Object.values(state.ants).filter(a => a.id.startsWith('camp_allout_'));
+    expect(fresh).toHaveLength(6);
+    fresh.forEach(a => {
+      expect(a.type).toBe('spitter');
+      expect(hexDistance(a.position, nests[2].position)).toBeLessThanOrEqual(3);
+    });
+    expect(state.campaign.events).toContain('allOut');
+    expect(state.campaign.enemyHunts).toBe(true);
+    expect(state.campaign.enemyHoldPosition).toBe(false);
+    const enemy = () => Object.values(state.ants).filter(a => a.owner === 'player2' && !a.lost);
+    expect(enemy().some(a => a.isBurrowed || a.guard || a.dormant)).toBe(false);
+    // It fires once
+    state = endTurn(state).gameState;
+    expect(Object.values(state.ants).filter(a => a.id.startsWith('camp_allout_'))).toHaveLength(6);
+    // The army closes on the queen
+    const avg = () => enemy().reduce((t, a) => t + hexDistance(a.position, queen.position), 0) / enemy().length;
+    const before = avg();
+    state = (await executeAITurn(state, 'player2', 'medium', { fogOfWar: true })).gameState;
+    expect(avg()).toBeLessThan(before - 1);
+    expect(getLevel(8).heroPopups[0]).toMatchObject({ event: 'allOut', hero: 'sorlorg' });
+  }, 60000);
+
   test('watch-nests never run dry, however many rounds pass', () => {
     let state = buildCampaignGameState(getLevel(8));
     const ids = Object.values(state.anthills).filter(h => h.isWatchNest).map(h => h.id);
