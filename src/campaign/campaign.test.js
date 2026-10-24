@@ -1332,7 +1332,7 @@ describe('level 12 - The Throne Mound', () => {
 describe('hotkey tutorial', () => {
   const { settleObjectivesNow } = require('./objectives');
   const { createEgg } = require('../gameState');
-  test('lay an egg, then kill the 3-health Drone, and it is won at once', () => {
+  test('lay an egg, build an anthill, then kill the 3-health Drone, and it is won at once', () => {
     const level = getLevel(0);
     expect(level.hotkeyTutorial).toBe(true);
     const state = buildCampaignGameState(level);
@@ -1346,7 +1346,13 @@ describe('hotkey tutorial', () => {
     const queen = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'queen');
     const spot = getNeighbors(queen.position).find(h => isValidHex(h, state.gridRadius, state.mapShape));
     const egg = createEgg('soldier', 'player1', spot, state.turn);
-    const won = settleObjectivesNow({ ...noDummy, eggs: { [egg.id]: egg } });
+    // ...and an anthill started on the food node beside the Drone
+    const drone = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'drone');
+    const food = Object.values(state.resources).find(r => hexDistance(r.position, drone.position) === 1);
+    expect(food).toBeDefined();
+    expect(settleObjectivesNow({ ...noDummy, eggs: { [egg.id]: egg } }).gameOver).toBeFalsy();
+    const hill = { id: 'h1', owner: 'player1', position: food.position, resourceType: food.type, isComplete: false };
+    const won = settleObjectivesNow({ ...noDummy, eggs: { [egg.id]: egg }, anthills: { h1: hill } });
     expect(won.gameOver).toBe(true);
     expect(won.winner).toBe('player1');
   });

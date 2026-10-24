@@ -2890,7 +2890,7 @@ function App() {
 
     // Check if drone can build anthill
     if (ant.type === 'drone') {
-      const isOnResourceNode = state.resourceNodes ? Object.values(state.resourceNodes).some(
+      const isOnResourceNode = state.resources ? Object.values(state.resources).some(
         node => node.position.q === ant.position.q && node.position.r === ant.position.r
       ) : false;
       if (isOnResourceNode) return true;
@@ -8300,22 +8300,32 @@ function App() {
         const ants = Object.values(gameState.ants || {});
         const sel = selectedAnt && gameState.ants[selectedAnt];
         const laid = Object.values(gameState.eggs || {}).some(e => e.owner === 'player1');
+        const builtAnthill = Object.values(gameState.anthills || {}).some(h => h.owner === 'player1');
+        const onNode = sel?.type === 'drone' && sel.owner === 'player1' &&
+          Object.values(gameState.resources || {}).some(r => hexEquals(r.position, sel.position));
         const reached = [
           sel?.type === 'queen' && sel.owner === 'player1',
           !!(selectedEggHex && !selectedEggHex.antType),
           laid,
+          sel?.type === 'drone' && sel.owner === 'player1',
+          onNode,
+          builtAnthill,
           sel?.type === 'soldier' && sel.owner === 'player1',
           sel?.type === 'soldier' && selectedAction === 'attack'
         ];
         // Steps go in order: only the step on screen can be ticked off
-        // (except a laid egg, which also covers the egg-spot step before it)
+        // (except a laid egg or a started anthill, which also cover the steps before them)
         if (laid) tutorialStepRef.current = Math.max(tutorialStepRef.current, 3);
+        if (builtAnthill) tutorialStepRef.current = Math.max(tutorialStepRef.current, 6);
         while (tutorialStepRef.current < reached.length && reached[tutorialStepRef.current]) tutorialStepRef.current++;
         const step = tutorialStepRef.current;
         const steps = [
           <>Press <kbd>Q</kbd> to select your queen.</>,
           <>Click one of the glowing egg spots next to her.</>,
           <>Press <kbd>O</kbd> to lay a Marauder egg. (<kbd>D</kbd> Drone, <kbd>S</kbd> Scout, <kbd>Z</kbd> Acid Ant)</>,
+          <>Press <kbd>Tab</kbd> until your Drone is selected.</>,
+          <>Press <kbd>M</kbd>, then click the food node next to her.</>,
+          <>Press <kbd>B</kbd> to build an anthill on the food.</>,
           <>Press <kbd>Tab</kbd> until your Marauder is selected.</>,
           <>Press <kbd>A</kbd>, then click the enemy Drone to attack it.</>
         ];

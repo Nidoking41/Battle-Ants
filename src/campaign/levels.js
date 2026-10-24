@@ -1315,15 +1315,15 @@ export const HOTKEY_TUTORIAL = {
   keyboardOnly: true,
   hotkeyTutorial: true,
   cameraOnArmy: true,
-  briefing: ['Learn the keyboard shortcuts: select your queen, lay an egg, and attack - all from the keyboard.'],
+  briefing: ['Learn the keyboard shortcuts: select your queen, lay an egg, build an anthill and attack - all from the keyboard.'],
   map: {
     layout: [
         '   .',
         '  . .',
         ' . 1 .',
         '. . . .',
-        ' . . .',
-        '. . . .',
+        ' w . .',
+        '. F . .',
         ' . . .',
         '. . . .',
         ' . . .',
@@ -1332,7 +1332,7 @@ export const HOTKEY_TUTORIAL = {
         '  . .',
         '   .'
     ],
-    legend: { m: 'soldier', D: 'drone' }
+    legend: { m: 'soldier', w: 'drone', D: 'drone' }
   },
   player: {
     hero: 'vexxara',
@@ -1350,6 +1350,7 @@ export const HOTKEY_TUTORIAL = {
   },
   objectives: [
     { type: 'layEgg', text: 'Lay an egg with the keyboard' },
+    { type: 'buildAnthill', text: 'Build an anthill' },
     { type: 'killUnit', unitId: 'camp_player2_D1', text: 'Attack the enemy Drone' }
   ]
 };

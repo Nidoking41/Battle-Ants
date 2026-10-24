@@ -79,6 +79,9 @@ function baseStatus(objective, gameState, playerId) {
       return status(movers.some(a => targets.some(t => a.position.q === t.q && a.position.r === t.r)));
     }
 
+    case 'buildAnthill':
+      // Started counts: the drone has laid the foundations
+      return status(Object.values(gameState.anthills || {}).some(h => h.owner === playerId));
     case 'layEgg': {
       // An egg on the board, or one that has already hatched
       const laid = Object.values(gameState.eggs || {}).some(e => e.owner === playerId) ||
