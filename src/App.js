@@ -5201,9 +5201,9 @@ function App() {
               />
             )}
             {anthill && (
-              // An ant standing on the hill: the mound shrinks into the hex's
-              // upper-right corner (like a resource node) so the ant is clear
-              <g transform={ant ? "translate(22, -14) scale(0.55)" : ""}>
+              // An ant standing on the hill is simply drawn on top of it: the
+              // mound keeps its full size and place
+              <g>
                 {/* Anthill sprite (32x32 pixel art shown at 48px): a finished mound,
                     or a half-built one while under construction. The base of the
                     mound is in the owner's colour. */}
@@ -5418,10 +5418,10 @@ function App() {
                 }}
               />
             )}
-            {/* An unclaimed Mine or Honeypot: drawn full size like an anthill
-                (shrunk into the corner when an ant stands on it) */}
+            {/* An unclaimed Mine or Honeypot: drawn full size like an anthill,
+                with any ant standing there drawn on top */}
             {resource?.permanent && !anthill && isVisible && (
-              <g transform={ant ? "translate(22, -14) scale(0.55)" : ""}>
+              <g>
                 <image
                   x={-24}
                   y={-29}
