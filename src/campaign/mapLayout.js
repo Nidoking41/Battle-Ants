@@ -16,6 +16,8 @@ import { HexCoord } from '../hexUtils';
 //   '~'  water: drawn as a blue hex but NOT part of the map - nothing can
 //        enter it, stand on it, or be placed on it
 //   'T'  tree              'F' food node       'M' mineral node
+//   '@'  Honeypot: a food node that never runs out
+//   '*'  Mine: a mineral node that never runs out
 //   'G'  goal hex: open ground an escort objective must reach
 //   'W'  enemy watch-nest: a finished enemy anthill on a mineral node
 //   '%'  fungus-covered ground: open, just drawn pale and rotten
@@ -109,6 +111,8 @@ export function parseLayout(rows, legend = {}) {
     if (ch === 'T') { trees.push(pos); return; }
     if (ch === 'F') { resources.push({ type: 'food', position: pos }); return; }
     if (ch === 'M') { resources.push({ type: 'minerals', position: pos }); return; }
+    if (ch === '@') { resources.push({ type: 'food', position: pos, permanent: true }); return; }
+    if (ch === '*') { resources.push({ type: 'minerals', position: pos, permanent: true }); return; }
     if (ch === 'W') { resources.push({ type: 'minerals', position: pos }); watchNests.push(pos); return; }
     if (ch === '1' || ch === '2') {
       const side = ch === '1' ? 'player1' : 'player2';

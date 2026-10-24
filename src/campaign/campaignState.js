@@ -186,7 +186,7 @@ export function applyMapLayout(state, rows, legend = {}) {
   state.resources = {};
   layout.resources.forEach((res, i) => {
     const id = `resource_c${i + 1}`;
-    state.resources[id] = { id, type: res.type, position: res.position };
+    state.resources[id] = { id, type: res.type, position: res.position, ...(res.permanent ? { permanent: true } : {}) };
   });
   state.trees = {};
   layout.trees.forEach((pos, i) => {

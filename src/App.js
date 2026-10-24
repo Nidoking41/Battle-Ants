@@ -168,6 +168,10 @@ function getTerrainType(q, r, waterKeys) {
 }
 
 // ---- Anthills ----
+// Nodes that never run out: a Mine (minerals) and a Honeypot (food)
+const permanentNodeSprite = type => (type === 'food' ? 'honeypot' : 'mine');
+const permanentNodeName = type => (type === 'food' ? 'Honeypot' : 'Mine');
+
 // Player colours that have their own anthill sprite.
 const PLAYER_COLOR_NAMES = {
   '#FF0000': 'red',
@@ -188,7 +192,8 @@ function getAnthillSprite(anthill, players) {
   // Sorlorg's watch-nests (campaign level 8): a taller spire with a watching
   // eye, 40x52 art drawn bigger than a normal mound
   if (anthill.isWatchNest) return { file: `watch_nest_${colorName || 'red'}.png`, hasOwnerColor: true, big: true };
-  const shape = anthill.isComplete ? 'anthill' : 'anthill_building';
+  // Mines and Honeypots: a mound with crystals or honey set into it
+  const shape = !anthill.isComplete ? 'anthill_building' : anthill.permanent ? permanentNodeSprite(anthill.resourceType) : 'anthill';
   return {
     file: `${shape}${colorName ? `_${colorName}` : ''}.png`,
     hasOwnerColor: Boolean(colorName)
@@ -5196,7 +5201,9 @@ function App() {
               />
             )}
             {anthill && (
-              <g transform={ant ? "translate(15, -15)" : ""}>
+              // An ant standing on the hill: the mound shrinks into the hex's
+              // upper-right corner (like a resource node) so the ant is clear
+              <g transform={ant ? "translate(22, -14) scale(0.55)" : ""}>
                 {/* Anthill sprite (32x32 pixel art shown at 48px): a finished mound,
                     or a half-built one while under construction. The base of the
                     mound is in the owner's colour. */}
@@ -5411,7 +5418,21 @@ function App() {
                 }}
               />
             )}
-            {resource && !anthill && isVisible && (
+            {/* An unclaimed Mine or Honeypot: drawn full size like an anthill
+                (shrunk into the corner when an ant stands on it) */}
+            {resource?.permanent && !anthill && isVisible && (
+              <g transform={ant ? "translate(22, -14) scale(0.55)" : ""}>
+                <image
+                  x={-24}
+                  y={-29}
+                  width={48}
+                  height={48}
+                  href={`${process.env.PUBLIC_URL}/sprites/anthill/${permanentNodeSprite(resource.type)}.png`}
+                  style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
+                />
+              </g>
+            )}
+            {resource && !resource.permanent && !anthill && isVisible && (
               <g transform="translate(14, -22)">
                 {/* Resource sprite (32x32 pixel art), always 32px in the upper-right
                     corner of the hex, so it looks the same whether or not an ant is standing there */}
@@ -6990,10 +7011,13 @@ function App() {
           {/* Selected Anthill Info */}
           {selectedAnthill && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(40, 167, 69, 0.5)' }}>
-              <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>Anthill Info</h4>
+              <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>{selectedAnthill.permanent ? permanentNodeName(selectedAnthill.resourceType) : 'Anthill Info'}</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
+              {selectedAnthill.permanent ? (
+                <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Never runs out.</strong> Gathered so far: {selectedAnthill.resourcesGathered || 0}</p>
+              ) : (<>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType]}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Remaining:</strong> {Math.max(0, GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType] - (selectedAnthill.resourcesGathered || 0))}</p>
               <div style={{
@@ -7012,6 +7036,7 @@ function App() {
                   transition: 'width 0.3s ease'
                 }} />
               </div>
+              </>)}
               <button
                 onClick={() => setSelectedAnthill(null)}
                 style={{

@@ -1251,8 +1251,9 @@ export function endTurn(rawGameState) {
         });
 
         // Check if anthill is depleted. Campaign objective hills (Sorlorg's
-        // watch-nests, the fungus garden) never run dry: they only go when burned.
-        if (!anthill.isWatchNest && !anthill.isGarden &&
+        // watch-nests, the fungus garden) and Mines / Honeypots never run dry:
+        // they only go when burned.
+        if (!anthill.isWatchNest && !anthill.isGarden && !anthill.permanent &&
             newResourcesGathered >= GameConstants.ANTHILL_TOTAL_YIELD[anthill.resourceType]) {
           depletedAnthills.push(anthill);
         }
@@ -1614,6 +1615,8 @@ export function buildAnthill(gameState, droneId, resourceId) {
 
     // Create a new anthill under construction with 1 progress
     const newAnthill = createAnthillInProgress(resourceId, drone.owner, resource.position, resource.type, 1);
+    // A Mine or Honeypot never runs out
+    if (resource.permanent) newAnthill.permanent = true;
     updatedAnthills[newAnthill.id] = newAnthill;
 
     // Mark drone as having built (ends their turn completely)

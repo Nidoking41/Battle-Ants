@@ -1357,3 +1357,28 @@ describe('hotkey tutorial', () => {
     expect(won.winner).toBe('player1');
   });
 });
+
+describe('Mines and Honeypots', () => {
+  const { buildAnthill, completeAnthill } = require('../gameState');
+  const level = {
+    ...getLevel(0),
+    map: { layout: ['   .', '  . .', ' . 1 .', '. . . .', ' w * .', '. @ . .', ' . . .', '  . .', '   .'], legend: { w: 'drone' } },
+    objectives: [{ type: 'survive', untilTurn: 99, text: 'x' }]
+  };
+  test("'*' is a Mine and '@' a Honeypot, and a hill built on one never runs out", () => {
+    let state = buildCampaignGameState(level);
+    const nodes = Object.values(state.resources);
+    expect(nodes.filter(r => r.permanent).map(r => r.type).sort()).toEqual(['food', 'minerals']);
+    const mine = nodes.find(r => r.permanent && r.type === 'minerals');
+    const drone = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'drone');
+    state = { ...state, ants: { ...state.ants, [drone.id]: { ...drone, position: mine.position } } };
+    state = buildAnthill(state, drone.id, mine.id);
+    const hill = Object.values(state.anthills).find(h => h.owner === 'player1');
+    expect(hill.permanent).toBe(true);
+    state = { ...state, anthills: { ...state.anthills, [hill.id]: completeAnthill(hill) } };
+    for (let i = 0; i < 80; i++) state = endTurn(state).gameState;
+    expect(state.anthills[hill.id]).toBeDefined();
+    expect(state.anthills[hill.id].resourcesGathered).toBeGreaterThan(100) // a normal mineral hill stops at 40;
+    expect(state.resources[mine.id]).toBeDefined();
+  });
+});
