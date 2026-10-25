@@ -464,7 +464,7 @@ export const Upgrades = {
   ANTHILL_DURABILITY: {
     id: 'anthillDurability',
     name: 'Reinforced Anthills',
-    description: '+50% Anthill health and +1 Defense for units standing on your anthills',
+    description: '+50% Anthill health, +1 Defense for units standing on your anthills, and they heal 10% a turn instead of 5%',
     icon: '🏰',
     maxTier: 1,
     costs: [

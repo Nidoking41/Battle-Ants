@@ -241,6 +241,12 @@ function App() {
   const [pendingEggType, setPendingEggType] = useState(null); // Store egg type when using Q+key hotkeys
   const [selectedEgg, setSelectedEgg] = useState(null); // Store selected egg for viewing info
   const [selectedAnthill, setSelectedAnthill] = useState(null); // Store selected anthill for viewing info
+  // Keep the anthill info panel live (health, empty) as the game moves on
+  useEffect(() => {
+    if (!selectedAnthill) return;
+    const live = gameState.anthills?.[selectedAnthill.id];
+    if (live && live !== selectedAnthill) setSelectedAnthill(live);
+  }, [gameState.anthills, selectedAnthill]);
   const [feedbackMessage, setFeedbackMessage] = useState(''); // Feedback message to show instead of alerts
   const [damageNumbers, setDamageNumbers] = useState([]); // Array of {id, damage, position, timestamp}
   const [attackAnimations, setAttackAnimations] = useState([]); // Array of {id, attackerId, targetPos, timestamp, isRanged}
@@ -5238,8 +5244,8 @@ function App() {
                     </rect>
                   </g>
                 )}
-                {/* Resource type indicator - small icon at lower right */}
-                {anthill.isComplete && (
+                {/* Resource type indicator - small icon at lower right (gone once the hill is empty) */}
+                {anthill.isComplete && !anthill.depleted && (
                   <image
                     x={10}
                     y={-2}
@@ -7091,8 +7097,12 @@ function App() {
               <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>{selectedAnthill.permanent ? permanentNodeName(selectedAnthill.resourceType) : 'Anthill Info'}</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
-              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>
-              {selectedAnthill.permanent ? (
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Health:</strong> {Math.max(0, selectedAnthill.health)} / {selectedAnthill.isComplete ? (selectedAnthill.maxHealth || 20) : 5}</p>
+              <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Heals units on it:</strong> {gameState.players[selectedAnthill.owner]?.upgrades?.anthillDurability ? '10%' : '5%'} a turn</p>
+              {!selectedAnthill.depleted && <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Income:</strong> {GameConstants.ANTHILL_PASSIVE_INCOME[selectedAnthill.resourceType]} per turn</p>}
+              {selectedAnthill.depleted ? (
+                <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Empty.</strong> It makes no more resources, but still heals and gives its other bonuses.</p>
+              ) : selectedAnthill.permanent ? (
                 <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Never runs out.</strong> Gathered so far: {selectedAnthill.resourcesGathered || 0}</p>
               ) : (<>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Resources Gathered:</strong> {selectedAnthill.resourcesGathered || 0} / {GameConstants.ANTHILL_TOTAL_YIELD[selectedAnthill.resourceType]}</p>

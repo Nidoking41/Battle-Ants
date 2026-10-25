@@ -2,6 +2,9 @@ import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositio
 import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType } from './antTypes';
 import { getHeroById } from './heroQueens';
 
+// Healing for a unit standing on its own finished anthill, per turn
+export const ANTHILL_HEAL_PERCENT = 0.05;
+export const ANTHILL_HEAL_PERCENT_REINFORCED = 0.10;
 // Reinforced Anthills upgrade: +50% anthill health
 const ANTHILL_DURABILITY_MULTIPLIER = 1.5;
 
@@ -1219,8 +1222,8 @@ export function endTurn(rawGameState) {
   // Grant passive income from completed anthills at the start of each new round
   if (isNewRound) {
     Object.values(updatedAnthills).forEach(anthill => {
-      // Only grant income from completed anthills
-      if (anthill.isComplete) {
+      // Only grant income from completed anthills that still have resources
+      if (anthill.isComplete && !anthill.depleted) {
         const income = GameConstants.ANTHILL_PASSIVE_INCOME[anthill.resourceType];
         updatedPlayers[anthill.owner].resources[anthill.resourceType] += income;
         if (campaignGathered && anthill.owner === 'player1') {
@@ -1260,10 +1263,11 @@ export function endTurn(rawGameState) {
       }
     });
 
-    // Handle depleted anthills - remove them and respawn resources on same side
+    // Handle depleted anthills: the hill stays (it still heals and gives its
+    // other bonuses) but makes nothing more; its node is used up and a new
+    // one appears on the same side
     depletedAnthills.forEach(anthill => {
-      // Remove the anthill
-      delete updatedAnthills[anthill.id];
+      updatedAnthills[anthill.id] = { ...updatedAnthills[anthill.id], depleted: true };
 
       // Remove the resource at the anthill's position
       const resourceAtPosition = Object.values(updatedResources).find(
@@ -1374,6 +1378,16 @@ export function endTurn(rawGameState) {
         const healPercent = ant.type === 'soldier' ? 0.10 : 0.05;
         const healAmount = Math.ceil(ant.maxHealth * healPercent);
         updates.health = Math.min(ant.maxHealth, updates.health + healAmount);
+      }
+
+      // A unit standing on its own finished anthill heals 5% a turn (10% with
+      // Reinforced Anthills). Empty hills still heal.
+      const homeHill = Object.values(gameState.anthills || {}).find(h =>
+        h.isComplete && h.owner === ant.owner && h.position.q === ant.position.q && h.position.r === ant.position.r);
+      if (homeHill && updates.health < ant.maxHealth) {
+        const healPercent = updatedPlayers[ant.owner]?.upgrades?.anthillDurability
+          ? ANTHILL_HEAL_PERCENT_REINFORCED : ANTHILL_HEAL_PERCENT;
+        updates.health = Math.min(ant.maxHealth, updates.health + Math.ceil(ant.maxHealth * healPercent));
       }
 
       // Apply plague damage and decrease duration

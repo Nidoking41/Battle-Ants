@@ -399,7 +399,8 @@ describe('level schema: heroes, upgrades, tiers, anthills, ids', () => {
   });
 
   test('pre-built anthills sit on the nearest nodes, pay out, and keep the node', () => {
-    const level = { ...base, enemy: { ...base.enemy, anthills: [{ type: 'food', count: 1 }] }, player: { ...base.player, anthills: [{ type: 'food', count: 1, reinforced: true }] } };
+    // Level 1's map: level 2 has no food nodes
+    const level = { ...base, map: getLevel(1).map, enemy: { ...base.enemy, anthills: [{ type: 'food', count: 1 }] }, player: { ...base.player, anthills: [{ type: 'food', count: 1, reinforced: true }] } };
     const state = buildCampaignGameState(level);
     const hills = Object.values(state.anthills);
     expect(hills).toHaveLength(2);

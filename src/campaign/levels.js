@@ -210,12 +210,13 @@ export const LEVELS = [
     ],
     // The Nest: a narrow arena, leaders six hexes apart, with three trees two
     // hexes in front of the larva - the defensive line the level is about.
+    // No food nodes: there are no drones here, so they only confused players.
     map: {
       layout: [
         '  . .  ',
         ' . 2 . ',
         '. . . .',
-        ' F . F ',
+        ' . . . ',
         '. . . .',
         ' . . . ',
         '. . . .',
@@ -223,7 +224,7 @@ export const LEVELS = [
         '. . . .',
         ' . T . ',
         '. T T .',
-        ' F . F ',
+        ' . . . ',
         '. . . .',
         ' . 1 . ',
         '. . . .',
