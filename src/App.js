@@ -356,6 +356,10 @@ function App() {
 
   // Campaign tutorial pop-up (level.tutorialTip): hidden once the player clicks Got it
   const [tipDismissed, setTipDismissed] = useState(false);
+  // Second pop-up (level.buildAgainTip): the first anthill is still half-built
+  const [buildTipDismissed, setBuildTipDismissed] = useState(false);
+  // Third pop-up (level.anthillDoneTip): the first anthill is finished
+  const [doneTipDismissed, setDoneTipDismissed] = useState(false);
   // Hotkey tutorial: the furthest step the player has reached
   const tutorialStepRef = useRef(0);
   // Campaign UI pop-ups (level.uiTips): which step is showing, and where its
@@ -2270,6 +2274,8 @@ function App() {
   const handleStartCampaignLevel = (levelId, { skipCutscene = false } = {}) => {
     const level = getLevel(levelId);
     setTipDismissed(false); // a level's tutorial pop-up shows again each time it starts
+    setBuildTipDismissed(false);
+    setDoneTipDismissed(false);
     setUiTipStep(0);
     if (level?.cutscene && !skipCutscene) {
       setPendingCutsceneLevel(levelId);
@@ -6611,6 +6617,77 @@ function App() {
                       <div>{tip.text}</div>
                       <button
                         onClick={(e) => { e.stopPropagation(); setTipDismissed(true); }}
+                        style={{
+                          marginTop: '6px',
+                          padding: '2px 10px',
+                          background: '#ffd34d',
+                          color: '#1a1a2e',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Got it
+                      </button>
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })()}
+
+            {/* Campaign pop-ups about the first anthill, with a ring on it:
+                level.buildAgainTip from round tip.fromTurn while it is half built
+                (press Build again), then level.anthillDoneTip once it is finished.
+                Each goes away when the player clicks Got it. */}
+            {(() => {
+              const level = gameState.campaign && !gameState.gameOver ? getLevel(gameState.campaign.levelId) : null;
+              if (!level || gameState.currentPlayer !== 'player1') return null;
+              const hills = Object.values(gameState.anthills || {}).filter(h => h.owner === 'player1');
+              let tip = null;
+              let hill = null;
+              let dismiss = null;
+              const building = hills.find(h => !h.isComplete);
+              const done = hills.find(h => h.isComplete);
+              if (level.anthillDoneTip && done && !doneTipDismissed) {
+                tip = level.anthillDoneTip; hill = done; dismiss = () => setDoneTipDismissed(true);
+              } else if (level.buildAgainTip && building && !done && !buildTipDismissed && gameState.turn >= level.buildAgainTip.fromTurn) {
+                tip = level.buildAgainTip; hill = building; dismiss = () => setBuildTipDismissed(true);
+              }
+              if (!tip) return null;
+              const { x, y } = hexToPixel(hill.position, hexSize);
+              const boxW = 230;
+              const boxH = 130;
+              const boxX = x - boxW / 2;
+              const boxY = y - 50 - boxH;
+              return (
+                <g>
+                  <circle cx={x} cy={y} r="38" fill="none" stroke="#ffd34d" strokeWidth="4" style={{ pointerEvents: 'none' }}>
+                    <animate attributeName="r" values="34;44;34" dur="1.4s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="1;0.45;1" dur="1.4s" repeatCount="indefinite" />
+                  </circle>
+                  <line x1={x} y1={y - 44} x2={x} y2={boxY + boxH}
+                    stroke="#ffd34d" strokeWidth="3" style={{ pointerEvents: 'none' }} />
+                  <foreignObject x={boxX} y={boxY} width={boxW} height={boxH}>
+                    <div xmlns="http://www.w3.org/1999/xhtml" style={{
+                      background: 'rgba(20, 16, 28, 0.93)',
+                      border: '2px solid #ffd34d',
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      color: '#f0e8d8',
+                      fontFamily: 'sans-serif',
+                      fontSize: '13px',
+                      lineHeight: '1.35',
+                      textAlign: 'left',
+                      boxSizing: 'border-box',
+                      height: '100%'
+                    }}>
+                      <div style={{ color: '#ffd34d', fontWeight: 'bold', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <ResourceIcon type={hill.resourceType} /> {tip.title}
+                      </div>
+                      <div>{tip.text}</div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); dismiss(); }}
                         style={{
                           marginTop: '6px',
                           padding: '2px 10px',
