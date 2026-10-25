@@ -8359,12 +8359,14 @@ function App() {
         if (!hasDummy) return null;
         return (
           <div className="hotkey-tutorial" style={{
-            // Sits in the empty part of the right-hand panel, above End Turn
+            // Top centre, just under the goals, where the player is already looking
             position: 'fixed',
-            bottom: '72px',
-            right: '14px',
-            width: '172px',
+            top: '118px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'min(440px, 90vw)',
             boxSizing: 'border-box',
+            textAlign: 'center',
             padding: '12px 16px',
             background: 'rgba(16, 12, 20, 0.95)',
             border: '2px solid #ffd34d',
