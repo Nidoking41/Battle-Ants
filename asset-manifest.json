@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/Battle-Ants/static/css/main.a6f37670.css",
-    "main.js": "/Battle-Ants/static/js/main.a1d0d479.js",
+    "main.js": "/Battle-Ants/static/js/main.6085d812.js",
     "static/js/527.e5cf1501.chunk.js": "/Battle-Ants/static/js/527.e5cf1501.chunk.js",
     "static/js/129.2695e6d5.chunk.js": "/Battle-Ants/static/js/129.2695e6d5.chunk.js",
     "static/js/818.8fbd64ad.chunk.js": "/Battle-Ants/static/js/818.8fbd64ad.chunk.js",
@@ -10,7 +10,7 @@
     "static/media/forestfloor.png": "/Battle-Ants/static/media/forestfloor.d929d519eef06e201a76.png",
     "index.html": "/Battle-Ants/index.html",
     "main.a6f37670.css.map": "/Battle-Ants/static/css/main.a6f37670.css.map",
-    "main.a1d0d479.js.map": "/Battle-Ants/static/js/main.a1d0d479.js.map",
+    "main.6085d812.js.map": "/Battle-Ants/static/js/main.6085d812.js.map",
     "527.e5cf1501.chunk.js.map": "/Battle-Ants/static/js/527.e5cf1501.chunk.js.map",
     "129.2695e6d5.chunk.js.map": "/Battle-Ants/static/js/129.2695e6d5.chunk.js.map",
     "818.8fbd64ad.chunk.js.map": "/Battle-Ants/static/js/818.8fbd64ad.chunk.js.map",
@@ -19,6 +19,6 @@
   },
   "entrypoints": [
     "static/css/main.a6f37670.css",
-    "static/js/main.a1d0d479.js"
+    "static/js/main.6085d812.js"
   ]
 }
