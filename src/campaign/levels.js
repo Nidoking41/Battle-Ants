@@ -927,7 +927,7 @@ export const LEVELS = [
     player: {
       hero: 'vexxara',
       queenTier: 'broodQueen',
-      resources: { food: 40, minerals: 30 },
+      resources: { food: 55, minerals: 45 },
       roster: ['drone', 'soldier', 'scout', 'spitter', 'healer', 'bomber', 'bombardier', 'tank', 'emissary'],
       units: 'default'
     },
@@ -939,23 +939,23 @@ export const LEVELS = [
       hunt: true,
       huntWithScouts: true, // the swarm's Scouts fight too
       // R, S, A: the swarm at the far end of each side tunnel. Awake from
-      // round 1 and going for the queen and nothing else.
+      // round 3 and going for the queen first.
       hunterMarkers: ['R', 'S', 'A'],
-      huntersWakeTurn: 1,
+      huntersWakeTurn: 3, // two rounds of quiet to dig in first
       unitMix: {},
       resources: { food: 0, minerals: 0 },
       units: [],
       // at: which spawn point (P, in reading order): 0 left tunnel end,
       // 1 right tunnel end, 2 left of the Deep Chamber, 3 right of it
       waves: [
-        { turn: 3, at: 0, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
-        { turn: 3, at: 1, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
-        { turn: 5, at: 0, units: [{ type: 'soldier', count: 2 }] },
-        { turn: 5, at: 1, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
-        { turn: 7, at: 0, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
-        { turn: 7, at: 1, units: [{ type: 'soldier', count: 2 }] },
-        { turn: 9, at: 2, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }] },
-        { turn: 10, at: 3, units: [{ type: 'soldier', count: 1 }, { type: 'scout', count: 2 }] }
+        { turn: 5, at: 0, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
+        { turn: 5, at: 1, units: [{ type: 'scout', count: 1 }, { type: 'soldier', count: 1 }] },
+        { turn: 7, at: 0, units: [{ type: 'soldier', count: 2 }] },
+        { turn: 7, at: 1, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
+        { turn: 9, at: 0, units: [{ type: 'soldier', count: 1 }, { type: 'spitter', count: 1 }] },
+        { turn: 9, at: 1, units: [{ type: 'soldier', count: 2 }] },
+        { turn: 11, at: 2, units: [{ type: 'soldier', count: 2 }, { type: 'spitter', count: 1 }] },
+        { turn: 12, at: 3, units: [{ type: 'soldier', count: 1 }, { type: 'scout', count: 2 }] }
       ]
     },
     // Small pop-ups with a hero's portrait, once each, when the round comes

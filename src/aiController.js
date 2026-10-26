@@ -934,9 +934,11 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   // With fog on, only what this side can see can be targeted
   // onlyTargetId: a hunter that ignores everything but its prey (and always
   // knows where the prey is)
+  // preyId: a hunter's prey comes first (and is always known), but when it
+  // can't be hit this turn the hunter still fights whatever it can reach
   const enemies = opts.onlyTargetId
     ? enemiesOf(state, aiPlayer).filter(e => e.id === opts.onlyTargetId)
-    : enemiesOf(state, aiPlayer).filter(e => aiCanSee(state, aiPlayer, e));
+    : enemiesOf(state, aiPlayer).filter(e => e.id === opts.preyId || aiCanSee(state, aiPlayer, e));
   const antType = getAntTypeById(unit.type);
   const caution = opts.caution ?? 1;      // how much danger matters
   const advance = opts.advance ?? 1;      // how much closing distance matters
@@ -951,7 +953,7 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
   const enemyEggs = Object.values(state.eggs || {}).filter(e => e.owner !== aiPlayer && e.position &&
     (!aiFogOfWar || getVisibleHexes(state, aiPlayer).has(`${e.position.q},${e.position.r}`)));
   const eggValue = unit.type === 'scout' ? 55 : 30;
-  const canHitEggs = !opts.onlyTargetId && antType.attackRange > 0 && unit.type !== 'bomber' &&
+  const canHitEggs = !opts.onlyTargetId && !opts.preyId && antType.attackRange > 0 && unit.type !== 'bomber' &&
     (!unit.isBurrowed || unit.type === 'soldier');
   const minRange = antType.minAttackRange || 1;
 
@@ -965,7 +967,7 @@ function fightOrAdvance(state, unit, aiPlayer, objective, opts = {}) {
       ? targetsFrom(state, unit, opt.hex, enemies, moved) : [];
     let bestTarget = null, bestTV = -Infinity;
     for (const t of targets) {
-      const v = targetValue(state, unit, t);
+      const v = targetValue(state, unit, t) + (t.id === opts.preyId ? 1000 : 0);
       if (v > bestTV) { bestTV = v; bestTarget = t; }
     }
     if (canHitEggs && !(antType.cannotMoveAndAttack && moved) && eggValue > bestTV) {
@@ -1086,7 +1088,8 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
   if (unit.type === 'oldQueen') return fightOrAdvance(state, unit, aiPlayer, null, { stayOnly: true });
 
   // Campaign hunter-killers: asleep until the level's midEvent, then they go
-  // straight for the escorted unit and nothing else
+  // straight for the escorted unit (or the queen). The prey always comes
+  // first; one that can't reach it this turn hits whatever it can instead.
   if (unit.hunter) {
     const wakeTurn = state.campaign?.huntersWakeTurn;
     const awake = !unit.dormant || (wakeTurn != null && (state.turn || 1) >= wakeTurn);
@@ -1096,7 +1099,7 @@ function handleCombatUnit(gameState, unit, aiPlayer, config, strategy) {
       liveAnts(state).find(a => a.owner !== aiPlayer && (a.type === 'queen' || a.type === 'queenLarva'));
     if (prey && prey.position) {
       if (unit.type === 'bomber') return handleBomber(state, unit, aiPlayer, enemies, null, prey);
-      return fightOrAdvance(state, unit, aiPlayer, prey.position, { caution: 0, advance: 2, onlyTargetId: prey.id });
+      return fightOrAdvance(state, unit, aiPlayer, prey.position, { caution: 0, advance: 2, preyId: prey.id });
     }
   }
 

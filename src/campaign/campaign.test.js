@@ -1147,9 +1147,9 @@ describe('level 9 - The Rot Below', () => {
     expect(state.campaign.waveSpawns).toHaveLength(4);
     expect(state.campaign.goalHexes.length).toBe(6);
     expect(state.campaign.goalSprite).toBe(null);
-    state = spawnDueWaves({ ...state, turn: 3 }, createAnt);
-    // Round 3: a pair at the far end of each side tunnel
-    const w3 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave3_'));
+    state = spawnDueWaves({ ...state, turn: 5 }, createAnt);
+    // Round 5: a pair at the far end of each side tunnel
+    const w3 = Object.values(state.ants).filter(a => a.id.startsWith('camp_wave5_'));
     expect(w3).toHaveLength(4);
     [0, 1].forEach(i => expect(w3.filter(a => hexDistance(a.position, state.campaign.waveSpawns[i]) <= 3)).toHaveLength(2));
 
@@ -1161,7 +1161,7 @@ describe('level 9 - The Rot Below', () => {
     expect(evaluateAllObjectives(inChamber(8)).won).toBe(true);
   });
 
-  test('the swarm charges down both side tunnels and reaches the queen by round 4', async () => {
+  test('the swarm waits two rounds, then charges down both side tunnels and reaches the queen by round 6', async () => {
     const { executeAITurn } = require('../aiController');
     let state = buildCampaignGameState(getLevel(9));
     const queen = state.ants[PLAYER_QUEEN_ID];
@@ -1171,8 +1171,12 @@ describe('level 9 - The Rot Below', () => {
     expect(hunters.filter(a => a.position.q < queen.position.q)).toHaveLength(4);
     expect(hunters.filter(a => a.position.q > queen.position.q)).toHaveLength(4);
     hunters.forEach(a => expect(hexDistance(a.position, queen.position)).toBeGreaterThanOrEqual(7));
-    // The player does nothing; after the enemy's 3rd turn the swarm is at the queen
-    for (let round = 1; round <= 3; round++) {
+    // The player does nothing; after the enemy's 5th turn the swarm is at the queen
+    for (let round = 1; round <= 5; round++) {
+      if (round === 3) {
+        // still asleep after two rounds
+        Object.values(state.ants).filter(a => a.hunter).forEach(a => expect(hexDistance(a.position, queen.position)).toBeGreaterThanOrEqual(7));
+      }
       state = endTurn(state).gameState;
       state = (await executeAITurn(state, 'player2', 'medium', { fogOfWar: true })).gameState;
       state = endTurn(state).gameState;
@@ -1180,6 +1184,21 @@ describe('level 9 - The Rot Below', () => {
     const near = Object.values(state.ants).filter(a => a.owner === 'player2' && hexDistance(a.position, queen.position) <= 2);
     expect(near.length).toBeGreaterThanOrEqual(2);
     expect(getLevel(9).heroPopups[0]).toMatchObject({ turn: 8, hero: 'skrazzit' });
+  }, 60000);
+
+  test('a hunter that cannot reach the queen this turn hits a unit in its way instead', async () => {
+    const { executeAITurn } = require('../aiController');
+    let state = buildCampaignGameState(getLevel(9));
+    const hunter = Object.values(state.ants).find(a => a.hunter && a.type === 'soldier');
+    const blocker = Object.values(state.ants).find(a => a.owner === 'player1' && a.type !== 'queen');
+    const spot = getNeighbors(hunter.position).find(h =>
+      state.mapShape.hexes[`${h.q},${h.r}`] && !Object.values(state.ants).some(a => a.position.q === h.q && a.position.r === h.r));
+    state = { ...state, turn: 3, currentPlayer: 'player2',
+      ants: { ...state.ants, [blocker.id]: { ...blocker, position: spot } } };
+    const before = state.ants[blocker.id].health;
+    state = (await executeAITurn(state, 'player2', 'medium', { fogOfWar: true })).gameState;
+    const after = state.ants[blocker.id];
+    expect(!after || after.health < before).toBe(true);
   }, 60000);
 
   test('the Golden Throne is drawn only on level 7', () => {
