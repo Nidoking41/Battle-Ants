@@ -364,6 +364,7 @@ function App() {
   const [tipDismissed, setTipDismissed] = useState(false);
   // Second pop-up (level.buildAgainTip): the first anthill is still half-built
   const [buildTipDismissed, setBuildTipDismissed] = useState(false);
+  const [goalsIntroOpen, setGoalsIntroOpen] = useState(false); // level-start goals pop-up in the middle
   // Third pop-up (level.anthillDoneTip): the first anthill is finished
   const [doneTipDismissed, setDoneTipDismissed] = useState(false);
   // Hotkey tutorial: the furthest step the player has reached
@@ -1754,8 +1755,29 @@ function App() {
             const attackerVisible = attacker && visibleHexes.has(`${attacker.position.q},${attacker.position.r}`);
             const targetVisible = visibleHexes.has(`${targetPosition.q},${targetPosition.r}`);
 
-            // Show animation based on visibility
-            if (targetVisible) {
+            // An Exploding ant going off: the blast where it stood (it is gone now)
+            if (newState.lastCombatAction.isDetonation) {
+              if (targetVisible) {
+                showExplosion(targetPosition);
+                setTimeout(() => (damageDealt || []).forEach(({ damage, position }) => showDamageNumber(damage, position)), 500);
+              }
+            } else if (newState.lastCombatAction.isHeal) {
+              // A heal: the green +HP pop-up on the healed unit
+              if (targetVisible) showResourceGain(newState.lastCombatAction.healAmount, 'heal', targetPosition);
+            } else if (Array.isArray(newState.lastCombatAction.steps)) {
+              // An ambush: several blows, one after another
+              newState.lastCombatAction.steps.forEach((step, i) => {
+                setTimeout(() => {
+                  const stepAttacker = newState.ants[step.attackerId];
+                  if (stepAttacker && visibleHexes.has(`${step.targetPosition.q},${step.targetPosition.r}`)) {
+                    showAttackAnimation(step.attackerId, step.targetPosition, step.isRanged, stepAttacker);
+                  }
+                }, i * 900);
+              });
+              setTimeout(() => (damageDealt || []).forEach(({ damage, position }) => {
+                if (visibleHexes.has(`${position.q},${position.r}`)) showDamageNumber(damage, position);
+              }), newState.lastCombatAction.steps.length * 900);
+            } else if (targetVisible) {
               // If target is visible, show appropriate animation
               if (isRanged && !attackerVisible) {
                 // Ranged attack from fog of war - only show projectile impact
@@ -1768,6 +1790,12 @@ function App() {
                 // Attacker is visible, show full animation
                 // Pass attacker info from new state since our local state may be stale
                 showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
+                // A burrowed Marauder hit in melee strikes back with its spikes
+                const hitBack = (damageDealt || []).find(d => d.position && !hexEquals(d.position, targetPosition));
+                if (!isRanged && hitBack) {
+                  const defender = Object.values(newState.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
+                  setTimeout(() => showCounterSpikes(defender, hitBack.position, damageDealt), 300);
+                }
                 if (damageDealt && damageDealt.length > 0) {
                   setTimeout(() => {
                     damageDealt.forEach(({ damage, position }) => {
@@ -2287,6 +2315,7 @@ function App() {
       setPendingCutsceneLevel(levelId);
       return;
     }
+    setGoalsIntroOpen(true);
     setShowVictoryModal(false);
     setShowGameSummary(false);
     // buildTab persists across games; open on a tab the level's roster
@@ -2777,7 +2806,11 @@ function App() {
       });
     }
 
-    updateGame(detonationResult.gameState);
+    // lastCombatAction lets the other players see the blast too
+    updateGame({
+      ...detonationResult.gameState,
+      lastCombatAction: buildCombatAction({ attackerId: ant.id, targetPosition: ant.position, isRanged: false, isDetonation: true }, detonationResult.damageDealt)
+    });
     setSelectedAction(null);
     // Track deselection to prevent immediate reselection
     if (selectedAnt) {
@@ -3281,7 +3314,10 @@ function App() {
         : Math.min(GameConstants.HEAL_AMOUNT, friendlyAtHex.maxHealth - friendlyAtHex.health);
       showResourceGain(healAmount, 'heal', friendlyAtHex.position); // Reuse resource gain animation
 
-      updateGame(newState);
+      updateGame({
+        ...newState,
+        lastCombatAction: buildCombatAction({ attackerId: selectedAnt, targetId: friendlyAtHex.id, targetPosition: friendlyAtHex.position, isHeal: true, healAmount })
+      });
       setSelectedAction(null);
       setSelectedAnt(null);
       return;
@@ -3758,6 +3794,11 @@ function App() {
                   } : newState.ants[selectedAnt]
                 }
               }, selectedAnt);
+              // The other players see the ambush blows too
+              const steps = (ambushResult.attackAnimations || []).map(({ attackerId, targetPosition, isRanged }) => ({ attackerId, targetPosition, isRanged: !!isRanged }));
+              if (steps.length) {
+                finalState.lastCombatAction = buildCombatAction({ attackerId: steps[0].attackerId, targetPosition: steps[0].targetPosition, isRanged: false, steps }, ambushResult.damageDealt);
+              }
 
               // Update full state for multiplayer
               if (gameMode?.isMultiplayer && gameMode.gameId) {
@@ -4052,7 +4093,9 @@ function App() {
                 ...result.gameState.ants[selectedAnt],
                 hasAttacked: true
               }
-            }
+            },
+            // so the other players see the shell land too
+            lastCombatAction: buildCombatAction({ attackerId: selectedAnt, targetPosition: hex, isRanged: true }, result.damageDealt)
           });
 
           if (result.damageDealt && result.damageDealt.length > 0) {
@@ -4682,10 +4725,45 @@ function App() {
     return [];
   };
 
+  // On your turn, a selected enemy shows where it could move on its next turn
+  // (read-only: the hexes are just tinted, nothing can be ordered)
+  const getEnemyMovePreview = () => {
+    const ant = selectedAnt && gameState.ants[selectedAnt];
+    if (!ant || !ant.position || !isMyTurn()) return [];
+    const areTeammates = (a, b) => a === b ||
+      (!!gameState.players[a]?.team && gameState.players[a]?.team === gameState.players[b]?.team);
+    const myRole = gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer;
+    if (ant.owner === myRole || areTeammates(ant.owner, myRole)) return [];
+    const antType = getAntTypeById(ant.type);
+    if (!antType || ant.type === 'queen' || antType.cannotMove) return [];
+    let range = antType.moveRange || 0;
+    const player = gameState.players[ant.owner];
+    if (player?.heroAbilityActive && player.heroId === 'gorlak' && antType.attackRange <= 1) range += 1;
+    if (ant.isBurrowed) {
+      if (ant.type !== 'soldier') return [];
+      range = 2;
+    }
+    if (ant.ensnared > 1) range = 0; // still ensnared next turn
+    if (range <= 0) return [];
+    const blockedHexes = Object.values(gameState.ants)
+      .filter(a => a.position && !areTeammates(a.owner, ant.owner))
+      .map(a => new HexCoord(a.position.q, a.position.r));
+    const cannotEndHexes = [
+      ...Object.values(gameState.trees || {}).map(t => new HexCoord(t.position.q, t.position.r)),
+      ...Object.values(gameState.eggs || {}).map(e => new HexCoord(e.position.q, e.position.r)),
+      ...Object.values(gameState.ants)
+        .filter(a => a.id !== ant.id && a.position && areTeammates(a.owner, ant.owner))
+        .map(a => new HexCoord(a.position.q, a.position.r))
+    ];
+    const start = new HexCoord(ant.position.q, ant.position.r);
+    return getMovementRangeWithPaths(start, range, gridRadius, blockedHexes, cannotEndHexes, mapShape).map(m => m.hex);
+  };
+
   // Render hexagons in a symmetrical hexagon shape
   const renderHexGrid = () => {
     const hexagons = [];
     const validMoves = getValidMovesForSelectedAnt();
+    const enemyMoves = getEnemyMovePreview();
     const enemiesInRange = selectedAction === 'attack' ? getEnemiesInRange() : [];
     const teleportDestinations = selectedAction === 'teleport' && selectedAnt ?
       getValidTeleportDestinations(getGameStateForLogic(), selectedAnt) : [];
@@ -5009,6 +5087,7 @@ function App() {
         Object.values(gameState.rememberedAnthills || {}).find(a => hexEquals(a.position, hex));
       const glowingEye = (gameState.glowingEyes || []).some(p => hexEquals(p, hex));
       const isValidMove = validMoves.some(v => hexEquals(v, hex));
+      const isEnemyMove = enemyMoves.some(v => hexEquals(v, hex));
       const isSelected = selectedAnt && hexEquals(gameState.ants[selectedAnt]?.position, hex);
       const isAttackable = enemiesInRange.some(e => hexEquals(e.position, hex));
       const isTeleportDestination = teleportDestinations.some(anthill => hexEquals(anthill.position, hex));
@@ -5058,6 +5137,10 @@ function App() {
       if (isValidMove) {
         // Different color for fog of war moves vs visible moves
         fillColor = isVisible ? '#AED6F1' : '#8B9DC3'; // Light blue for visible moves, darker blue for fog of war
+        useBirthingPoolPattern = false;
+      }
+      if (isEnemyMove) {
+        fillColor = isVisible ? '#F5C6A5' : '#B79A8A'; // Pale orange: where the selected enemy could move
         useBirthingPoolPattern = false;
       }
       if (focusRange) {
@@ -7094,7 +7177,7 @@ function App() {
           {/* Selected Anthill Info */}
           {selectedAnthill && (
             <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(40, 167, 69, 0.5)' }}>
-              <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>{selectedAnthill.permanent ? permanentNodeName(selectedAnthill.resourceType) : 'Anthill Info'}</h4>
+              <h4 style={{ color: '#4ade80', margin: '0 0 10px 0' }}>{(() => { const isEnemy = selectedAnthill.owner !== (gameMode?.isMultiplayer ? gameMode.playerRole : (gameMode?.isAI ? 'player1' : gameState.currentPlayer)); const name = selectedAnthill.permanent ? permanentNodeName(selectedAnthill.resourceType) : (isEnemy ? 'Anthill' : 'Anthill Info'); return isEnemy ? `Enemy ${name}` : name; })()}</h4>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Type:</strong> {selectedAnthill.resourceType === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Owner:</strong> {gameState.players[selectedAnthill.owner].name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}><strong>Health:</strong> {Math.max(0, selectedAnthill.health)} / {selectedAnthill.isComplete ? (selectedAnthill.maxHealth || 20) : 5}</p>
@@ -7220,6 +7303,12 @@ function App() {
                       <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Attack: {totalAttack} {attackBonus > 0 && <span style={{ color: '#4ade80' }}>(+{attackBonus})</span>}</p>
                     )}
                     <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Defense: {totalDefense} {defenseBonus > 0 && <span style={{ color: '#4ade80' }}>(+{defenseBonus})</span>}</p>
+                    <p style={{ color: '#e0e0e0', margin: '5px 0' }}>Attack type: {
+                      !baseAttack || !antType.attackRange ? 'None'
+                        : antType.meleeReach ? `Melee (reach ${antType.attackRange})`
+                        : antType.attackRange <= 1 ? 'Melee'
+                        : `Ranged ${antType.minAttackRange || 1}-${antType.attackRange}`
+                    }</p>
                   </>
                 );
               })()}
@@ -7234,7 +7323,7 @@ function App() {
               {gameState.ants[selectedAnt].owner === (gameMode?.isMultiplayer ? gameMode.playerRole : gameState.currentPlayer) && isMyTurn() && (
               <div className="ant-actions">
                 {/* Hide Move button for queens since they can't move */}
-                {!['queen', 'broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) && (
+                {!['queen', 'queenLarva', 'broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) && (
                   <button
                     onClick={() => setSelectedAction('move')}
                     style={{
@@ -7424,7 +7513,7 @@ function App() {
                       💥 Splash (8, 3-hex)
                     </button>
                   </>
-                ) : ['broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) ? null : (
+                ) : ['queenLarva', 'broodwarden', 'broodwardenCocoon'].includes(gameState.ants[selectedAnt].type) ? null : (
                   <button data-tip="queenAttack"
                     onClick={() => setSelectedAction('attack')}
                     style={{
@@ -7444,22 +7533,6 @@ function App() {
                 )}
                   {gameState.ants[selectedAnt].type === 'queen' && (
                     <>
-                      <button
-                        onClick={() => setSelectedAction('layEgg')}
-                        style={{
-                          marginRight: '5px',
-                          padding: '8px 12px',
-                          background: selectedAction === 'layEgg' ? 'linear-gradient(145deg, #2ecc71, #27ae60)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
-                          color: '#e0e0e0',
-                          border: selectedAction === 'layEgg' ? '2px solid #2ecc71' : '2px solid #666',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: selectedAction === 'layEgg' ? 'bold' : 'normal',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                        }}
-                      >
-                        Lay Egg
-                      </button>
                       <button data-tip="queenHeal"
                         onClick={() => setSelectedAction('heal')}
                         style={{
@@ -8336,7 +8409,7 @@ function App() {
       )}
 
       {/* Campaign objectives - renders nothing outside campaign levels */}
-      <ObjectivePanel gameState={gameState} />
+      <ObjectivePanel gameState={gameState} intro={goalsIntroOpen && !!gameState?.campaign} onDismiss={() => setGoalsIntroOpen(false)} />
 
       {/* Feedback toast - showFeedback() had no renderer, so every one of its
           messages (not enough resources, not enough energy, etc.) was silent. */}

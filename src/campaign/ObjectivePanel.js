@@ -5,6 +5,8 @@ import { nextWave } from './waves';
 // Persistent on-board list of the current level's objectives.
 // Rendered only when gameState.campaign exists, so it never appears in
 // normal local / AI / online games.
+// With `intro`, the panel opens big in the middle of the screen at the start
+// of a level; "Got it" (onDismiss) slides it up to its usual place at the top.
 
 const STATUS_ICON = {
   pending: '○',
@@ -18,26 +20,31 @@ const STATUS_COLOR = {
   failed: '#f87171'
 };
 
-function ObjectivePanel({ gameState }) {
+function ObjectivePanel({ gameState, intro = false, onDismiss }) {
   const campaign = gameState?.campaign;
   if (!campaign || !campaign.objectives?.length) return null;
 
   return (
+    <>
+    {intro && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.55)', zIndex: 5000 }} />
+    )}
     <div style={{
       position: 'fixed',
-      top: 0,
+      top: intro ? '50%' : 0,
       left: '50%',
-      transform: 'translateX(-50%)',
-      maxWidth: '90vw',
-      padding: '5px 16px 7px',
-      background: 'rgba(10, 10, 10, 0.82)',
+      transform: intro ? 'translate(-50%, -50%) scale(1.35)' : 'translateX(-50%)',
+      transition: 'top 0.6s ease, transform 0.6s ease',
+      maxWidth: intro ? '68vw' : '90vw',
+      padding: intro ? '14px 22px 14px' : '5px 16px 7px',
+      background: intro ? 'rgba(10, 10, 10, 0.95)' : 'rgba(10, 10, 10, 0.82)',
       border: '1px solid rgba(255, 215, 0, 0.35)',
-      borderTop: 'none',
-      borderRadius: '0 0 8px 8px',
+      borderTop: intro ? undefined : 'none',
+      borderRadius: intro ? '8px' : '0 0 8px 8px',
       color: '#e0e0e0',
       fontSize: '13px',
-      zIndex: 2500,
-      pointerEvents: 'none',
+      zIndex: intro ? 5001 : 2500,
+      pointerEvents: intro ? 'auto' : 'none',
       boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
     }}>
       <div style={{
@@ -51,6 +58,11 @@ function ObjectivePanel({ gameState }) {
       }}>
         {campaign.levelName ? (campaign.levelId === 0 ? campaign.levelName : `Level ${campaign.levelId}: ${campaign.levelName}`) : 'Objectives'}
       </div>
+      {intro && (
+        <div style={{ textAlign: 'center', color: '#bbb', fontSize: '11px', margin: '2px 0 6px' }}>
+          To win this level:
+        </div>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px 22px' }}>
       {campaign.objectives.map((o, i) => {
         const s = o.status || 'pending';
@@ -99,7 +111,26 @@ function ObjectivePanel({ gameState }) {
           </div>
         );
       })()}
+      {intro && (
+        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+          <button
+            onClick={onDismiss}
+            style={{
+              padding: '6px 22px',
+              background: 'linear-gradient(145deg, #ffd700, #d4a017)',
+              color: '#1a1a1a',
+              border: 'none',
+              borderRadius: '4px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Got it
+          </button>
+        </div>
+      )}
     </div>
+    </>
   );
 }
 
