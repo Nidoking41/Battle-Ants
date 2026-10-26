@@ -112,6 +112,12 @@ export const SpriteConfig = {
       walk: { path: 'mantis_idle.png', frames: 8 },
       attack: { path: 'mantis_idle.png', frames: 8 }
     },
+    // A Drone building an anthill wears a hard hat (gen/drone_hardhat.py)
+    droneBuilding: {
+      idle: { path: 'dronebuilding_idle_red.png', frames: 8 },
+      walk: { path: 'dronebuilding_idle_red.png', frames: 8 },
+      attack: { path: 'dronebuilding_idle_red.png', frames: 8 }
+    },
     drone: {
       idle: { path: 'drone_idle.png', frames: 8 },
       walk: { path: 'drone_walk.png', frames: 8 },
@@ -149,11 +155,12 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'broodQueen', 'swarmQueen', 'broodwarden', 'broodwardenCocoon', 'queenLarva', 'emissary', 'termite', 'mantis', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
+const COLORED_ANT_TYPES = ['queen', 'droneBuilding', 'broodQueen', 'swarmQueen', 'broodwarden', 'broodwardenCocoon', 'queenLarva', 'emissary', 'termite', 'mantis', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
   'queen': 'queen',
+  'droneBuilding': 'dronebuilding',
   'broodQueen': 'broodqueen',
   'swarmQueen': 'swarmqueen',
   'broodwarden': 'broodwarden',
@@ -177,6 +184,7 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
 // Map ant type IDs to their folder names
 const ANT_TYPE_TO_FOLDER = {
   'queen': 'Queen',
+  'droneBuilding': 'Drone',
   'broodQueen': 'Queen',
   'swarmQueen': 'Queen',
   'broodwarden': 'Broodwarden',
