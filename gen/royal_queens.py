@@ -64,8 +64,28 @@ def head_top(base):
     return 9, 21, 26
 
 
+ABD_X1 = 14  # base abdomen ends here (the thorax starts at x 15-16)
+
+
+def abdomen_box(base):
+    """Rows the base abdomen covers in this frame (it bobs with the idle)."""
+    ys = [y for y in range(10, 23) for x in range(0, ABD_X1 + 1)
+          if base.getpixel((x, y))[3] and sum(1 for xx in range(0, ABD_X1 + 1) if base.getpixel((xx, y))[3]) >= 5]
+    return min(ys), max(ys)
+
+
+def strip_abdomen(base):
+    """The base frame without its abdomen (wings, thorax, head and legs stay)."""
+    y0, y1 = abdomen_box(base)
+    out = base.copy()
+    for x in range(0, ABD_X1 + 1):
+        for y in range(y0, y1 + 1):
+            out.putpixel((x, y), (0, 0, 0, 0))
+    return out, y0, y1
+
+
 def abdomen_bulge(img, pal, cx, cy, rx, ry, bands):
-    """Extra abdomen drawn behind the base body: shaded ellipse with segments."""
+    """One big abdomen: a shaded ellipse with segment ridges and gold bands."""
     pts = set()
     for y in range(cy - ry - 1, cy + ry + 2):
         for x in range(cx - rx - 1, cx + rx + 2):
@@ -80,9 +100,12 @@ def abdomen_bulge(img, pal, cx, cy, rx, ry, bands):
             c = pal['light'] if t < 0.3 else pal['mid'] if t < 0.62 else pal['dark'] if t < 0.85 else pal['darkest']
             if t < 0.3 and (x + y) % 4 == 0:
                 c = pal['hi']
+            seg = (x - cx) % 3 == 0 and t > 0.2 and x < cx + rx - 1
+            if seg:
+                c = pal['dark'] if t < 0.62 else pal['darkest']
             if (x - cx) in bands and t >= 0.25:
                 c = GOLD['dark'] if t > 0.6 else GOLD['mid']
-        under(img, x + OX, y + OY, c)
+        put(img, x + OX, y + OY, c)
 
 
 def extra_wings(img, base, dx, dy, tint):
@@ -193,18 +216,19 @@ def build(color, tier):
     for i in range(N):
         base = sheet.crop((i * 32, 0, i * 32 + 32, 32))
         img = Image.new('RGBA', (F, F), (0, 0, 0, 0))
-        img.alpha_composite(base, (OX, OY))
+        body, ay0, ay1 = strip_abdomen(base)
+        acy = (ay0 + ay1) // 2
         top, hx0, hx1 = head_top(base)
         if tier == 'brood':
             extra_wings(img, base, -4, -3, back_wing)
-            abdomen_bulge(img, pal, 5, 16, 7, 6, bands=(-3, 1))
-            golden_bands(img, pal)
+            abdomen_bulge(img, pal, ABD_X1 + 1 - 9, acy, 9, 6, bands=(-4, 2))
+            img.alpha_composite(body, (OX, OY))
             crown(img, top, hx0, 5, 2, [GEM_R])
         else:
             extra_wings(img, base, -8, -5, {wing: (214, 190, 240), wing_hi: (245, 235, 255), 'outline': pal['outline']})
             extra_wings(img, base, -4, -3, back_wing)
-            abdomen_bulge(img, pal, 4, 17, 9, 7, bands=(-5, -1, 3))
-            golden_bands(img, pal)
+            abdomen_bulge(img, pal, ABD_X1 + 1 - 11, acy, 11, 7, bands=(-7, -1, 5))
+            img.alpha_composite(body, (OX, OY))
             back_spines(img, base, pal)
             crown(img, top, hx0 - 1, 7, 3, [GEM_B, GEM_R, GEM_G])
             glowing_eyes(img, base, pal)
