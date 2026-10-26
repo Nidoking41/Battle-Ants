@@ -368,6 +368,7 @@ function App() {
   // Second pop-up (level.buildAgainTip): the first anthill is still half-built
   const [buildTipDismissed, setBuildTipDismissed] = useState(false);
   const [goalsIntroOpen, setGoalsIntroOpen] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null); // clicked resource node / half-built hill: { position }
   const [blitzLeft, setBlitzLeft] = useState(null); // Blitz: seconds left this turn
   const handleEndTurnRef = useRef(null);
   const isMyTurnRef = useRef(() => false); // level-start goals pop-up in the middle
@@ -2554,6 +2555,9 @@ function App() {
   };
 
   // Handle end turn with AI support
+  // Picking an ant or an anthill closes the node panel
+  useEffect(() => { if (selectedAnt || selectedAnthill) setSelectedNode(null); }, [selectedAnt, selectedAnthill]);
+
   // Blitz (player vs player option): every turn lasts BLITZ_SECONDS, then ends
   // by itself as if End Turn were pressed. Each client counts down from when
   // it sees the turn start; only the client whose turn it is ends it, so an
@@ -4420,12 +4424,25 @@ function App() {
     const clickedAnthill = Object.values(currentState.anthills).find(a => hexEquals(a.position, hex));
     if (clickedAnthill && clickedAnthill.isComplete) {
       setSelectedAnthill(clickedAnthill);
+      setSelectedNode(null);
       setSelectedAnt(null);
       setSelectedAction(null);
       return;
     }
 
+    // A resource node or a half-built hill: show what it is in the side panel
+    const clickedResource = Object.values(currentState.resources || {}).find(r => hexEquals(r.position, hex));
+    if (clickedAnthill || clickedResource) {
+      setSelectedNode({ position: { q: hex.q, r: hex.r } });
+      setSelectedAnthill(null);
+      setSelectedAnt(null);
+      setSelectedAction(null);
+      setSelectedEgg(null);
+      return;
+    }
+
     // Clicked on empty hex - deselect everything
+    setSelectedNode(null);
     if (selectedAnt || selectedAnthill) {
       setSelectedAnt(null);
       setSelectedAction(null);
@@ -5548,8 +5565,9 @@ function App() {
                 }}
               />
             )}
-            {/* An unclaimed Mine or Honeypot: drawn full size like an anthill,
-                with any ant standing there drawn on top */}
+            {/* An unclaimed Mine (rocky shaft) or Honeypot (clay pot): drawn full
+                size, with any ant standing there drawn on top. Once built it
+                becomes the owner's mound sprite. */}
             {resource?.permanent && !anthill && isVisible && (
               <g>
                 <image
@@ -5557,7 +5575,7 @@ function App() {
                   y={-29}
                   width={48}
                   height={48}
-                  href={`${process.env.PUBLIC_URL}/sprites/anthill/${permanentNodeSprite(resource.type)}.png`}
+                  href={`${process.env.PUBLIC_URL}/sprites/anthill/${permanentNodeSprite(resource.type)}_node.png`}
                   style={{ pointerEvents: 'none', imageRendering: 'pixelated' }}
                 />
               </g>
@@ -7214,6 +7232,33 @@ function App() {
               </button>
             </div>
           )}
+
+          {/* Selected resource node / half-built hill */}
+          {selectedNode && !selectedAnt && !selectedAnthill && (() => {
+            const at = h => h.position && h.position.q === selectedNode.position.q && h.position.r === selectedNode.position.r;
+            const hill = Object.values(gameState.anthills || {}).find(at);
+            const res = Object.values(gameState.resources || {}).find(at);
+            const node = hill || res;
+            if (!node) return null;
+            const type = hill ? hill.resourceType : res.type;
+            const permanent = !!node.permanent;
+            const name = permanent ? permanentNodeName(type) : type === 'food' ? 'Food Node' : 'Mineral Node';
+            const income = GameConstants.ANTHILL_PASSIVE_INCOME[type];
+            const p = { color: '#e0e0e0', margin: '5px 0' };
+            return (
+              <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(255, 215, 0, 0.45)' }}>
+                <h4 style={{ color: '#ffd700', margin: '0 0 10px 0' }}>{hill ? `${name}: half built` : name}</h4>
+                <p style={p}><strong>Gives:</strong> {type === 'food' ? <><FoodIcon /> Food</> : <><MineralIcon /> Minerals</>}, {income} a turn once built</p>
+                <p style={p}><strong>Lasts:</strong> {permanent ? 'Never runs out' : `${GameConstants.ANTHILL_TOTAL_YIELD[type]} in total, then the hill stays but stops giving`}</p>
+                {hill ? (
+                  <p style={p}><strong>{gameState.players[hill.owner]?.name || 'A player'}</strong> is building here. Their Drone finishes it at the start of their next turn unless it is killed.</p>
+                ) : (
+                  <p style={p}>To claim it, move a Worker Drone onto it and press Build ({GameConstants.ANTHILL_BUILD_COST}<FoodIcon />). The Drone finishes it by itself next turn.</p>
+                )}
+                <button onClick={() => setSelectedNode(null)} style={{ marginTop: '6px', padding: '6px 12px', background: '#444', color: '#e0e0e0', border: '1px solid #666', borderRadius: '4px', cursor: 'pointer' }}>Close</button>
+              </div>
+            );
+          })()}
 
           {/* Selected Anthill Info */}
           {selectedAnthill && (
