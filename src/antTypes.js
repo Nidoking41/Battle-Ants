@@ -382,6 +382,8 @@ export const GameConstants = {
 };
 
 export const Upgrades = {
+  // Listed in tier order (the Upgrades menu shows them this way): base queen,
+  // then Brood Queen, then Swarm Queen
   MELEE_ATTACK: {
     id: 'meleeAttack',
     name: 'Melee Attack',
@@ -425,6 +427,7 @@ export const Upgrades = {
     description: '+5 Food and +3 Minerals when melee units kill',
     icon: '🍖',
     maxTier: 1,
+    requiresQueenTier: 'broodQueen',
     costs: [
       { food: 15, minerals: 15 }  // Tier 1
     ]
@@ -435,6 +438,18 @@ export const Upgrades = {
     description: 'Unlock burrow for ambush & healing (5%/turn, Marauders 10%). Marauders move 2 hexes while burrowed',
     icon: '🕳️',
     maxTier: 1,
+    requiresQueenTier: 'broodQueen',
+    costs: [
+      { food: 15, minerals: 15 }  // Tier 1
+    ]
+  },
+  ANTHILL_DURABILITY: {
+    id: 'anthillDurability',
+    name: 'Reinforced Anthills',
+    description: '+50% Anthill health, +1 Defense for units standing on your anthills, and they heal 10% a turn instead of 5%',
+    icon: '🏰',
+    maxTier: 1,
+    requiresQueenTier: 'broodQueen',
     costs: [
       { food: 15, minerals: 15 }  // Tier 1
     ]
@@ -459,16 +474,6 @@ export const Upgrades = {
     requiresQueenTier: 'swarmQueen', // Locked behind Swarm Queen
     costs: [
       { food: 10, minerals: 15 }
-    ]
-  },
-  ANTHILL_DURABILITY: {
-    id: 'anthillDurability',
-    name: 'Reinforced Anthills',
-    description: '+50% Anthill health, +1 Defense for units standing on your anthills, and they heal 10% a turn instead of 5%',
-    icon: '🏰',
-    maxTier: 1,
-    costs: [
-      { food: 15, minerals: 15 }  // Tier 1
     ]
   }
   // REVEAL upgrade removed - Reveal is now innate to Brood Queen tier

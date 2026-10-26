@@ -8221,7 +8221,11 @@ function App() {
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
-              {Object.values(Upgrades).map(upgrade => {
+              {Object.values(Upgrades).map((upgrade, i, all) => {
+                const tierOf = u => u.requiresQueenTier || 'queen';
+                const heading = (i === 0 || tierOf(all[i - 1]) !== tierOf(upgrade))
+                  ? ({ queen: 'Queen', broodQueen: 'Brood Queen', swarmQueen: 'Swarm Queen' })[tierOf(upgrade)]
+                  : null;
                 const currentPlayer = gameState.players[gameState.currentPlayer];
                 const queen = Object.values(gameState.ants).find(a => a.type === 'queen' && a.owner === gameState.currentPlayer);
                 const currentTier = currentPlayer.upgrades[upgrade.id] || 0;
@@ -8231,8 +8235,13 @@ function App() {
                 const isBinaryUpgrade = upgrade.maxTier === 1;
 
                 return (
+                  <React.Fragment key={upgrade.id}>
+                  {heading && (
+                    <div style={{ color: '#CE93D8', fontWeight: 'bold', fontSize: '14px', letterSpacing: '1px', textTransform: 'uppercase', marginTop: i === 0 ? 0 : '8px' }}>
+                      {heading} upgrades
+                    </div>
+                  )}
                   <button
-                    key={upgrade.id}
                     onClick={() => {
                       if (!affordable) {
                         showFeedback(isMaxed ? 'Already purchased!' : 'Not enough resources!');
@@ -8266,12 +8275,13 @@ function App() {
                     <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.4' }}>
                       {upgrade.description}
                     </div>
-                    {upgrade.requiresQueenTier && queen?.queenTier !== 'swarmQueen' && (
+                    {upgrade.requiresQueenTier && !meetsQueenTier(upgrade.requiresQueenTier, queen?.queenTier) && (
                       <div style={{ fontSize: '12px', marginTop: '6px', fontStyle: 'italic', color: '#FFD700' }}>
-                        Requires: Swarm Queen upgrade
+                        Requires {QueenTiers[upgrade.requiresQueenTier].name}
                       </div>
                     )}
                   </button>
+                  </React.Fragment>
                 );
               })}
             </div>

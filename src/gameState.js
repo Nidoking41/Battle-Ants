@@ -1,5 +1,5 @@
 import { HexCoord, generateSquareGrid, getPlayerStartingPositions, mirrorPositions, isValidHex, getRiverRow, isNorthOfRiver, isLakeWater, cliffAt, isMapWater } from './hexUtils';
-import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType } from './antTypes';
+import { AntTypes, GameConstants, Upgrades, QueenTiers, MapShape, Teams, getAntTypeById, isMeleeType, meetsQueenTier } from './antTypes';
 import { getHeroById } from './heroQueens';
 
 // Healing for a unit standing on its own finished anthill, per turn
@@ -1674,7 +1674,7 @@ export function canAffordUpgrade(player, upgradeId, queen) {
 
   // Check if upgrade requires a specific queen tier
   if (upgrade.requiresQueenTier) {
-    if (!queen || queen.queenTier !== upgrade.requiresQueenTier) {
+    if (!queen || !meetsQueenTier(upgrade.requiresQueenTier, queen.queenTier)) {
       return false; // Queen must be at required tier
     }
   }
