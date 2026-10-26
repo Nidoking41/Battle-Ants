@@ -27,6 +27,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
     mapSize: 'large',
     mapId: 'classic',
     fogOfWar: true,
+    blitz: false,
     gameStarted: false
   });
 
@@ -94,6 +95,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
             mapSize: 'large',
             mapId: 'classic',
             fogOfWar: true,
+            blitz: false,
             gameStarted: false
           });
         } else {
@@ -170,6 +172,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
             mapSize: data.mapSize,
             mapId: data.mapId || 'classic',
             fogOfWar: data.fogOfWar !== undefined ? data.fogOfWar : true,
+            blitz: !!data.blitz,
             player1Color: player1Color,
             player2Color: player2Color,
             player3Color: player3Color,
@@ -242,6 +245,14 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
       fogOfWar: !lobbyState.fogOfWar
+    });
+  };
+
+  const handleBlitzToggle = () => {
+    if (!isHost) return; // Only host can change Blitz
+    const lobbyRef = ref(database, `lobbies/${roomCode}`);
+    update(lobbyRef, {
+      blitz: !lobbyState.blitz
     });
   };
 
@@ -527,6 +538,45 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                   }}
                 >
                   {lobbyState.fogOfWar ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '12px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ marginBottom: '4px', fontSize: '17px', color: '#e0e0e0' }}>
+                    Blitz {!isHost && '(Host)'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#b0b0b0' }}>
+                    {lobbyState.blitz
+                      ? '30 seconds a turn, then it ends by itself'
+                      : 'No turn timer'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleBlitzToggle}
+                  disabled={!isHost}
+                  style={{
+                    padding: '12px 20px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    background: lobbyState.blitz ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                    color: '#e0e0e0',
+                    border: lobbyState.blitz ? '2px solid #aaa' : '2px solid #666',
+                    borderRadius: '5px',
+                    cursor: isHost ? 'pointer' : 'not-allowed',
+                    opacity: !isHost ? 0.6 : 1,
+                    minWidth: '80px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {lobbyState.blitz ? 'ON' : 'OFF'}
                 </button>
               </div>
             </div>

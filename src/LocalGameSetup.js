@@ -6,6 +6,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
   const [mapSize, setMapSize] = useState('large');
   const [mapId, setMapId] = useState('classic');
   const [fogOfWar, setFogOfWar] = useState(true);
+  const [blitz, setBlitz] = useState(false);
   const [player1Hero, setPlayer1Hero] = useState('gorlak');
   const [player2Hero, setPlayer2Hero] = useState('sorlorg');
 
@@ -50,6 +51,7 @@ function LocalGameSetup({ onStartGame, onBack }) {
       playerRole: 'player1',
       isMultiplayer: false,
       fogOfWar: fogOfWar,
+      blitz,
       mapSize,
       mapId,
       player1Color: heroColors[player1Hero],
@@ -217,6 +219,43 @@ function LocalGameSetup({ onStartGame, onBack }) {
                   }}
                 >
                   {fogOfWar ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+            {/* Blitz Toggle */}
+            <div style={{
+              padding: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ marginBottom: '2px', fontSize: '15px', color: '#e0e0e0' }}>
+                    Blitz
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#b0b0b0' }}>
+                    {blitz
+                      ? '30 seconds a turn, then it ends by itself'
+                      : 'No turn timer'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setBlitz(!blitz)}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    background: blitz ? 'linear-gradient(145deg, #8a8a8a, #6a6a6a)' : 'linear-gradient(145deg, #4a4a4a, #2a2a2a)',
+                    color: '#e0e0e0',
+                    border: blitz ? '2px solid #aaa' : '2px solid #666',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    minWidth: '70px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {blitz ? 'ON' : 'OFF'}
                 </button>
               </div>
             </div>

@@ -58,6 +58,9 @@ const MOVE_TRANSITION = 'transform 0.27s ease-in-out';
 // browser runs this by itself, so idle ants never make React redraw the
 // board. `seed` (an ant or egg id) starts each one at a different point so
 // they don't all bob in step.
+// Blitz mode: seconds per turn
+const BLITZ_SECONDS = 30;
+
 function SpriteCycle({ start, step, frames, msPerFrame, seed }) {
   const values = Array.from({ length: frames }, (_, i) => start - i * step).join(';');
   const total = frames * msPerFrame;
@@ -364,7 +367,10 @@ function App() {
   const [tipDismissed, setTipDismissed] = useState(false);
   // Second pop-up (level.buildAgainTip): the first anthill is still half-built
   const [buildTipDismissed, setBuildTipDismissed] = useState(false);
-  const [goalsIntroOpen, setGoalsIntroOpen] = useState(false); // level-start goals pop-up in the middle
+  const [goalsIntroOpen, setGoalsIntroOpen] = useState(false);
+  const [blitzLeft, setBlitzLeft] = useState(null); // Blitz: seconds left this turn
+  const handleEndTurnRef = useRef(null);
+  const isMyTurnRef = useRef(() => false); // level-start goals pop-up in the middle
   // Third pop-up (level.anthillDoneTip): the first anthill is finished
   const [doneTipDismissed, setDoneTipDismissed] = useState(false);
   // Hotkey tutorial: the furthest step the player has reached
@@ -2548,6 +2554,33 @@ function App() {
   };
 
   // Handle end turn with AI support
+  // Blitz (player vs player option): every turn lasts BLITZ_SECONDS, then ends
+  // by itself as if End Turn were pressed. Each client counts down from when
+  // it sees the turn start; only the client whose turn it is ends it, so an
+  // online turn can't be ended twice.
+  const blitzOn = !!gameMode?.blitz && !gameMode?.isAI && !gameState.gameOver;
+  const blitzTurnKey = `${gameState.turn}-${gameState.currentPlayer}`;
+  useEffect(() => {
+    if (!blitzOn) { setBlitzLeft(null); return; }
+    const deadline = Date.now() + BLITZ_SECONDS * 1000;
+    let fired = false;
+    setBlitzLeft(BLITZ_SECONDS);
+    const timer = setInterval(() => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setBlitzLeft(left);
+      if (left === 0 && !fired) {
+        fired = true;
+        clearInterval(timer);
+        if (isMyTurnRef.current()) {
+          showFeedback("Time's up!");
+          handleEndTurnRef.current();
+        }
+      }
+    }, 250);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blitzOn, blitzTurnKey]);
+
   const handleEndTurn = async () => {
     // Safety check: Don't allow ending turn if it's not your turn
     if (!isMyTurn()) {
@@ -2627,6 +2660,8 @@ function App() {
 
     // AI turn will be handled automatically by useEffect
   };
+  handleEndTurnRef.current = handleEndTurn;
+  isMyTurnRef.current = isMyTurn;
 
   // Show menu if game hasn't started
   if (!gameMode && showIntro) {
@@ -7750,6 +7785,24 @@ function App() {
           )}
 
           </div>
+
+          {/* Blitz countdown */}
+          {blitzLeft !== null && (
+            <div style={{
+              flexShrink: 0,
+              marginTop: '6px',
+              padding: '6px',
+              textAlign: 'center',
+              fontWeight: 'bold',
+              fontSize: blitzLeft <= 10 ? '20px' : '16px',
+              color: blitzLeft <= 5 ? '#fff' : blitzLeft <= 10 ? '#ff6b6b' : '#ffd700',
+              background: blitzLeft <= 5 ? '#c0392b' : 'rgba(0, 0, 0, 0.4)',
+              border: `2px solid ${blitzLeft <= 10 ? '#e74c3c' : 'rgba(255, 215, 0, 0.5)'}`,
+              borderRadius: '5px'
+            }}>
+              ⏱️ {!gameMode?.isMultiplayer ? 'Time left' : isMyTurn() ? 'Your turn' : 'Their turn'}: {blitzLeft}s
+            </div>
+          )}
 
           {/* End Turn Button - only show when it's your turn */}
           {isMyTurn() && (
