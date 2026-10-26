@@ -124,7 +124,7 @@ export const LEVELS = [
     },
     player: {
       queenTier: 'larva',
-      resources: { food: 25, minerals: 0 },
+      resources: { food: 10, minerals: 0 }, // just the two anthills (5 each), so food mined = food held
       roster: [],
       units: 'default'
     },

@@ -47,7 +47,7 @@ describe('campaign level 1', () => {
     expect(state.campaign.enemyUnitMix).toEqual({ drone: 1 });
     expect(state.campaign.waves.map(w => w.turn)).toEqual([3, 6, 9, 12, 15, 18]);
 
-    expect(state.players.player1.resources).toEqual({ food: 25, minerals: 0 });
+    expect(state.players.player1.resources).toEqual({ food: 10, minerals: 0 });
 
     // Level 1 is food-only: minerals are useless to drones and scouts
     const nodeTypes = new Set(Object.values(state.resources).map(r => r.type));
