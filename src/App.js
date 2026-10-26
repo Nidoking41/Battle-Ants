@@ -7228,6 +7228,14 @@ function App() {
           {selectedAnt && gameState.ants[selectedAnt] && (
             <div className="selected-ant-info" style={{ marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '2px solid rgba(192, 192, 192, 0.3)' }}>
               <h4 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>Selected Ant</h4>
+              {(() => {
+                // A queen shows her hero's name (e.g. Gorlak the Crusher), then her tier
+                const ant = gameState.ants[selectedAnt];
+                const hero = ant.type === 'queen' ? require('./heroQueens').getHeroById(gameState.players[ant.owner]?.heroId) : null;
+                return hero ? (
+                  <p style={{ color: '#ffd700', margin: '5px 0', fontWeight: 'bold' }}>{hero.name}</p>
+                ) : null;
+              })()}
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>{gameState.ants[selectedAnt].type === 'queen' && gameState.ants[selectedAnt].queenTier ? QueenTiers[gameState.ants[selectedAnt].queenTier].name : getAntTypeById(gameState.ants[selectedAnt].type)?.name}</p>
               <p style={{ color: '#e0e0e0', margin: '5px 0' }}>HP: {gameState.ants[selectedAnt].health}/{gameState.ants[selectedAnt].maxHealth} ({Math.max(1, Math.round((10 * gameState.ants[selectedAnt].health) / gameState.ants[selectedAnt].maxHealth))})</p>
               {(() => {
