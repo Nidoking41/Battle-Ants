@@ -84,6 +84,42 @@ def strip_abdomen(base):
     return out, y0, y1
 
 
+def reattach_legs(img, outline, x0, x1, y_from):
+    """Leg pieces left floating when the old abdomen was cut out: join the top
+    of each one to the nearest body pixel above it with a line of outline."""
+    solid = {(x, y) for x in range(F) for y in range(F) if img.getpixel((x, y))[3]}
+    seen, comps = set(), []
+    for p0 in sorted(solid, key=lambda p: (p[1], p[0])):
+        if p0 in seen:
+            continue
+        comp, stack = [], [p0]
+        seen.add(p0)
+        while stack:
+            x, y = stack.pop()
+            comp.append((x, y))
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    q = (x + dx, y + dy)
+                    if q in solid and q not in seen:
+                        seen.add(q)
+                        stack.append(q)
+        comps.append(comp)
+    body = set(max(comps, key=len))
+    for comp in comps:
+        if len(comp) < 3 or set(comp) == body:
+            continue
+        top = min(comp, key=lambda p: (p[1], p[0]))
+        if top[1] < y_from or not (x0 <= top[0] <= x1):
+            continue
+        cands = [b for b in body if b[1] < top[1]]
+        if not cands:
+            continue
+        bx, by = min(cands, key=lambda b: (b[0] - top[0]) ** 2 + (b[1] - top[1]) ** 2)
+        n = max(abs(bx - top[0]), abs(by - top[1]))
+        for k in range(1, n):
+            put(img, round(top[0] + (bx - top[0]) * k / n), round(top[1] + (by - top[1]) * k / n), outline)
+
+
 def abdomen_bulge(img, pal, cx, cy, rx, ry, bands):
     """One big abdomen: a shaded ellipse with segment ridges and gold bands."""
     pts = set()
@@ -103,7 +139,7 @@ def abdomen_bulge(img, pal, cx, cy, rx, ry, bands):
             seg = (x - cx) % 3 == 0 and t > 0.2 and x < cx + rx - 1
             if seg:
                 c = pal['dark'] if t < 0.62 else pal['darkest']
-            if (x - cx) in bands and t >= 0.25:
+            if (x - cx) in bands:
                 c = GOLD['dark'] if t > 0.6 else GOLD['mid']
         put(img, x + OX, y + OY, c)
 
@@ -223,12 +259,14 @@ def build(color, tier):
             extra_wings(img, base, -4, -3, back_wing)
             abdomen_bulge(img, pal, ABD_X1 + 1 - 9, acy, 9, 6, bands=(-4, 2))
             img.alpha_composite(body, (OX, OY))
+            reattach_legs(img, pal['outline'], OX, OX + 26, OY + ay0)
             crown(img, top, hx0, 5, 2, [GEM_R])
         else:
             extra_wings(img, base, -8, -5, {wing: (214, 190, 240), wing_hi: (245, 235, 255), 'outline': pal['outline']})
             extra_wings(img, base, -4, -3, back_wing)
             abdomen_bulge(img, pal, ABD_X1 + 1 - 11, acy, 11, 7, bands=(-7, -1, 5))
             img.alpha_composite(body, (OX, OY))
+            reattach_legs(img, pal['outline'], OX, OX + 26, OY + ay0)
             back_spines(img, base, pal)
             crown(img, top, hx0 - 1, 7, 3, [GEM_B, GEM_R, GEM_G])
             glowing_eyes(img, base, pal)
