@@ -8276,8 +8276,8 @@ function App() {
                       {upgrade.description}
                     </div>
                     {upgrade.requiresQueenTier && !meetsQueenTier(upgrade.requiresQueenTier, queen?.queenTier) && (
-                      <div style={{ fontSize: '12px', marginTop: '6px', fontStyle: 'italic', color: '#FFD700' }}>
-                        Requires {QueenTiers[upgrade.requiresQueenTier].name}
+                      <div style={{ fontSize: '12px', marginTop: '6px', fontWeight: 'bold', color: '#5B2A86' }}>
+                        🔒 Requires {QueenTiers[upgrade.requiresQueenTier].name}
                       </div>
                     )}
                   </button>
