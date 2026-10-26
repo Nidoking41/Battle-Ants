@@ -28,6 +28,17 @@ export const SpriteConfig = {
       walk: { path: 'queen_idle_red.png', frames: 8 },
       attack: { path: 'queen_idle_red.png', frames: 8 }
     },
+    // Upgraded queens (48px frames, drawn larger - see gen/royal_queens.py)
+    broodQueen: {
+      idle: { path: 'broodqueen_idle_red.png', frames: 8 },
+      walk: { path: 'broodqueen_idle_red.png', frames: 8 },
+      attack: { path: 'broodqueen_idle_red.png', frames: 8 }
+    },
+    swarmQueen: {
+      idle: { path: 'swarmqueen_idle_red.png', frames: 8 },
+      walk: { path: 'swarmqueen_idle_red.png', frames: 8 },
+      attack: { path: 'swarmqueen_idle_red.png', frames: 8 }
+    },
     // A Broodwarden cocoon is drawn as the larva
     broodwardenCocoon: {
       idle: { path: 'larva_idle_red.png', frames: 8 },
@@ -138,11 +149,13 @@ const COLOR_MAP = {
 };
 
 // Ant types that have colored sprite variants
-const COLORED_ANT_TYPES = ['queen', 'broodwarden', 'broodwardenCocoon', 'queenLarva', 'emissary', 'termite', 'mantis', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
+const COLORED_ANT_TYPES = ['queen', 'broodQueen', 'swarmQueen', 'broodwarden', 'broodwardenCocoon', 'queenLarva', 'emissary', 'termite', 'mantis', 'scout', 'drone', 'soldier', 'tank', 'spitter', 'healer', 'bomber', 'bombardier', 'cordyphage', 'egg'];
 
 // Map ant type IDs to their sprite file prefixes
 const ANT_TYPE_TO_SPRITE_PREFIX = {
   'queen': 'queen',
+  'broodQueen': 'broodqueen',
+  'swarmQueen': 'swarmqueen',
   'broodwarden': 'broodwarden',
   'broodwardenCocoon': 'larva',
   'queenLarva': 'larva',
@@ -164,6 +177,8 @@ const ANT_TYPE_TO_SPRITE_PREFIX = {
 // Map ant type IDs to their folder names
 const ANT_TYPE_TO_FOLDER = {
   'queen': 'Queen',
+  'broodQueen': 'Queen',
+  'swarmQueen': 'Queen',
   'broodwarden': 'Broodwarden',
   'broodwardenCocoon': 'Larva',
   'queenLarva': 'Larva',
@@ -216,6 +231,7 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       if (antType === 'egg' && (colorSuffix === 'black' || colorSuffix === 'blue')) {
         frameSize = 64;
       }
+      if (antType === 'broodQueen' || antType === 'swarmQueen') frameSize = 48;
     }
   }
 

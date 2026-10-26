@@ -5985,7 +5985,9 @@ function App() {
 
       // Get sprite frame info
       const playerColor = (ant.colorOverride || gameState.players[ant.owner]?.color);
-      const spriteFrame = getAntFrame(ant.id, ant.type, currentAnimation, playerColor);
+      // An upgraded queen has her own grander sprite
+      const spriteType = ant.type === 'queen' && (ant.queenTier === 'broodQueen' || ant.queenTier === 'swarmQueen') ? ant.queenTier : ant.type;
+      const spriteFrame = getAntFrame(ant.id, spriteType, currentAnimation, playerColor);
 
       // Check if ant is on a resource or anthill
       const resource = Object.values(gameState.resources).find(r => hexEquals(r.position, ant.position));
@@ -6034,7 +6036,7 @@ function App() {
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (() => {
             // Large units (campaign bugs) are drawn 1.5x on the same hex
-            const size = getAntTypeById(ant.type)?.drawSize || (getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80);
+            const size = spriteType !== ant.type ? 120 : getAntTypeById(ant.type)?.drawSize || (getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80);
             const half = size / 2;
             return (
             <g opacity={hasActions ? 1 : 0.5}>
