@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from './firebaseConfig';
 import { HeroQueens } from './heroQueens';
+import MapPicker from './maps/MapPicker';
 
 function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack }) {
   const [lobbyState, setLobbyState] = useState({
@@ -24,6 +25,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
     player3: null,
     player4: null,
     mapSize: 'large',
+    mapId: 'classic',
     fogOfWar: true,
     gameStarted: false
   });
@@ -90,6 +92,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
               ready: false
             },
             mapSize: 'large',
+            mapId: 'classic',
             fogOfWar: true,
             gameStarted: false
           });
@@ -165,6 +168,7 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
             playerCount: data.playerCount || 2,
             mapShape: data.mapShape || 'rectangle',
             mapSize: data.mapSize,
+            mapId: data.mapId || 'classic',
             fogOfWar: data.fogOfWar !== undefined ? data.fogOfWar : true,
             player1Color: player1Color,
             player2Color: player2Color,
@@ -223,8 +227,14 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
     if (!isHost) return; // Only host can change map size
     const lobbyRef = ref(database, `lobbies/${roomCode}`);
     update(lobbyRef, {
-      mapSize: newSize
+      mapSize: newSize,
+      mapId: 'classic' // each size has its own maps
     });
+  };
+
+  const handleMapChange = (newMapId) => {
+    if (!isHost) return; // Only host picks the map
+    update(ref(database, `lobbies/${roomCode}`), { mapId: newMapId });
   };
 
   const handleFogOfWarToggle = () => {
@@ -452,6 +462,12 @@ function GameLobby({ roomCode, playerId, playerRole, isHost, onStartGame, onBack
                       {size.name}
                     </button>
                   ))}
+                </div>
+                <h3 style={{ margin: '12px 0 6px', fontSize: '15px', color: '#e0e0e0' }}>
+                  Map {!isHost && '(Host chooses)'}
+                </h3>
+                <div style={{ pointerEvents: isHost ? 'auto' : 'none' }}>
+                  <MapPicker mapSize={lobbyState.mapSize || 'large'} mapId={lobbyState.mapId || 'classic'} onSelect={handleMapChange} />
                 </div>
               </div>
             ) : (

@@ -43,3 +43,25 @@ test('a used-up anthill stays, makes nothing more, and still heals', () => {
   expect(gain).toBeLessThan(GameConstants.ANTHILL_PASSIVE_INCOME.food + 50);
   expect(s.anthills.h1.resourcesGathered).toBe(state.anthills.h1.resourcesGathered + GameConstants.ANTHILL_PASSIVE_INCOME.food);
 });
+
+test('a Drone that starts an anthill finishes it by itself next turn, and that is its turn', () => {
+  const { buildAnthill } = require('./gameState');
+  const state = createInitialGameState();
+  const res = Object.values(state.resources).find(r => r.type === 'food' && !r.permanent);
+  const drone = { ...createAnt('drone', 'player1', res.position), id: 'd1' };
+  state.ants = { ...state.ants, d1: drone };
+  let s = buildAnthill(state, 'd1', res.id);
+  const hill = Object.values(s.anthills).find(h => h.owner === 'player1');
+  expect(hill.isComplete).toBe(false);
+  s = round(s);
+  expect(s.anthills[hill.id].isComplete).toBe(true);
+  expect(s.ants.d1.hasBuilt).toBe(true); // locked in for this turn too
+});
+
+test('a half-built anthill gives no defense bonus', () => {
+  const { getAntDefense } = require('./gameState');
+  const { state } = setup();
+  const half = { ...state, anthills: { h1: { ...state.anthills.h1, isComplete: false } } };
+  const p1 = state.players.player1;
+  expect(getAntDefense(half.ants.s1, p1, half)).toBe(getAntDefense(state.ants.s1, p1, state) - 2);
+});

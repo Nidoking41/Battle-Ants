@@ -8791,7 +8791,7 @@ function App() {
                 <li><strong>Damage Formula:</strong> Attack - (Defense / 2), minimum 1 damage</li>
                 <li><strong>Health-Based Scaling:</strong> Damaged units deal less damage (health% + 5%)</li>
                 <li><strong>Melee Counter-Attack:</strong> When attacked in melee range, defender strikes back if they survive</li>
-                <li><strong>Anthill Defense Bonus:</strong> Units on anthills get +2 defense</li>
+                <li><strong>Anthill Defense Bonus:</strong> Units on finished anthills get +2 defense</li>
                 <li><strong>Bomber Detonation:</strong> When bombers die, they explode dealing damage to adjacent units</li>
               </ul>
             </section>
@@ -8863,7 +8863,7 @@ function App() {
                 <li>Bombardiers are powerful but vulnerable - keep them protected</li>
                 <li>Upgrade your units to gain combat advantages</li>
                 <li>Cannibalism upgrade turns aggressive play into resource generation</li>
-                <li>Position units on anthills for the +2 defense bonus in key fights</li>
+                <li>Position units on finished anthills for the +2 defense bonus in key fights</li>
                 <li>Use Burrow to set up ambushes and heal damaged units</li>
                 <li>Burrowed Marauders make excellent mobile ambush units</li>
               </ul>

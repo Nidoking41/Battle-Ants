@@ -1480,6 +1480,20 @@ export function endTurn(rawGameState) {
     finalGameState.armyStrengthHistory = newArmyStrengthHistory;
   }
 
+  // A Drone that started an anthill is locked in: at the start of its owner's
+  // next turn it goes on building by itself (finishing it), and that is its
+  // whole turn. Nobody has to select it and press Build again.
+  Object.values(finalGameState.anthills || {}).forEach(hill => {
+    if (hill.isComplete || hill.owner !== nextPlayer) return;
+    const builder = Object.values(finalGameState.ants).find(a => a.type === 'drone' && a.owner === nextPlayer &&
+      a.position.q === hill.position.q && a.position.r === hill.position.r);
+    if (!builder || !finalGameState.resources?.[hill.resourceId]) return;
+    const built = buildAnthill(finalGameState, builder.id, hill.resourceId);
+    finalGameState.anthills = built.anthills;
+    finalGameState.ants = built.ants;
+    finalGameState.stats = built.stats;
+  });
+
   // Campaign objectives. Both the human and AI turns funnel through endTurn,
   // so this one hook covers every path. Gated on `campaign`, which is
   // undefined in local, AI and online games. The queen-death win path in
@@ -1561,7 +1575,7 @@ export function buildAnthill(gameState, droneId, resourceId) {
   const updatedAnthills = { ...gameState.anthills };
 
   // Check if there's already a completed anthill here
-  const existingAnthill = Object.values(updatedAnthills).find(
+  let existingAnthill = Object.values(updatedAnthills).find(
     anthill => anthill.position.q === resource.position.q && anthill.position.r === resource.position.r
   );
 
@@ -1571,8 +1585,9 @@ export function buildAnthill(gameState, droneId, resourceId) {
       return gameState;
     }
 
-    // If it's our anthill under construction, add progress
-    existingAnthill.buildProgress += 1;
+    // If it's our anthill under construction, add progress (on a copy: the
+    // state passed in must not change)
+    existingAnthill = { ...existingAnthill, buildProgress: existingAnthill.buildProgress + 1 };
 
     // Check if we've completed it
     let completedStats = gameState.stats;
@@ -1807,10 +1822,11 @@ export function getAntDefense(ant, player, gameState) {
     defense += tier * 2;
   }
 
-  // Check if ant is on an anthill for +2 defense bonus
+  // Check if ant is on a finished anthill for +2 defense bonus (a half-built
+  // one gives nothing)
   if (gameState && gameState.anthills) {
     const anthillHere = Object.values(gameState.anthills).find(anthill =>
-      anthill.position.q === ant.position.q && anthill.position.r === ant.position.r
+      anthill.isComplete && anthill.position.q === ant.position.q && anthill.position.r === ant.position.r
     );
 
     if (anthillHere) {

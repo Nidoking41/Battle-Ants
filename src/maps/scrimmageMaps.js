@@ -1,5 +1,6 @@
 import { createInitialGameState } from '../gameState';
 import { applyMapLayout } from '../campaign/campaignState';
+import { HexCoord, hexDistance, isValidHex, isMapWater, cliffAt } from '../hexUtils';
 
 // Hand-drawn 2-player Scrimmage maps, three per map size. Layouts use the
 // same ASCII format as the campaign (see campaign/mapLayout.js): '.' ground,
@@ -324,11 +325,102 @@ export function getScrimmageMap(id) {
 export function createScrimmageGameState(options = {}) {
   const map = getScrimmageMap(options.mapId);
   if (!map || (options.playerCount && options.playerCount !== 2)) {
-    return createInitialGameState(options);
+    return assignPermanentNodes(createInitialGameState(options));
   }
   const state = createInitialGameState({ ...options, playerCount: 2, mapSize: map.size, river: false });
   applyMapLayout(state, map.layout);
   state.mapId = map.id;
   state.mapName = map.name;
-  return state;
+  return assignPermanentNodes(state);
+}
+
+export const PERMANENT_PER_SIDE = 2; // Honeypots and Mines each, per player
+
+/**
+ * Every Scrimmage and multiplayer map: each player's side gets 2 Honeypots
+ * (food) and 2 Mines (minerals) - the nodes of each type nearest that queen -
+ * and every other node stays the normal kind that runs out. A side left with
+ * no normal node of a type gets one added (mirrored for the other player on a
+ * 2-player map), so there is always something to use up and respawn.
+ */
+export function assignPermanentNodes(state) {
+  const queens = Object.values(state.ants).filter(a => a.type === 'queen');
+  if (queens.length === 0) return state;
+  const resources = { ...state.resources };
+  // Which queen a hex belongs to: the nearest one, measured straight across
+  // the board (hex steps tie too often); an exact tie goes to neither
+  const px = h => [1.5 * h.q, Math.sqrt(3) * (h.r + h.q / 2)];
+  const ownerOf = pos => {
+    const [x, y] = px(pos);
+    // straight-line distance first, then rows apart (r) to settle a hex on the middle line
+    const d = queens.map(q => { const [qx, qy] = px(q.position); return Math.round(((qx - x) ** 2 + (qy - y) ** 2) * 1000) * 100 + Math.abs(q.position.r - pos.r); });
+    const best = Math.min(...d);
+    return d.filter(x2 => x2 === best).length === 1 ? queens[d.indexOf(best)] : null;
+  };
+  queens.forEach(queen => {
+    ['food', 'minerals'].forEach(type => {
+      Object.values(resources)
+        .filter(r => r.type === type && ownerOf(r.position) === queen)
+        .sort((a, b) => hexDistance(a.position, queen.position) - hexDistance(b.position, queen.position) ||
+          a.position.q - b.position.q || a.position.r - b.position.r)
+        .slice(0, PERMANENT_PER_SIDE)
+        .forEach(r => { resources[r.id] = { ...r, permanent: true }; });
+    });
+  });
+
+  // Top up: a side short of Honeypots or Mines gets them added, and a side
+  // with no normal node of a type left gets one
+  let strict = true;
+  const free = h => {
+    if (!isValidHex(h, state.gridRadius, state.mapShape) || isMapWater(h, state.gridRadius, state.mapShape)) return false;
+    if (cliffAt(h, state.mapShape) !== undefined) return false;
+    const taken = [...Object.values(resources), ...Object.values(state.ants), ...Object.values(state.trees || {}), ...Object.values(state.anthills || {})]
+      .some(o => o.position.q === h.q && o.position.r === h.r);
+    if (taken) return false;
+    // never touching another node, and clear of every queen's egg ring
+    // (a cramped map may need a second, looser look)
+    if (strict && Object.values(resources).some(r => hexDistance(r.position, h) <= 1)) return false;
+    return queens.every(q => hexDistance(q.position, h) >= (strict ? 3 : 2));
+  };
+  let n = 0;
+  const add = (type, pos, permanent) => {
+    const id = `resource_extra_${++n}`;
+    resources[id] = { id, type, position: new HexCoord(pos.q, pos.r), ...(permanent ? { permanent: true } : {}) };
+  };
+  const count = (queen, type, permanent) => Object.values(resources)
+    .filter(r => r.type === type && !!r.permanent === permanent && ownerOf(r.position) === queen).length;
+  const twoPlayer = queens.length === 2;
+  // Fill a side up to `want` nodes of a kind: Honeypots/Mines close in (3 hexes
+  // out), normal nodes a little further (4). On a 2-player map the other side
+  // gets the mirror spot, so both stay the same.
+  const fill = (type, permanent, want, dist) => {
+    queens.forEach((queen, qi) => {
+      while (count(queen, type, permanent) < want) {
+        const spots = [];
+        for (let q = -state.gridRadius - 2; q <= state.gridRadius + 2; q++) {
+          for (let r = -state.gridRadius - 2; r <= state.gridRadius + 2; r++) {
+            const h = new HexCoord(q, r);
+            if (ownerOf(h) === queen && free(h)) spots.push(h);
+          }
+        }
+        if (spots.length === 0) return;
+        spots.sort((a, b) => Math.abs(hexDistance(a, queen.position) - dist) - Math.abs(hexDistance(b, queen.position) - dist) ||
+          a.q - b.q || a.r - b.r);
+        const other = twoPlayer ? queens[1 - qi] : null;
+        const mirrored = other && other.position.q === -queen.position.q && other.position.r === -queen.position.r;
+        const mirrorOk = h => free({ q: -h.q, r: -h.r }) && ownerOf({ q: -h.q, r: -h.r }) === other;
+        const pick = (mirrored && spots.find(mirrorOk)) || spots[0];
+        add(type, pick, permanent);
+        if (mirrored && mirrorOk(pick) && count(other, type, permanent) < want) add(type, { q: -pick.q, r: -pick.r }, permanent);
+      }
+    });
+  };
+  for (const pass of [true, false]) {
+    strict = pass;
+    ['food', 'minerals'].forEach(type => {
+      fill(type, true, PERMANENT_PER_SIDE, 3);
+      fill(type, false, 1, 4);
+    });
+  }
+  return { ...state, resources };
 }

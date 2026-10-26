@@ -42,10 +42,11 @@ export function getVisibleHexes(gameState, playerId) {
         // Scouts, Queens and Bombardiers get 2 vision range, all others get 1
         let VISION_RADIUS = (ant.type === 'scout' || ant.type === 'queen' || ant.type === 'bombardier') ? 2 : 1;
 
-        // Any unit on a player-owned anthill gets +1 vision bonus
+        // Any unit on a finished player-owned anthill gets +1 vision bonus
         if (gameState.anthills) {
           const anthillAtPosition = Object.values(gameState.anthills).find(
-            anthill => anthill.position.q === ant.position.q &&
+            anthill => anthill.isComplete &&
+                       anthill.position.q === ant.position.q &&
                        anthill.position.r === ant.position.r &&
                        anthill.owner === playerId
           );

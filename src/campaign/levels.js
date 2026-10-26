@@ -164,11 +164,11 @@ export const LEVELS = [
       title: 'Food',
       text: 'Move a Worker Drone onto this food, then press Build Anthill (B). The anthill mines food for you every turn.'
     },
-    // Round 2: the first anthill is only half built
+    // As soon as the first anthill is started: it is only half built
     buildAgainTip: {
-      fromTurn: 2,
-      title: 'Not finished yet',
-      text: 'This anthill is only half built. Select the Worker Drone on it and press Build Anthill (B) again to finish it.'
+      fromTurn: 1,
+      title: 'Half built',
+      text: 'Your Worker Drone stays on the anthill and finishes it by itself at the start of your next turn.'
     },
     // Once it is finished
     anthillDoneTip: {
