@@ -1,4 +1,4 @@
-// Electron entry point: opens the Battle Ants web build in its own window.
+// Electron entry point: opens the Ant Wars web build in its own window.
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 
@@ -8,7 +8,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 600,
-    title: 'Battle Ants',
+    title: 'Ant Wars',
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     show: false,
@@ -18,7 +18,7 @@ function createWindow() {
     },
   });
 
-  // Keep the window title as Battle Ants instead of the web page's title.
+  // Keep the window title as Ant Wars instead of the web page's title.
   win.on('page-title-updated', (e) => e.preventDefault());
 
   win.once('ready-to-show', () => {

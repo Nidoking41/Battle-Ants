@@ -1,8 +1,8 @@
 {
   "name": "battle-ants-desktop",
-  "productName": "Battle Ants",
+  "productName": "Ant Wars",
   "version": "0.1.0",
-  "description": "Battle Ants desktop build for Steam",
+  "description": "Ant Wars desktop build for Steam",
   "author": "Nidoking41",
   "private": true,
   "main": "main.js",
@@ -12,9 +12,9 @@
     "dist": "npm run prepare-game && electron-builder --win dir"
   },
   "build": {
-    "appId": "com.nidoking41.battleants",
-    "productName": "Battle Ants",
-    "executableName": "BattleAnts",
+    "appId": "com.nidoking41.antwars",
+    "productName": "Ant Wars",
+    "executableName": "AntWars",
     "directories": {
       "output": "dist"
     },

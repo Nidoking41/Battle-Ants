@@ -24,9 +24,9 @@ jobs:
       - run: npm run dist
         working-directory: desktop
 
-      # Download this from the run's Summary page, unzip it, and run BattleAnts.exe.
+      # Download this from the run's Summary page, unzip it, and run AntWars.exe.
       # The same folder is what gets uploaded to Steam.
       - uses: actions/upload-artifact@v4
         with:
-          name: Battle-Ants-Windows
+          name: Ant-Wars-Windows
           path: desktop/dist/win-unpacked
