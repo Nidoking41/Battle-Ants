@@ -78,3 +78,9 @@ The `desktop/` folder wraps the game in Electron so it runs as `AntWars.exe`.
 - To try it on your own PC: `cd desktop`, `npm install`, then `npm start`.
 - `npm run dist` (in `desktop/`) makes the `dist/win-unpacked` folder that gets uploaded to Steam.
 - F11 toggles fullscreen. Online multiplayer still needs an internet connection.
+
+### Uploading to the Steam Playtest
+
+Double-click `steam/upload-playtest.bat`. It builds the desktop app, downloads SteamCMD the first
+time, asks for your Steam login, and uploads to the Ant Wars Playtest (App 5537010, depot 5537011).
+Then set the new build live on the `default` branch in Steamworks (SteamPipe → Builds).

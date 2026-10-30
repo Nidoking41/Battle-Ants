@@ -1,0 +1,19 @@
+"AppBuild"
+{
+	"AppID" "5537010"
+	"Desc" "Ant Wars Playtest build"
+	"ContentRoot" "..\desktop\dist\win-unpacked\"
+	"BuildOutput" "output\"
+	"Depots"
+	{
+		"5537011"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "*"
+				"DepotPath" "."
+				"recursive" "1"
+			}
+		}
+	}
+}
