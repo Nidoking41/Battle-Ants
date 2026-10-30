@@ -8746,21 +8746,24 @@ function App() {
             zIndex: 4000,
             cursor: 'pointer'
           }}>
+          {/* Framed by a twisted pixel-art branch (gen/vine_frame.py, 9-slice) */}
           <div style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            border: '4px solid #FFD700',
-            borderRadius: '20px',
-            padding: '40px 60px',
+            backgroundColor: '#1f170f',
+            backgroundClip: 'padding-box',
+            borderStyle: 'solid',
+            borderWidth: '48px',
+            borderImage: `url(${process.env.PUBLIC_URL}/sprites/ui/vine_frame.png) 16 fill round`,
+            imageRendering: 'pixelated',
+            padding: '0 24px',
             textAlign: 'center',
-            boxShadow: '0 0 40px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.2)',
             animation: 'turnPopupPulse 0.5s ease-in-out',
             minWidth: '300px'
           }}>
             <h1 style={{
               margin: 0,
               fontSize: '48px',
-              color: '#FFD700',
-              textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5)',
+              color: '#E6EEC0',
+              textShadow: '3px 3px 0 #2c4a1c, 0 0 14px rgba(120, 180, 70, 0.45)',
               fontWeight: 'bold',
               letterSpacing: '2px'
             }}>
@@ -8769,7 +8772,7 @@ function App() {
             <p style={{
               margin: '15px 0 0 0',
               fontSize: '16px',
-              color: '#e0e0e0',
+              color: '#c9b48a',
               fontStyle: 'italic'
             }}>
               Click anywhere to continue
