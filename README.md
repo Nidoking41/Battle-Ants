@@ -68,3 +68,13 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Windows desktop app (for Steam)
+
+The `desktop/` folder wraps the game in Electron so it runs as `BattleAnts.exe`.
+
+- Every push to `main` builds it on GitHub (Actions tab, "Build Windows desktop app").
+  Open the latest run and download **Battle-Ants-Windows** at the bottom of the page.
+- To try it on your own PC: `cd desktop`, `npm install`, then `npm start`.
+- `npm run dist` (in `desktop/`) makes the `dist/win-unpacked` folder that gets uploaded to Steam.
+- F11 toggles fullscreen. Online multiplayer still needs an internet connection.

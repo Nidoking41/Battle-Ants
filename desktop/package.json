@@ -1,0 +1,36 @@
+{
+  "name": "battle-ants-desktop",
+  "productName": "Battle Ants",
+  "version": "0.1.0",
+  "description": "Battle Ants desktop build for Steam",
+  "author": "Nidoking41",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare-game": "node prepare-game.js",
+    "start": "npm run prepare-game && electron .",
+    "dist": "npm run prepare-game && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.nidoking41.battleants",
+    "productName": "Battle Ants",
+    "executableName": "BattleAnts",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "game/**/*"
+    ],
+    "win": {
+      "icon": "icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "45.2.0",
+    "electron-builder": "26.18.0"
+  },
+  "overrides": {
+    "tslib": "2.8.1"
+  }
+}
