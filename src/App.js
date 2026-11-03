@@ -8759,16 +8759,12 @@ function App() {
             animation: 'turnPopupPulse 0.5s ease-in-out',
             minWidth: '300px'
           }}>
-            <h1 style={{
-              margin: 0,
-              fontSize: '48px',
-              color: '#E6EEC0',
-              textShadow: '3px 3px 0 #2c4a1c, 0 0 14px rgba(120, 180, 70, 0.45)',
-              fontWeight: 'bold',
-              letterSpacing: '2px'
-            }}>
-              YOUR TURN!
-            </h1>
+            {/* Bark-and-leaf pixel lettering (gen/your_turn_text.py) */}
+            <img
+              src={`${process.env.PUBLIC_URL}/sprites/ui/your_turn.png`}
+              alt="YOUR TURN!"
+              style={{ display: 'block', width: '456px', maxWidth: '70vw', margin: '0 auto', imageRendering: 'pixelated' }}
+            />
             <p style={{
               margin: '15px 0 0 0',
               fontSize: '16px',
