@@ -61,17 +61,9 @@ for cx, cy in ((8, 8), (N - 9, 8), (8, N - 9), (N - 9, N - 9)):
     sx = 1 if cx < N // 2 else -1
     sy = 1 if cy < N // 2 else -1
     # leaf pointing into the frame's middle
-    for k in range(5):
+    for k in range(3):                  # stays inside the 16px corner tile
         lx, ly = cx + sx * (4 + k), cy + sy * (4 + k)
         put(lx, ly, LEAF[2]); put(lx - sx, ly, LEAF[1]); put(lx, ly - sy, LEAF[3] if k < 3 else LEAF[2])
-
-# a leaf hanging inward from each 8px tile of every edge (so edges still tile)
-LEAF_SHAPE = [(0, 0, 1), (1, 0, 2), (0, 1, 2), (1, 1, 2), (2, 1, 3), (1, 2, 1), (2, 2, 2), (2, 3, 1)]
-for x in range(B, N - B, 8):
-    for dx, dy, shade in LEAF_SHAPE:
-        lx, ly = x + 2 + dx, 12 + dy
-        for (px, py) in ((lx, ly), (lx, N - 1 - ly), (ly, lx), (N - 1 - ly, lx)):
-            put(px, py, LEAF[shade])
 
 # dark outline round everything
 filled = set(g)

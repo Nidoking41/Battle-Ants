@@ -55,10 +55,6 @@ def leaf(px, py, flip):
                       (4, -2, 1), (2, -3, 2), (3, -3, 2), (4, -3, 2), (5, -3, 1), (4, -4, 1)]:
         g.setdefault((px + (-dx if flip else dx), py + dy), LEAF[s])
 
-top_cells = sorted({cx for cx, cy in cells if cy == 0})
-for i, cx in enumerate(top_cells[::3]):
-    leaf(PAD + cx * C + 1, PAD - 1, i % 2 == 1)
-
 filled = set(g)
 for (px, py) in list(filled):
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1)):
