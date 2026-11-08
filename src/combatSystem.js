@@ -1136,3 +1136,49 @@ export function resolveAmbush(gameState, movingAntId, ambusherAntId) {
     ambushOccurred: true
   };
 }
+
+// Where a moving ant stops when its path runs into a hidden (fogged or
+// burrowed) enemy. `path` starts on the ant's own hex; `ambushIndex` is the
+// hidden enemy's place in it. Nothing may end its move on an ant or an egg,
+// so the hex just before the enemy is not always free (a friend may stand
+// there). In order of preference:
+//   1. the hex just before the hidden enemy, if it is free;
+//   2. any other free hex next to the hidden enemy that the ant can reach
+//      (`otherPaths`: the ant's reachable paths) without walking through
+//      any enemy - the closest one;
+//   3. the furthest free hex along the original path (not next to the enemy).
+// Returns { path, adjacent }: the path to walk (path[0] = start) and whether
+// the stop is next to the hidden enemy (only then does the ambush fight
+// happen). With nowhere to go the ant stays put: { path: [start] }.
+export function findAmbushStop(gameState, antId, path, ambushIndex, otherPaths = []) {
+  const same = (a, b) => a.q === b.q && a.r === b.r;
+  const enemyPos = path[ambushIndex];
+  const owner = gameState.ants[antId]?.owner;
+  const isFree = h =>
+    !Object.values(gameState.ants || {}).some(a => a.id !== antId && a.position && same(a.position, h)) &&
+    !Object.values(gameState.eggs || {}).some(e => e.position && same(e.position, h));
+  const hasEnemy = h =>
+    Object.values(gameState.ants || {}).some(a => a.owner !== owner && a.position && same(a.position, h));
+
+  const before = ambushIndex - 1;
+  if (before > 0 && isFree(path[before])) {
+    return { path: path.slice(0, before + 1), adjacent: true };
+  }
+
+  const nextToEnemy = otherPaths
+    .filter(p => p && p.length > 1)
+    .filter(p => {
+      const end = p[p.length - 1];
+      return hexDistance(end, enemyPos) === 1 && isFree(end) && !p.slice(1).some(hasEnemy);
+    })
+    .sort((a, b) => a.length - b.length)[0];
+  if (nextToEnemy) return { path: nextToEnemy, adjacent: true };
+
+  // The ant's own hex is next to the enemy: it simply stays and is ambushed
+  if (before === 0) return { path: path.slice(0, 1), adjacent: true };
+
+  for (let i = before - 1; i > 0; i--) {
+    if (isFree(path[i])) return { path: path.slice(0, i + 1), adjacent: false };
+  }
+  return { path: path.slice(0, 1), adjacent: hexDistance(path[0], enemyPos) === 1 };
+}

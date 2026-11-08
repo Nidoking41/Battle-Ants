@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
 import { canDeployEmissary, emissaryDeployBlock, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
-import { moveAnt, resolveCombat, canAttack, meleeBlockedByCliff, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush } from './combatSystem';
+import { moveAnt, resolveCombat, canAttack, meleeBlockedByCliff, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush, findAmbushStop } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { createScrimmageGameState } from './maps/scrimmageMaps';
 import { hexToPixel, getMovementRange, getMovementRangeWithPaths, HexCoord, getNeighbors, hexesInRange, hexDistance, generateTriangleGrid, generateSquareGrid, isValidHex, isMapWater, getMapWaterHexes, cliffAt } from './hexUtils';
@@ -3759,14 +3759,12 @@ function App() {
           }
 
           if (hiddenEnemy && ambushPathIndex >= 0) {
-            // Ambush! Move to the hex just before the hidden enemy
-            const shortPath = path.slice(0, ambushPathIndex);
-
-            if (shortPath.length === 0) {
-              // Can't ambush from adjacent hex - treat as blocked
-              showFeedback('Path is blocked by an enemy ant!');
-              return;
-            }
+            // Ambush! Stop on a free hex next to the hidden enemy (the one just
+            // before it on the path, or another open one beside it) - never
+            // on a friend or an egg, which would bounce the ant back to start
+            const { path: shortPath, adjacent: ambushAdjacent } = findAmbushStop(
+              fullGameState, selectedAnt, path, ambushPathIndex, Array.from(movementPaths.values())
+            );
 
             const stopPosition = shortPath[shortPath.length - 1];
 
@@ -3797,8 +3795,10 @@ function App() {
               // Wait for alert animation
               await new Promise(resolve => setTimeout(resolve, 300));
 
-              // Resolve ambush combat
-              const ambushResult = resolveAmbush(newState, selectedAnt, hiddenEnemy.id);
+              // Resolve ambush combat (only when the ant ended up next to it)
+              const ambushResult = ambushAdjacent
+                ? resolveAmbush(newState, selectedAnt, hiddenEnemy.id)
+                : { gameState: newState, damageDealt: [], attackAnimations: [] };
               newState = ambushResult.gameState;
 
               // Animate ambush combat
