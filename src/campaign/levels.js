@@ -240,7 +240,8 @@ export const LEVELS = [
       // here, one in the guards below) give real ranged punch and a Scout
       // screens a flank. One of the two original Scouts was swapped for a
       // Spitter after playtesting: played well, the level was only barely winnable.
-      units: ['spitter', 'spitter', 'scout'],
+      // The last Scout became a Marauder (Matt, 2026-11-08).
+      units: ['spitter', 'spitter', 'soldier'],
       // Placed relative to the larva: {dq, dr} offsets from her hex
       guards: [
         { type: 'soldier', offset: { dq: -1, dr: 0 } },

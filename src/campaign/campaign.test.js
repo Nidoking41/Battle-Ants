@@ -128,10 +128,10 @@ describe('campaign level 2 - queen larva', () => {
     expect(state.ants[PLAYER_LARVA_ID]).toBeDefined();
     expect(state.ants[PLAYER_LARVA_ID].type).toBe('queenLarva');
     expect(mine.filter(a => a.type === 'queen')).toHaveLength(0);
-    expect(mine.filter(a => a.type === 'soldier')).toHaveLength(2);
-    // Opening slots swapped: 3 spitters (one is a guard), 1 scout, no drones
+    expect(mine.filter(a => a.type === 'soldier')).toHaveLength(3);
+    // Opening slots swapped: 3 spitters (one is a guard), a Marauder, no scouts or drones
     expect(mine.filter(a => a.type === 'spitter')).toHaveLength(3);
-    expect(mine.filter(a => a.type === 'scout')).toHaveLength(1);
+    expect(mine.filter(a => a.type === 'scout')).toHaveLength(0);
     expect(mine.filter(a => a.type === 'drone')).toHaveLength(0);
     expect(mine).toHaveLength(7); // larva + 3 opening + 3 guards
     expect(state.campaign.roster).toEqual([]);
@@ -211,8 +211,9 @@ describe('campaign level 2 - queen larva', () => {
     const larva = state.ants[PLAYER_LARVA_ID];
 
     // Every hex beside her is held by her own colony (defaults + guards), so
-    // vacate the scout's hex and put an enemy Marauder there, one hit from a kill.
-    const scout = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'scout');
+    // vacate the starting Marauder's hex (it was a Scout before 2026-11-08) and
+    // put an enemy Marauder there, one hit from a kill.
+    const scout = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'soldier' && !a.id.includes('guard'));
     expect(getNeighbors(larva.position).some(h => h.q === scout.position.q && h.r === scout.position.r)).toBe(true);
     delete state.ants[scout.id];
     const attacker = createAnt('soldier', 'player2', scout.position);
@@ -230,15 +231,15 @@ describe('campaign level 2 - queen larva', () => {
 
   test('score counts kept units and the value of what was killed, not economy', () => {
     const state = buildCampaignGameState(level);
-    expect(state.campaign.startingUnitIds).toHaveLength(6); // 2 soldiers, 3 spitters, 1 scout
+    expect(state.campaign.startingUnitIds).toHaveLength(6); // 3 soldiers, 3 spitters
 
     const fresh = scoreLevel(state);
     expect(fresh.kept).toBe(6);
     expect(fresh.kills).toBe(0);
     expect(fresh.killStrength).toBe(0);
-    // 2 Marauders (20) + 3 Spitters (20) + 1 Scout (10) = 110
-    expect(fresh.survivorStrength).toBe(110);
-    expect(fresh.score).toBe(110);
+    // 3 Marauders + 3 Spitters = 120
+    expect(fresh.survivorStrength).toBe(120);
+    expect(fresh.score).toBe(120);
 
     // A player Marauder kills an enemy Marauder: kill value recorded, score rises
     const mine = Object.values(state.ants).find(a => a.owner === 'player1' && a.type === 'soldier');
