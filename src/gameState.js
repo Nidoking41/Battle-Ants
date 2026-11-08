@@ -173,7 +173,7 @@ export function createInitialGameState(options = {}) {
     }, {}),
     ants: {},
     eggs: {},
-    deadAnts: {}, // Dead ants that persist for 2 seconds
+    deadAnts: {}, // Skeletons of ants killed this turn (cleared by endTurn)
     resources: generateResourceNodesMultiplayer(sideLength, playerCount, effectiveMapShape, waterFeature),
     anthills: {}, // Anthills built on resource nodes
     trees: {}, // Trees will be generated after we have occupied positions
@@ -1155,7 +1155,10 @@ export function endTurn(rawGameState) {
     ...rawGameState,
     ants: matureBroodwardenCocoons(Object.fromEntries(
       Object.entries(rawGameState.ants || {}).filter(([, a]) => a && a.id && a.position && typeof a.position.q === 'number')
-    ), rawGameState.turn || 1, roundEnds)
+    ), rawGameState.turn || 1, roundEnds),
+    // Skeletons stay on the board for the rest of the turn the ant died in,
+    // and are cleared when the turn passes
+    deadAnts: {}
   };
   // Determine next player based on player count
   const playerCount = gameState.playerCount || 2;

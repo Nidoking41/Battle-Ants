@@ -1340,7 +1340,9 @@ function App() {
       if (ants[id]) ants[id] = { ...ants[id], health };
     });
     replay.removed.forEach(id => { delete ants[id]; });
-    return { ...state, ants };
+    // Skeletons of units that fell earlier in the replay stay on the board
+    const deadAnts = replay.skeletons ? { ...(state.deadAnts || {}), ...replay.skeletons } : state.deadAnts;
+    return { ...state, ants, deadAnts };
   };
 
   // Handle movement animation
@@ -1971,15 +1973,27 @@ function App() {
         // movement animation (see replayDamageRef) so a unit walking after a
         // blow has landed does not reset the health bars.
         const shownHealth = {};
-        replayDamageRef.current = { health: shownHealth, removed };
+        const skeletons = {};
+        replayDamageRef.current = { health: shownHealth, removed, skeletons };
         const dropFallen = () => {
           const fallen = Object.keys(hp).filter(id => hp[id] <= 0 && !removed.has(id));
           if (fallen.length === 0) return;
           fallen.forEach(id => removed.add(id));
           setGameState(prev => {
             const ants = { ...prev.ants };
-            fallen.forEach(id => { delete ants[id]; });
-            return { ...prev, ants };
+            const deadAnts = { ...(prev.deadAnts || {}) };
+            fallen.forEach(id => {
+              delete ants[id];
+              // The skeleton appears the moment the unit dies and stays for
+              // the rest of the computer's turn
+              const pos = posOf[id];
+              if (pos) {
+                const key = `dead_${id}_replay`;
+                skeletons[key] = { id: key, position: pos, owner: currentState.ants?.[id]?.owner, createdAt: Date.now() };
+                deadAnts[key] = skeletons[key];
+              }
+            });
+            return { ...prev, ants, deadAnts };
           });
         };
         // Land a blow on the displayed board: health bars drop as the damage
@@ -2180,36 +2194,7 @@ function App() {
     }
   }, [gameState.currentPlayer, gameState.turn, isAIThinking]);
 
-  // Clean up dead ants after 2 seconds
-  useEffect(() => {
-    const now = Date.now();
-    const deadAntsToRemove = [];
-
-    // Use fullGameState for AI games with fog of war to ensure we clean up all dead ants
-    const stateToCheck = (gameMode?.isAI && gameMode.fogOfWar !== false) ? fullGameState : gameState;
-
-    Object.values(stateToCheck.deadAnts || {}).forEach(deadAnt => {
-      if (now - deadAnt.createdAt >= 2000) {
-        deadAntsToRemove.push(deadAnt.id);
-      }
-    });
-
-    if (deadAntsToRemove.length > 0) {
-      const timer = setTimeout(() => {
-        const currentState = getGameStateForLogic();
-        const updatedDeadAnts = { ...currentState.deadAnts };
-        deadAntsToRemove.forEach(id => {
-          delete updatedDeadAnts[id];
-        });
-        updateGame({
-          ...currentState,
-          deadAnts: updatedDeadAnts
-        });
-      }, 100); // Small delay to ensure we don't update too frequently
-
-      return () => clearTimeout(timer);
-    }
-  }, [gameMode?.isAI, gameMode?.fogOfWar, fullGameState?.deadAnts, gameState.deadAnts]);
+  // Skeletons (deadAnts) are not timed: endTurn clears them when the turn passes.
 
   // Get the game state to use for game logic (full state for multiplayer/AI with fog, filtered for display)
   const getGameStateForLogic = () => {
