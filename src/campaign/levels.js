@@ -831,10 +831,10 @@ export const LEVELS = [
       // U: Marauders that start burrowed beside the paths and ambush
       burrowedMarkers: ['U'],
       // X and Y: the raiding party (3 Marauders, 3 Acid Ants), asleep in the
-      // far corner until round 15, then they march on your queen. Sorlorg
+      // far corner until round 8, then they march on your queen. Sorlorg
       // warns the player two rounds before (heroPopups below).
       hunterMarkers: ['X', 'Y'],
-      huntersWakeTurn: 15,
+      huntersWakeTurn: 8,
       // After the 2nd watch-nest burns: 6 Acid Ants arrive at the last nest
       // and everything Sorlorg has charges the player's queen
       allOutAfterNests: { after: 2, units: [{ type: 'spitter', count: 6 }] },
@@ -846,8 +846,8 @@ export const LEVELS = [
       units: []
     },
     heroPopups: [
-      { turn: 13, hero: 'sorlorg', text: 'Enjoy my forest while you can, little queen. In two rounds my raiders wake, and they are coming for your queen.' },
-      { turn: 15, hero: 'sorlorg', text: 'Up, my hunters! Marauders and Acid Ants - find the Lifebinder\'s queen and bring her down.' },
+      { turn: 6, hero: 'sorlorg', text: 'Enjoy my forest while you can, little queen. In two rounds my raiders wake, and they are coming for your queen.' },
+      { turn: 8, hero: 'sorlorg', text: 'Up, my hunters! Marauders and Acid Ants - find the Lifebinder\'s queen and bring her down.' },
       { event: 'allOut', hero: 'sorlorg', text: 'Two of my eyes, burned out? Then I am done watching. Every claw I have - bring me the Lifebinder\'s queen!' }
     ],
     uiTips: [
