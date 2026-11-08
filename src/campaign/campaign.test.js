@@ -944,8 +944,8 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(nests.every(h => h.isComplete)).toBe(true);
     const enemy = Object.values(state.ants).filter(a => a.owner === 'player2');
     expect(enemy.filter(a => a.isBurrowed).length).toBe(5);
-    expect(enemy.filter(a => a.hunter && a.dormant).length).toBe(4);
-    expect(state.campaign.huntersWakeTurn).toBe(12);
+    expect(enemy.filter(a => a.hunter && a.dormant).length).toBe(6);
+    expect(state.campaign.huntersWakeTurn).toBe(15);
     expect(state.ants[PLAYER_QUEEN_ID].queenTier).toBe('broodQueen');
   });
 
@@ -970,13 +970,16 @@ describe("level 8 - Sorlorg's Eyes", () => {
     expect(!baitAfter || baitAfter.health < bait.health || hexDistance(after.position, free) <= 1).toBe(true);
   }, 60000);
 
-  test('the raid wakes on round 12 and marches on the queen', async () => {
+  test('the raid wakes on round 15 and marches on the queen', async () => {
     let state = buildCampaignGameState(getLevel(8));
     const queen = state.ants[PLAYER_QUEEN_ID].position;
     const raid = Object.values(state.ants).filter(a => a.hunter);
     const asleep = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
     raid.forEach(h => expect(asleep.gameState.ants[h.id].position).toEqual(h.position));
-    state = { ...state, turn: 12 };
+    state = { ...state, turn: 14 };
+    const still = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
+    raid.forEach(h => expect(still.gameState.ants[h.id].position).toEqual(h.position));
+    state = { ...state, turn: 15 };
     const awake = await executeAITurn(state, 'player2', 'medium', { fogOfWar: true });
     raid.forEach(h => expect(hexDistance(awake.gameState.ants[h.id].position, queen)).toBeLessThan(hexDistance(h.position, queen)));
   }, 60000);
@@ -1028,7 +1031,9 @@ describe("level 8 - Sorlorg's Eyes", () => {
     const before = avg();
     state = (await executeAITurn(state, 'player2', 'medium', { fogOfWar: true })).gameState;
     expect(avg()).toBeLessThan(before - 1);
-    expect(getLevel(8).heroPopups[0]).toMatchObject({ event: 'allOut', hero: 'sorlorg' });
+    expect(getLevel(8).heroPopups.find(p => p.event === 'allOut')).toMatchObject({ hero: 'sorlorg' });
+    // and a heads-up two rounds before the raid wakes
+    expect(getLevel(8).heroPopups.find(p => p.turn === 13)).toMatchObject({ hero: 'sorlorg' });
   }, 60000);
 
   test('watch-nests never run dry, however many rounds pass', () => {

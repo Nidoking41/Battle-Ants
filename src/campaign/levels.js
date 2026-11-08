@@ -791,25 +791,25 @@ export const LEVELS = [
     briefing: ["Destroy Sorlorg's 3 watch-nests hidden in the forest. Each nest's eye sees 3 hexes out, even burrowed ants. Watch the paths: her Marauders wait burrowed underground."],
     map: {
       layout: [
-        '    . T T . . . . . T . . . . .',
-        ' L . . . . . . . S . . T . B W .',
-        'K L . . S . . . B . . . . . R T',
-        ' T . . F . T U . . . . T . . A Y',
-        '. . . T T T T . M . . . T . . X',
-        ' . . . . . . B . T T . M . T X X',
-        'T . . . . T . U T T T . . S T .',
-        ' T . . T . . . . T A ~ T . T T T',
-        'T . M T . A W . . T ~ ~ T T . .',
-        ' . . . . . . R . . ~ ~ B T . T .',
-        '. . . U . . . . U . ~ ~ . . . .',
-        ' F . . . . . T . . ~ ~ . . . T T',
-        '. . . T . . T T S . ~ ~ . . T .',
-        ' . m . F T . . . . U ~ . W T T T',
-        '. . . T . . . . T . T . R A T T',
-        ' . a . T . T T F . . . . . . . T',
-        '. 1 . T . . . T . T . . . . T T',
-        ' . . . . M . T . T T . T . . .',
-        '  . . F . T . . . T T . T . .'
+        '    . T T . . . . T . . . . .',
+        ' L . . . . . . S . . T . B W .',
+        'K L . . S . . . B . . . . R T',
+        ' T . . F . T U . . . T . . A Y',
+        '. . . T T T T . M . . T . Y X',
+        ' . . . . . . B . T . M . T X X',
+        'T . . . . T . U T T . . S T Y',
+        ' T . . T . . . . A ~ T . T T T',
+        'T . M T . A W . . ~ ~ T T . .',
+        ' . . . . . . R . ~ ~ B T . T .',
+        '. . . U . . . . U ~ ~ . . . .',
+        ' F . . . . . T . ~ ~ . . . T T',
+        '. . . T . . T T S ~ ~ . . T .',
+        ' . m . F T . . . U ~ . W T T T',
+        '. . . T . . . . T T . R A T T',
+        ' . a . T . T T F . . . . . . T',
+        '. 1 . T . . . T . . . . . T T',
+        ' . . . . M . T . T . T . . .',
+        '  . . F . T . . . T . T . .'
       ],
       legend: { m: 'soldier', a: 'spitter', B: 'bombardier', A: 'spitter', R: 'soldier', S: 'scout', U: 'soldier', X: 'soldier', Y: 'spitter', L: 'scout', K: 'soldier' }
     },
@@ -830,10 +830,11 @@ export const LEVELS = [
       upgrades: { burrow: 1 },
       // U: Marauders that start burrowed beside the paths and ambush
       burrowedMarkers: ['U'],
-      // X and Y: the raiding party, asleep in the far corner until round 12,
-      // then they march on your queen
+      // X and Y: the raiding party (3 Marauders, 3 Acid Ants), asleep in the
+      // far corner until round 15, then they march on your queen. Sorlorg
+      // warns the player two rounds before (heroPopups below).
       hunterMarkers: ['X', 'Y'],
-      huntersWakeTurn: 12,
+      huntersWakeTurn: 15,
       // After the 2nd watch-nest burns: 6 Acid Ants arrive at the last nest
       // and everything Sorlorg has charges the player's queen
       allOutAfterNests: { after: 2, units: [{ type: 'spitter', count: 6 }] },
@@ -845,6 +846,8 @@ export const LEVELS = [
       units: []
     },
     heroPopups: [
+      { turn: 13, hero: 'sorlorg', text: 'Enjoy my forest while you can, little queen. In two rounds my raiders wake, and they are coming for your queen.' },
+      { turn: 15, hero: 'sorlorg', text: 'Up, my hunters! Marauders and Acid Ants - find the Lifebinder\'s queen and bring her down.' },
       { event: 'allOut', hero: 'sorlorg', text: 'Two of my eyes, burned out? Then I am done watching. Every claw I have - bring me the Lifebinder\'s queen!' }
     ],
     uiTips: [
