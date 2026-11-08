@@ -6703,14 +6703,10 @@ function App() {
               onWheel={handleWheel}
               onClick={(e) => console.log('SVG onClick event', { target: e.target.tagName, clientX: e.clientX, clientY: e.clientY })}
             >
-            <defs>
-              {/* Clip paths for sprite animations - one per ant */}
-              {Object.values(gameState.ants).map(ant => (
-                <clipPath key={`clip-${ant.id}`} id={`clip-${ant.id}`}>
-                  <rect x={-40} y={-40} width={80} height={80} />
-                </clipPath>
-              ))}
-            </defs>
+            {/* Each ant's sprite clip path is defined next to its sprite, sized to
+                its draw size. (An old fixed 80x80 copy here shared the same id
+                and won, so bigger or smaller sprites showed the frames beside
+                them or were cut off.) */}
             <g ref={cameraGroupRef} transform={`translate(${svgSize.width / 2}, ${svgSize.height / 2}) scale(${zoomLevel}) translate(${cameraOffset.x}, ${cameraOffset.y})`}>
               {renderHexGrid()}
 
