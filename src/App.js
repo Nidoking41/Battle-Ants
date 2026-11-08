@@ -2088,7 +2088,12 @@ function App() {
           }
 
           const { attackerId, targetPosition, isRanged, damageDealt, isDetonation } = combatAction;
-          const attacker = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
+          const attackerBase = currentState.ants?.[attackerId] || aiState.ants?.[attackerId];
+          // Where the attacker stands now in the replay: a unit that moved
+          // earlier this turn fires from its new hex, not where it started
+          const attacker = attackerBase && posOf[attackerId]
+            ? { ...attackerBase, position: posOf[attackerId] }
+            : attackerBase;
 
           if (isDetonation) {
             // The bomber destroys itself, so play the blast at the hex it
@@ -2107,7 +2112,10 @@ function App() {
           if (attacker) {
             showAttackAnimation(attackerId, targetPosition, isRanged, attacker);
             // The player's burrowed Marauder strikes back with spikes
-            const defender = Object.values(currentState.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
+            const defenderId = unitAt(targetPosition);
+            const defender = defenderId && currentState.ants?.[defenderId]
+              ? { ...currentState.ants[defenderId], position: posOf[defenderId] }
+              : Object.values(currentState.ants || {}).find(a => a.position && hexEquals(a.position, targetPosition));
             const hitBack = (damageDealt || []).find(d => d.position && !hexEquals(d.position, targetPosition));
             if (!isRanged && hitBack) setTimeout(() => showCounterSpikes(defender, hitBack.position, damageDealt), 300);
             // Damage numbers and health bars change in the same instant. This
