@@ -6101,7 +6101,7 @@ function App() {
           {/* Render sprite if available, otherwise fall back to emoji */}
           {spriteFrame && !ant.isBurrowed ? (() => {
             // Large units (campaign bugs) are drawn 1.5x on the same hex
-            const size = spriteType === 'broodQueen' || spriteType === 'swarmQueen' ? 120 : getAntTypeById(ant.type)?.drawSize || (getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80);
+            const size = spriteType === 'broodQueen' ? 120 : spriteType === 'swarmQueen' ? 140 : getAntTypeById(ant.type)?.drawSize || (getAntTypeById(ant.type)?.boss ? 150 : getAntTypeById(ant.type)?.large ? 120 : 80);
             const half = size / 2;
             return (
             <g opacity={hasActions ? 1 : 0.5}>

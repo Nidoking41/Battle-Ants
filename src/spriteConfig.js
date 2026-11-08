@@ -240,7 +240,8 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
       if (antType === 'egg' && (colorSuffix === 'black' || colorSuffix === 'blue')) {
         frameSize = 64;
       }
-      if (antType === 'broodQueen' || antType === 'swarmQueen') frameSize = 48;
+      if (antType === 'broodQueen') frameSize = 48;
+      if (antType === 'swarmQueen') frameSize = 56; // longer tail: 56px frames (gen/royal_queens.py)
       // Broodwarden: 32px art padded into 48px frames so the sprite never touches
       // its frame edge (iPad Safari bled the neighbouring frames in otherwise)
       if (antType === 'broodwarden') frameSize = 48;

@@ -1,4 +1,4 @@
-"""Brood Queen and Swarm Queen sprite sheets (48px frames, 8 frames, 5 colours).
+"""Brood Queen (48px frames) and Swarm Queen (56px frames) sprite sheets (8 frames, 5 colours).
 
 Built on top of the base queen sheet (public/sprites/ants/Queen/queen_idle_<c>.png,
 32px frames) so the body, legs and idle bob match exactly. Each tier adds:
@@ -15,6 +15,10 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else SRC
 COLORS = ['red', 'blue', 'green', 'yellow', 'black']
 F, N = 48, 8          # new frame size, frame count
 OX, OY = 8, 8         # base frame centred in the 48px frame (same spot on the hex)
+# The Swarm Queen's long abdomen ran off the left edge of a 48px frame (the
+# tail end looked chopped flat), so her frames are 56px with the base frame
+# 12px in; the game draws her at 140 (same 2.5x scale as the Brood Queen's 120).
+TIER_FRAME = {'brood': (48, 8, 8), 'swarm': (56, 12, 12)}
 
 # Red sheet palette roles (other colours are mapped pixel-by-pixel to these)
 RED_ROLES = {
@@ -120,12 +124,16 @@ def reattach_legs(img, outline, x0, x1, y_from):
             put(img, round(top[0] + (bx - top[0]) * k / n), round(top[1] + (by - top[1]) * k / n), outline)
 
 
-def abdomen_bulge(img, pal, cx, cy, rx, ry, bands):
-    """One big abdomen: a shaded ellipse with segment ridges and gold bands."""
+def abdomen_bulge(img, pal, cx, cy, rx, ry, bands, rx_back=None):
+    """One big abdomen: a shaded ellipse with segment ridges and gold bands.
+    rx_back: a longer radius for the rear half, so the tail tapers to a
+    rounded point instead of ending blunt."""
+    rb = rx_back or rx
     pts = set()
     for y in range(cy - ry - 1, cy + ry + 2):
-        for x in range(cx - rx - 1, cx + rx + 2):
-            if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
+        for x in range(cx - rb - 1, cx + rx + 2):
+            r = rb if x < cx else rx
+            if ((x - cx) / r) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
                 pts.add((x, y))
     for (x, y) in pts:
         edge = any((x + dx, y + dy) not in pts for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
@@ -232,6 +240,7 @@ def motes(img, i):
     """Gold motes that drift up a pixel a frame and blink."""
     for k, (mx, my) in enumerate(MOTES):
         phase = (i + k * 3) % N
+        mx, my = mx + (OX - 8), my + (OY - 8)
         y = my - phase // 2
         if phase in (0, 7):
             continue
@@ -243,6 +252,8 @@ def motes(img, i):
 
 
 def build(color, tier):
+    global F, OX, OY
+    F, OX, OY = TIER_FRAME[tier]
     pal = palette_for(color)
     sheet = Image.open(f'{SRC}/queen_idle_{color}.png').convert('RGBA')
     out = Image.new('RGBA', (F * N, F), (0, 0, 0, 0))
@@ -264,7 +275,7 @@ def build(color, tier):
         else:
             extra_wings(img, base, -8, -5, {wing: (214, 190, 240), wing_hi: (245, 235, 255), 'outline': pal['outline']})
             extra_wings(img, base, -4, -3, back_wing)
-            abdomen_bulge(img, pal, ABD_X1 + 1 - 11, acy, 11, 7, bands=(-7, -1, 5))
+            abdomen_bulge(img, pal, ABD_X1 + 1 - 11, acy, 11, 7, bands=(-7, -1, 5), rx_back=14)
             img.alpha_composite(body, (OX, OY))
             reattach_legs(img, pal['outline'], OX, OX + 26, OY + ay0)
             back_spines(img, base, pal)
