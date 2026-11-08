@@ -46,7 +46,8 @@ export const SpriteConfig = {
       attack: { path: 'larva_idle_red.png', frames: 8 }
     },
     // A Broodwarden (deployed Emissary): a wingless, crownless queen with a
-    // swollen abdomen sunk into the dirt, laying eggs
+    // swollen abdomen sunk into the dirt, laying eggs. 8 frames of 48px (32px
+    // art with 8px of empty space round it, drawn at 96 = the same 2x scale)
     broodwarden: {
       idle: { path: 'broodwarden_idle_red.png', frames: 8 },
       walk: { path: 'broodwarden_idle_red.png', frames: 8 },
@@ -240,6 +241,9 @@ export function getSpriteInfo(antType, animation, playerColor = null) {
         frameSize = 64;
       }
       if (antType === 'broodQueen' || antType === 'swarmQueen') frameSize = 48;
+      // Broodwarden: 32px art padded into 48px frames so the sprite never touches
+      // its frame edge (iPad Safari bled the neighbouring frames in otherwise)
+      if (antType === 'broodwarden') frameSize = 48;
     }
   }
 

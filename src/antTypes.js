@@ -201,7 +201,7 @@ export const AntTypes = {
     name: 'Broodwarden',
     cost: { food: 9999, minerals: 9999 }, // made by deploying an Emissary
     campaignOnly: true,
-    drawSize: 64, // a little smaller than a full queen
+    drawSize: 96, // 48px frames with the 32px art centred: shows at 64, a little smaller than a full queen
     cannotMove: true,
     hatchTime: 0,
     maxHealth: 30,
