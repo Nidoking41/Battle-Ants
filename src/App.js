@@ -2207,7 +2207,12 @@ function App() {
 
   // Update game state (local or multiplayer)
   const updateGame = (newState) => {
+    // Keep the synchronous mirror current right away. The movement animation
+    // steps the unit in fullGameStateRef; if its last step fired after a move
+    // was committed but before the ref caught up, it wrote back the ant from
+    // before the move (hasMoved: false), so the ant could move again and again.
     if (gameMode?.isMultiplayer) {
+      fullGameStateRef.current = newState;
       // For multiplayer, newState is the full unfiltered state
 
       // IMPORTANT: Update local state IMMEDIATELY for responsive UI
@@ -2251,6 +2256,7 @@ function App() {
       // For local games and AI games
       if (gameMode?.isAI) {
         // Always update fullGameState for AI games
+        fullGameStateRef.current = newState;
         setFullGameState(newState);
 
         if (gameMode.fogOfWar !== false) {
