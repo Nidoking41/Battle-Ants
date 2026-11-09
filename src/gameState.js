@@ -1455,6 +1455,11 @@ export function endTurn(rawGameState) {
     revealedHexes: []
   };
 
+  // A new turn for the next player: they may buy an upgrade again
+  if (updatedPlayers[nextPlayer]?.upgradeBoughtThisTurn) {
+    updatedPlayers[nextPlayer] = { ...updatedPlayers[nextPlayer], upgradeBoughtThisTurn: false };
+  }
+
   // Calculate and record army strength for both players at end of turn
   const finalGameState = {
     ...gameState,
@@ -1481,6 +1486,14 @@ export function endTurn(rawGameState) {
       newArmyStrengthHistory[playerId] = [...(finalGameState.armyStrengthHistory?.[playerId] || []), strength];
     });
     finalGameState.armyStrengthHistory = newArmyStrengthHistory;
+  }
+
+  // Research that is due finishes at the start of its owner's turn
+  const research = finalGameState.players[nextPlayer]?.research;
+  if (research && finalGameState.turn >= research.readyTurn) {
+    const done = applyUpgradeLevel(finalGameState, nextPlayer, research.upgradeId);
+    finalGameState.players = { ...done.players, [nextPlayer]: { ...done.players[nextPlayer], research: null } };
+    finalGameState.anthills = done.anthills;
   }
 
   // A Drone that started an anthill is locked in: at the start of its owner's
@@ -1684,9 +1697,64 @@ export function canAffordUpgrade(player, upgradeId, queen) {
 
   const currentTier = player.upgrades[upgradeId] || 0;
   if (currentTier >= upgrade.maxTier) return false; // Already at max tier
+  if (upgradeLockReason(player)) return false; // one research at a time, one per turn
 
   const cost = upgrade.costs[currentTier];
   return player.resources.food >= cost.food && player.resources.minerals >= cost.minerals;
+}
+
+// How many of its owner's turns an upgrade takes to research. Level 1 of a
+// queen upgrade is instant, level 2 takes 1 turn, level 3 takes 2 turns.
+// Brood Queen and Swarm Queen upgrades always take 1 turn.
+export function upgradeResearchTurns(upgradeId, currentTier) {
+  const upgrade = Object.values(Upgrades).find(u => u.id === upgradeId);
+  if (!upgrade) return 0;
+  if (upgrade.requiresQueenTier) return 1;
+  return [0, 1, 2][currentTier] ?? 2;
+}
+
+// Why the player cannot start an upgrade right now, or null if they can.
+// Only one upgrade can be researching at a time, and only one can be bought
+// per turn (an instant one counts too).
+export function upgradeLockReason(player) {
+  if (!player) return null;
+  if (player.research) {
+    const u = Object.values(Upgrades).find(x => x.id === player.research.upgradeId);
+    return `Already researching ${u ? u.name : 'an upgrade'}`;
+  }
+  if (player.upgradeBoughtThisTurn) return 'Only one upgrade per turn';
+  return null;
+}
+
+// Give a player one level of an upgrade (when it is bought instantly, or
+// when its research finishes)
+function applyUpgradeLevel(gameState, playerId, upgradeId) {
+  const player = gameState.players[playerId];
+  const level = (player.upgrades?.[upgradeId] || 0) + 1;
+  // Reinforced Anthills applies to hills that already exist, not just new ones,
+  // so raise the cap (and current health proportionally) when it lands.
+  let updatedAnthills = gameState.anthills;
+  if (upgradeId === 'anthillDurability') {
+    updatedAnthills = { ...gameState.anthills };
+    Object.values(updatedAnthills).forEach(anthill => {
+      if (anthill.owner !== playerId) return;
+      const newMax = Math.round(anthill.maxHealth * ANTHILL_DURABILITY_MULTIPLIER);
+      updatedAnthills[anthill.id] = {
+        ...anthill,
+        maxHealth: newMax,
+        // Scale current health by the same factor so a damaged hill stays damaged
+        health: Math.min(newMax, Math.round(anthill.health * ANTHILL_DURABILITY_MULTIPLIER))
+      };
+    });
+  }
+  return {
+    ...gameState,
+    anthills: updatedAnthills,
+    players: {
+      ...gameState.players,
+      [playerId]: { ...player, upgrades: { ...player.upgrades, [upgradeId]: level } }
+    }
+  };
 }
 
 // Purchase an upgrade
@@ -1703,42 +1771,27 @@ export function purchaseUpgrade(gameState, upgradeId) {
   if (!canAffordUpgrade(currentPlayer, upgradeId, queen)) return gameState; // Can't afford
 
   const cost = upgrade.costs[currentTier];
+  const playerId = gameState.currentPlayer;
+  const turns = upgradeResearchTurns(upgradeId, currentTier);
 
-  // Reinforced Anthills applies to hills that already exist, not just new ones,
-  // so raise the cap (and current health proportionally) on purchase.
-  let updatedAnthills = gameState.anthills;
-  if (upgradeId === 'anthillDurability') {
-    updatedAnthills = { ...gameState.anthills };
-    Object.values(updatedAnthills).forEach(anthill => {
-      if (anthill.owner !== gameState.currentPlayer) return;
-      const newMax = Math.round(anthill.maxHealth * ANTHILL_DURABILITY_MULTIPLIER);
-      updatedAnthills[anthill.id] = {
-        ...anthill,
-        maxHealth: newMax,
-        // Scale current health by the same factor so a damaged hill stays damaged
-        health: Math.min(newMax, Math.round(anthill.health * ANTHILL_DURABILITY_MULTIPLIER))
-      };
-    });
-  }
-
-  return {
+  const paid = {
     ...gameState,
-    anthills: updatedAnthills,
     players: {
       ...gameState.players,
-      [gameState.currentPlayer]: {
+      [playerId]: {
         ...currentPlayer,
         resources: {
           food: currentPlayer.resources.food - cost.food,
           minerals: currentPlayer.resources.minerals - cost.minerals
         },
-        upgrades: {
-          ...currentPlayer.upgrades,
-          [upgradeId]: currentTier + 1
-        }
+        upgradeBoughtThisTurn: true,
+        // Researching: it lands at the start of this player's turn `turns`
+        // rounds from now (see endTurn)
+        research: turns > 0 ? { upgradeId, readyTurn: (gameState.turn || 1) + turns } : null
       }
     }
   };
+  return turns > 0 ? paid : applyUpgradeLevel(paid, playerId, upgradeId);
 }
 
 // Get ant's attack with upgrades applied

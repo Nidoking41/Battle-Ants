@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import './App.css';
-import { canDeployEmissary, emissaryDeployBlock, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
+import { canDeployEmissary, emissaryDeployBlock, deployEmissary, createInitialGameState, endTurn, markAntMoved, canAfford, deductCost, createEgg, canAffordUpgrade, purchaseUpgrade, upgradeResearchTurns, upgradeLockReason, buildAnthill, hasEnoughEnergy, getEggLayCost, deductEnergy, healAnt, upgradeQueen, canAffordQueenUpgrade, getSpawningPoolHexes, burrowAnt, unburrowAnt, canBurrow, canUnburrow, teleportAnt, getValidTeleportDestinations, healAlly, ensnareEnemy, getValidHealTargets, getValidEnsnareTargets, cordycepsPurge, getValidCordycepsTargets, plagueEnemy, getValidPlagueTargets, revealArea, getAntAttack } from './gameState';
 import { moveAnt, resolveCombat, canAttack, meleeBlockedByCliff, detonateBomber, attackAnthill, attackEgg, calculateDamage, bombardierSplashAttack, getAllowedSplashRotations, resolveAmbush, findAmbushStop } from './combatSystem';
 import { AntTypes, Upgrades, GameConstants, QueenTiers, getAntTypeById, meetsQueenTier } from './antTypes';
 import { createScrimmageGameState } from './maps/scrimmageMaps';
@@ -8349,6 +8349,29 @@ function App() {
               ⚡ Upgrades
             </h2>
 
+            {/* One upgrade researches at a time, and only one can be bought per turn */}
+            {(() => {
+              const me = gameState.players[gameState.currentPlayer];
+              const research = me?.research;
+              if (research) {
+                const u = Object.values(Upgrades).find(x => x.id === research.upgradeId);
+                const left = Math.max(1, research.readyTurn - (gameState.turn || 1));
+                return (
+                  <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '8px', background: '#3a2450', color: '#f0e0ff', fontSize: '14px' }}>
+                    🔬 Researching <b>{u?.icon} {u?.name} (level {(me.upgrades?.[research.upgradeId] || 0) + 1})</b>: ready {left === 1 ? 'next turn' : `in ${left} turns`}. Nothing else can be researched until it's done.
+                  </div>
+                );
+              }
+              if (me?.upgradeBoughtThisTurn) {
+                return (
+                  <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '8px', background: '#3a2450', color: '#f0e0ff', fontSize: '14px' }}>
+                    You've already bought an upgrade this turn. Come back next turn.
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
               {Object.values(Upgrades).map((upgrade, i, all) => {
                 const tierOf = u => u.requiresQueenTier || 'queen';
@@ -8373,7 +8396,7 @@ function App() {
                   <button
                     onClick={() => {
                       if (!affordable) {
-                        showFeedback(isMaxed ? 'Already purchased!' : 'Not enough resources!');
+                        showFeedback(isMaxed ? 'Already purchased!' : (upgradeLockReason(currentPlayer) || 'Not enough resources!'));
                         return;
                       }
                       const currentState = getGameStateForLogic();
@@ -8396,11 +8419,18 @@ function App() {
                       {!isBinaryUpgrade && ` (Tier ${currentTier}/${upgrade.maxTier})`}
                       {isMaxed && <span style={{ marginLeft: '10px', fontSize: '14px', opacity: 0.8 }}>✓ Owned</span>}
                     </div>
-                    {!isMaxed && cost && (
-                      <div style={{ fontSize: '14px', marginBottom: '6px' }}>
-                        Cost: {cost.food}<FoodIcon /> {cost.minerals}<MineralIcon />
-                      </div>
-                    )}
+                    {!isMaxed && cost && (() => {
+                      const researching = currentPlayer.research?.upgradeId === upgrade.id;
+                      const turns = upgradeResearchTurns(upgrade.id, currentTier);
+                      return (
+                        <div style={{ fontSize: '14px', marginBottom: '6px' }}>
+                          Cost: {cost.food}<FoodIcon /> {cost.minerals}<MineralIcon />
+                          <span style={{ marginLeft: '10px', opacity: 0.9 }}>
+                            {researching ? '🔬 Researching...' : turns === 0 ? '⚡ Instant' : `⏳ ${turns} turn${turns > 1 ? 's' : ''}`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.4' }}>
                       {upgrade.description}
                     </div>
