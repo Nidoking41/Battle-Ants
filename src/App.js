@@ -18,6 +18,7 @@ import { executeAITurn } from './aiController';
 import forestFloorImage from './forestfloor.png';
 import { useSprites } from './useSprites';
 import { getSpriteInfo } from './spriteConfig';
+import MiniMap from './MiniMap';
 import { getRankForXp, getXpToNextRank, RANKS } from './experience';
 import { getLevel } from './campaign/levels';
 import { buildCampaignGameState } from './campaign/campaignState';
@@ -4805,6 +4806,67 @@ function App() {
   };
 
   // Render hexagons in a symmetrical hexagon shape
+  // Every hex on the board (the main board and the mini map draw these)
+  const getBoardHexes = () => {
+    const mapShape = gameState.mapShape || 'rectangle';
+    const sideLength = mapShape === 'triangle' ? GameConstants.TRIANGLE_SIDE_LENGTH :
+                       mapShape === 'square' ? GameConstants.SQUARE_SIZE : gridRadius;
+    // Custom campaign map: exactly the hexes the layout declared
+    if (Array.isArray(gameState.mapHexes)) return gameState.mapHexes;
+    if (mapShape === 'triangle') return generateTriangleGrid(sideLength);
+    if (mapShape === 'square') return generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
+    // Rectangle (2-player) - generate hexes the old way
+    const hexes = [];
+    for (let q = -gridRadius; q <= gridRadius; q++) {
+      for (let r = -gridRadius; r <= gridRadius; r++) {
+        const s = -q - r;
+        if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
+          // River / lake maps: the water hexes are not part of the board
+          if (isMapWater({ q, r }, gridRadius, mapShape)) continue;
+          hexes.push(new HexCoord(q, r));
+        }
+      }
+    }
+    return hexes;
+  };
+
+  // The hexes this player can see right now, or null when there is no fog
+  const getFogVisibleHexes = () => {
+    const stateForFog = fullGameState || gameState;
+    if (!stateForFog || !gameMode || gameMode.fogOfWar === false) return null;
+    // For multiplayer with fog of war enabled, use player role
+    if (gameMode.isMultiplayer && gameMode.playerRole) return getVisibleHexes(stateForFog, gameMode.playerRole);
+    // For AI games with fog of war enabled, show player1's vision
+    if (gameMode.isAI) return getVisibleHexes(stateForFog, 'player1');
+    return null;
+  };
+
+  // Mini map in the bottom of the left panel
+  const renderMiniMap = () => {
+    const me = gameMode?.isMultiplayer ? gameMode.playerRole : gameMode?.isAI ? 'player1' : gameState.currentPlayer;
+    const myTeam = gameState.players?.[me]?.team;
+    const teammates = new Set(Object.entries(gameState.players || {})
+      .filter(([id, pl]) => id !== me && myTeam && pl?.team === myTeam).map(([id]) => id));
+    const mapShape = gameState.mapShape || 'rectangle';
+    const water = gameState.mapWater || getMapWaterHexes(gridRadius, mapShape);
+    // The part of the board the main view shows, in board pixels
+    const viewW = svgSize.width / zoomLevel;
+    const viewH = svgSize.height / zoomLevel;
+    const view = { x: -cameraOffset.x - viewW / 2, y: -cameraOffset.y - viewH / 2, width: viewW, height: viewH };
+    return (
+      <MiniMap
+        hexes={getBoardHexes()}
+        water={water}
+        visibleHexes={getFogVisibleHexes()}
+        ants={gameState.ants}
+        myPlayerId={me}
+        teammates={teammates}
+        view={view}
+        onJump={({ x, y }) => setCameraOffset({ x: -x, y: -y })}
+      />
+    );
+  };
+
   const renderHexGrid = () => {
     const hexagons = [];
     const validMoves = getValidMovesForSelectedAnt();
@@ -4908,18 +4970,7 @@ function App() {
     })();
 
     // Calculate visible hexes for fog of war in multiplayer or AI games
-    let visibleHexes = null;
-    const stateForFog = fullGameState || gameState;
-    if (stateForFog && gameMode) {
-      // For multiplayer with fog of war enabled, use player role
-      if (gameMode.isMultiplayer && gameMode.playerRole && gameMode.fogOfWar !== false) {
-        visibleHexes = getVisibleHexes(stateForFog, gameMode.playerRole);
-      }
-      // For AI games with fog of war enabled, show player1's vision
-      else if (gameMode.isAI && gameMode.fogOfWar !== false) {
-        visibleHexes = getVisibleHexes(stateForFog, 'player1');
-      }
-    }
+    const visibleHexes = getFogVisibleHexes();
 
     // Define SVG patterns for creep, land tiles and water (only once)
     const patterns = (
@@ -5029,31 +5080,8 @@ function App() {
     );
 
     // Generate hexes based on map shape
-    let mapHexes = [];
+    const mapHexes = getBoardHexes();
     const mapShape = gameState.mapShape || 'rectangle';
-    const sideLength = mapShape === 'triangle' ? GameConstants.TRIANGLE_SIDE_LENGTH :
-                       mapShape === 'square' ? GameConstants.SQUARE_SIZE : gridRadius;
-
-    if (Array.isArray(gameState.mapHexes)) {
-      // Custom campaign map: draw exactly the hexes the layout declared
-      mapHexes = gameState.mapHexes;
-    } else if (mapShape === 'triangle') {
-      mapHexes = generateTriangleGrid(sideLength);
-    } else if (mapShape === 'square') {
-      mapHexes = generateSquareGrid(sideLength, Math.floor(sideLength * 0.75));
-    } else {
-      // Rectangle (2-player) - generate hexes the old way
-      for (let q = -gridRadius; q <= gridRadius; q++) {
-        for (let r = -gridRadius; r <= gridRadius; r++) {
-          const s = -q - r;
-          if (Math.abs(q) <= gridRadius && Math.abs(r) <= gridRadius && Math.abs(s) <= gridRadius) {
-            // River / lake maps: the water hexes are not part of the board
-            if (isMapWater({ q, r }, gridRadius, mapShape)) continue;
-            mapHexes.push(new HexCoord(q, r));
-          }
-        }
-      }
-    }
 
     // Water (campaign maps and the 2-player river / lake): drawn as a blue hex but
     // not part of the board, so nothing can enter it, stand on it, or be
@@ -6383,8 +6411,12 @@ function App() {
         borderRadius: '8px',
         overflow: 'hidden',
         fontSize,
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
+        {/* Panel contents scroll if they run long; the mini map stays at the bottom */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         {isMyTurn() ? (
           <>
               {/* Upgrades Button */}
@@ -6660,6 +6692,12 @@ function App() {
               })()}
             </div>
           )}
+        </div>
+
+        {/* Mini map: the whole board, your units green, enemies red */}
+        <div style={{ flexShrink: 0, marginTop: '8px' }}>
+          {renderMiniMap()}
+        </div>
 
         </div>
 
