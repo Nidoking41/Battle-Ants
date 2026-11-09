@@ -6622,8 +6622,12 @@ function App() {
                       disabled={!affordable || !isMyTurn() || isLocked}
                       title={tooltipMessage}
                       style={{
-                        padding: '8px 10px',
-                        fontSize: '14px',
+                        padding: '5px 6px',
+                        fontSize: '13px',
+                        width: '100%',
+                        height: '62px', // every card the same size so they all fit
+                        overflow: 'hidden',
+                        boxSizing: 'border-box',
                         // Buyable units get a green tint, lit border and glow so they
                         // read as available at a glance; locked/unaffordable stay flat.
                         background: canBuy
@@ -6641,10 +6645,10 @@ function App() {
                         transition: 'all 0.15s'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{
-                          width: '64px',
-                          height: '64px',
+                          width: '48px',
+                          height: '48px',
                           overflow: 'hidden',
                           flexShrink: 0
                         }}>
@@ -6656,26 +6660,27 @@ function App() {
                               imageRendering: 'pixelated',
                               objectFit: 'none',
                               objectPosition: '0 0',
-                              transform: 'scale(2)',
+                              transform: 'scale(1.5)',
                               transformOrigin: 'top left'
                             }}
                           />
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px', color: canBuy ? '#e0e0e0' : '#999' }}>
-                            {ant.name} {hotkey && `(${hotkey})`}{isLocked && ' 🔒'}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: canBuy ? '#e0e0e0' : '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {ant.name.replace("Queen's ", '')}{isLocked && ' 🔒'}
+                            {hotkey && <span style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.7, marginLeft: '4px' }}>{hotkey}</span>}
                           </div>
                           <div style={{
-                            fontSize: '12px',
-                            marginTop: '3px',
+                            fontSize: '11px',
+                            marginTop: '1px',
                             whiteSpace: 'nowrap', // keep both costs and their icons on one line
                             fontWeight: canBuy ? 'bold' : 'normal',
                             color: isLocked ? '#8a7fa8' : (affordable ? '#9fe09f' : '#d98b8b')
                           }}>
-                            Cost: {displayCost.food}<FoodIcon /> {displayCost.minerals}<MineralIcon />
+                            {displayCost.food}<FoodIcon size={12} /> {displayCost.minerals}<MineralIcon size={12} />
                           </div>
-                          <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.85, lineHeight: '1.2', color: '#999' }}>
-                            {ant.description}
+                          <div style={{ fontSize: '10px', marginTop: '1px', color: '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {ant.blurb || ant.description}
                           </div>
                         </div>
                       </div>

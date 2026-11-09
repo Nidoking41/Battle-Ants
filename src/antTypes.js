@@ -50,6 +50,7 @@ export const AntTypes = {
     attackRange: 1,
     resourceGatherRate: 3,
     description: 'Fast, cheap, and weak. Perfect for early game exploration.',
+    blurb: 'Fast, cheap scout', // short line for the build card
     icon: '🏃🐜'
   },
 
@@ -65,6 +66,7 @@ export const AntTypes = {
     attackRange: 1,
     resourceGatherRate: 3,
     description: 'Balanced fighter with good health and damage.',
+    blurb: 'All-round fighter', // short line for the build card
     icon: '⚔️🐜'
   },
 
@@ -81,6 +83,7 @@ export const AntTypes = {
     attackRange: 1,
     resourceGatherRate: 0.5,
     description: 'Expensive, but incredibly strong and durable.',
+    blurb: 'Slow, very tough', // short line for the build card
     icon: '🛡️🐜'
   },
 
@@ -96,6 +99,7 @@ export const AntTypes = {
     attackRange: 2,
     resourceGatherRate: 0.5,
     description: 'Ranged glass cannon. High damage from a distance but fragile.',
+    blurb: 'Ranged, fragile', // short line for the build card
     icon: '💧🐜'
   },
 
@@ -114,6 +118,7 @@ export const AntTypes = {
     splashRadius: 1, // affects adjacent hexes
     resourceGatherRate: 0.5,
     description: 'Explodes for 18, ignores defense',
+    blurb: 'Blows up, ignores armor', // short line for the build card
     icon: '💣🐜'
   },
 
@@ -132,6 +137,7 @@ export const AntTypes = {
     cannotMoveAndAttack: true, // Cannot move and attack in same turn
     resourceGatherRate: 0,
     description: 'Long-range artillery. Cannot attack adjacent enemies or move and shoot.',
+    blurb: 'Long-range artillery', // short line for the build card
     icon: '🎯🐜'
   },
 
@@ -150,6 +156,7 @@ export const AntTypes = {
     // Attack is deliberately minimal - drones are economy, not combat
 
     description: 'Poor combatant but can build anthills to generate passive income.',
+    blurb: 'Builds anthills', // short line for the build card
     icon: '⛏️🐜'
   },
 
@@ -170,6 +177,7 @@ export const AntTypes = {
     attackRange: 1,
     resourceGatherRate: 0,
     description: "Carries the queen's scent-mark. Deploy it anywhere to become a Broodwarden: a young queen with 2 egg spots.",
+    blurb: 'Becomes a Broodwarden', // short line for the build card
     icon: '👑🐜'
   },
 
@@ -297,6 +305,7 @@ export const AntTypes = {
     ensnareDuration: 3, // turns
     ensnareEnergyCost: 30,
     description: 'Support unit that can heal allies and ensnare enemies. Requires Brood Queen.',
+    blurb: 'Heals and ensnares', // short line for the build card
     icon: '✨🐜'
   },
 
@@ -325,6 +334,7 @@ export const AntTypes = {
     plagueHealthLoss: 0.20, // 20% health per turn
     plagueEnergyCost: 25,
     description: 'Dark spellcaster that can mind control enemies with Cordyceps Purge and inflict Plague. Requires Swarm Queen.',
+    blurb: 'Plague, mind control', // short line for the build card
     icon: '☠️🐜'
   }
 };
