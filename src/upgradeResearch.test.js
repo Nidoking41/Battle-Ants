@@ -55,3 +55,21 @@ describe('upgrade research time', () => {
     expect(canAffordUpgrade(s.players.player1, 'defense', null)).toBe(true);
   });
 });
+
+describe('queen evolution', () => {
+  const { upgradeQueen, canAffordQueenUpgrade } = require('./gameState');
+  test('a Brood Queen bought this turn arrives at the start of the next turn', () => {
+    let s = rich();
+    const queen = Object.values(s.ants).find(a => a.type === 'queen' && a.owner === 'player1');
+    s = upgradeQueen(s, queen.id);
+    expect(s.ants[queen.id].queenTier || 'queen').toBe('queen');
+    expect(s.ants[queen.id].evolvingTo).toBe('broodQueen');
+    expect(canAffordQueenUpgrade(s, queen.id)).toBe(false);
+    s = endTurn(s).gameState;
+    expect(s.ants[queen.id].queenTier || 'queen').toBe('queen');
+    s = endTurn(s).gameState;
+    expect(s.ants[queen.id].queenTier).toBe('broodQueen');
+    expect(s.ants[queen.id].maxEnergy).toBe(50);
+    expect(canAffordQueenUpgrade(s, queen.id)).toBe(true);
+  });
+});

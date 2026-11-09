@@ -1488,6 +1488,9 @@ export function endTurn(rawGameState) {
     finalGameState.armyStrengthHistory = newArmyStrengthHistory;
   }
 
+  // A queen paid for last turn changes now, at the start of her owner's turn
+  finalGameState.ants = finishQueenEvolution(finalGameState.ants, nextPlayer);
+
   // Research that is due finishes at the start of its owner's turn
   const research = finalGameState.players[nextPlayer]?.research;
   if (research && finalGameState.turn >= research.readyTurn) {
@@ -2072,7 +2075,10 @@ export function upgradeQueen(gameState, queenId) {
     return gameState;
   }
 
-  // Deduct cost and upgrade queen
+  if (queen.evolvingTo) return gameState; // already changing
+
+  // Pay now; she changes at the start of her owner's next turn (endTurn calls
+  // finishQueenEvolution)
   return {
     ...gameState,
     players: {
@@ -2087,14 +2093,28 @@ export function upgradeQueen(gameState, queenId) {
     },
     ants: {
       ...gameState.ants,
-      [queenId]: {
-        ...queen,
-        queenTier: nextTier,
-        maxEnergy: nextTierData.maxEnergy,
-        energy: Math.min(queen.energy, nextTierData.maxEnergy) // Don't exceed new max
-      }
+      [queenId]: { ...queen, evolvingTo: nextTier }
     }
   };
+}
+
+// A queen paid for last turn becomes a Brood / Swarm Queen at the start of
+// her owner's turn
+export function finishQueenEvolution(ants, playerId) {
+  let changed = null;
+  Object.values(ants).forEach(queen => {
+    if (queen.type !== 'queen' || queen.owner !== playerId || !queen.evolvingTo) return;
+    const tierData = QueenTiers[queen.evolvingTo];
+    changed = changed || { ...ants };
+    changed[queen.id] = {
+      ...queen,
+      queenTier: queen.evolvingTo,
+      evolvingTo: null,
+      maxEnergy: tierData.maxEnergy,
+      energy: Math.min(queen.energy, tierData.maxEnergy) // Don't exceed new max
+    };
+  });
+  return changed || ants;
 }
 
 // Check if player can afford queen upgrade
@@ -2107,6 +2127,7 @@ export function canAffordQueenUpgrade(gameState, queenId) {
 
   const currentTier = queen.queenTier || 'queen';
   if (currentTier === 'swarmQueen') return false; // Already at max tier
+  if (queen.evolvingTo) return false; // already changing, ready next turn
 
   const nextTier = currentTier === 'queen' ? 'broodQueen' : 'swarmQueen';
   const nextTierData = QueenTiers[nextTier];

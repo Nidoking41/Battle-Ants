@@ -7193,6 +7193,18 @@ function App() {
             const currentPlayer = currentState.players[currentState.currentPlayer];
             const affordable = canAffordQueenUpgrade(currentState, queen.id);
 
+            // Paid for: she changes at the start of the next turn
+            if (queen.evolvingTo) {
+              return (
+                <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
+                  <div style={{ padding: '6px 8px', fontSize: '13px', borderRadius: '8px', border: '2px solid #ff8c00', background: 'rgba(199, 80, 0, 0.25)', color: '#e0e0e0' }}>
+                    <div style={{ fontWeight: 'bold' }}>{QueenTiers[queen.evolvingTo].icon} Becoming a {QueenTiers[queen.evolvingTo].name}</div>
+                    <div style={{ fontSize: '12px', marginTop: '2px', color: '#b0b0b0' }}>Ready at the start of your next turn</div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '2px solid rgba(192, 192, 192, 0.3)' }}>
                 <button data-tip="queenUpgrade"
