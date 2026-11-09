@@ -8402,14 +8402,14 @@ function App() {
                 const left = Math.max(1, research.readyTurn - (gameState.turn || 1));
                 return (
                   <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '8px', background: '#3a2450', color: '#f0e0ff', fontSize: '14px' }}>
-                    🔬 Researching <b>{u?.icon} {u?.name} (level {(me.upgrades?.[research.upgradeId] || 0) + 1})</b>: ready {left === 1 ? 'next turn' : `in ${left} turns`}. Nothing else can be researched until it's done.
+                    🧬 An evolutionary adaptation is in progress: <b>{u?.icon} {u?.name} (level {(me.upgrades?.[research.upgradeId] || 0) + 1})</b>: ready {left === 1 ? 'next turn' : `in ${left} turns`}. Your colony can't adapt in any other way until it's done.
                   </div>
                 );
               }
               if (me?.upgradeBoughtThisTurn) {
                 return (
                   <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '8px', background: '#3a2450', color: '#f0e0ff', fontSize: '14px' }}>
-                    You've already bought an upgrade this turn. Come back next turn.
+                    🧬 An evolutionary adaptation is in progress. Your colony can adapt again next turn.
                   </div>
                 );
               }

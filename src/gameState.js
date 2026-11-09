@@ -1723,9 +1723,9 @@ export function upgradeLockReason(player) {
   if (!player) return null;
   if (player.research) {
     const u = Object.values(Upgrades).find(x => x.id === player.research.upgradeId);
-    return `Already researching ${u ? u.name : 'an upgrade'}`;
+    return `An evolutionary adaptation is in progress (${u ? u.name : 'an upgrade'})`;
   }
-  if (player.upgradeBoughtThisTurn) return 'Only one upgrade per turn';
+  if (player.upgradeBoughtThisTurn) return 'An evolutionary adaptation is in progress';
   return null;
 }
 
