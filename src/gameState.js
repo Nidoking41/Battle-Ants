@@ -1790,7 +1790,7 @@ export function purchaseUpgrade(gameState, upgradeId) {
         upgradeBoughtThisTurn: true,
         // Researching: it lands at the start of this player's turn `turns`
         // rounds from now (see endTurn)
-        research: turns > 0 ? { upgradeId, readyTurn: (gameState.turn || 1) + turns } : null
+        research: turns > 0 ? { upgradeId, startTurn: gameState.turn || 1, readyTurn: (gameState.turn || 1) + turns } : null
       }
     }
   };

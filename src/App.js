@@ -6441,6 +6441,27 @@ function App() {
                 </button>
               )}
 
+              {/* Research progress under the Upgrades button */}
+              {(() => {
+                const me = gameState.players[gameState.currentPlayer];
+                const research = me?.research;
+                if (!research) return null;
+                const u = Object.values(Upgrades).find(x => x.id === research.upgradeId);
+                const total = Math.max(1, research.readyTurn - (research.startTurn ?? research.readyTurn - 1));
+                const left = Math.max(1, research.readyTurn - (gameState.turn || 1));
+                const pct = Math.round(((total - left) / total) * 100);
+                return (
+                  <div style={{ margin: '-12px 0 16px 0' }} title="Finishes at the start of your turn">
+                    <div style={{ fontSize: '11px', color: '#e0d0ff', marginBottom: '3px' }}>
+                      🔬 {u?.icon} {u?.name} {(me.upgrades?.[research.upgradeId] || 0) + 1}: {left === 1 ? 'ready next turn' : `${left} turns left`}
+                    </div>
+                    <div style={{ height: '8px', borderRadius: '4px', background: '#2a1f38', border: '1px solid #8a6cb3', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(pct, 6)}%`, height: '100%', background: 'linear-gradient(90deg, #8a6cb3, #c9a0ff)' }} />
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* A campaign level with an empty roster hatches nothing - say so
                   instead of showing a header over an empty panel. */}
               {gameState.campaign && filterRoster([...BASIC_ANT_IDS, ...ADVANCED_ANT_IDS], gameState.campaign.roster).length === 0 ? (
